@@ -1,0 +1,9 @@
+{
+  "name": "joselimmo-workflow",
+  "description": "Claude Code full Workflow with agents, skills, long term memory",
+  "version": "0.1.0",
+  "author": {
+    "name": "Cyril Houillon",
+    "email": "houillon.cyril@gmail.com"
+  }
+}

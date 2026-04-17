@@ -1,0 +1,15 @@
+{
+  "name": "joselimmo-marketplace",
+  "owner": {
+    "name": "Cyril Houillon",
+    "email": "houillon.cyril@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "joselimmo-workflow",
+      "source": "./plugins/joselimmo-workflow",
+      "description": "Claude Code full Workflow with agents, skills, long term memory",
+      "version": "0.1.0"
+    }
+  ]
+}
