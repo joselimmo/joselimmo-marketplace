@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowCompleted: true
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -46,6 +47,16 @@ This is the first of five sequential technical research reports scoped jointly w
 - Distribution surfaces: community marketplaces vs the official Anthropic marketplace; acceptance criteria where publicly documented.
 
 Findings inform Day-1 of the 7-day MVP roadmap (plugin skeleton + marketplace registration).
+
+**Key findings at a glance** (full detail in [Research Synthesis](#research-synthesis-and-conclusion) at the end of this document):
+
+- The Claude Code host substrate is mature, well-documented, and extensively schema-validated. Every architectural principle from the project brainstorming survives scrutiny against it; no rewrite required.
+- The `name` field is the only required field in `plugin.json`; the rest is convention. This gives the plugin broad latitude to adopt portable naming (`memory/project/`, `memory/backlog/`) without friction.
+- Progressive Disclosure — originally a UX idea — is now a formalized agent-skill architecture pattern across the industry. It validates the brainstorming's `Selective Memory Loading by Workflow Phase` principle, which is this plugin's strongest underdeployed differentiator.
+- Two hard constraints emerge from the substrate: (1) a malformed `hooks/hooks.json` fails the entire plugin — `claude plugin validate` in CI is mandatory; (2) plugin-shipped agents cannot declare `hooks`, `mcpServers`, or `permissionMode` — plan skills and subagents around this.
+- The positioning refinement from the prior domain research (spec-first + reference implementation) is architecturally compatible with the host — `spec/` at the repo root is outside `plugins/<name>/` and imposes zero plugin-layer cost.
+
+Pointer to the full synthesis: the [Research Synthesis and Conclusion](#research-synthesis-and-conclusion) section consolidates cross-sectional insights, strategic impact, and next-step recommendations in a single place.
 
 ---
 
@@ -1111,3 +1122,187 @@ Keeps the brainstorming cadence; adds spec-first + interop-test deliverables per
 - No reported `range-conflict` or `dependency-version-unsatisfied` error on installed instances.
 
 _Source: targets derived from brainstorming Phase 3 + host-documented limits + domain-research positioning._
+
+---
+
+## Executive Summary
+
+The Claude Code plugin substrate is **technically mature, schema-validated, well-documented, and architecturally compatible with every principle from the project brainstorming**. Five research tracks were planned to eliminate overlap; this is the first, covering plugin architecture and distribution. It concludes that no architectural pivot is required: the substrate can host the plugin as designed. What changes is **where precision matters most**: three specific host mechanics force design decisions (a) plugin-shipped agents cannot declare hooks/MCP/permissionMode, (b) malformed hooks block the entire plugin at load time, (c) the plugin cache is copy-on-install with 7-day orphan GC, which rules out `../shared-utils` paths and makes symlinks a deliberate technique rather than an accident.
+
+The strongest strategic finding is external validation of the brainstorming's `Selective Memory Loading by Workflow Phase` principle as an industry-formalized pattern — **Progressive Disclosure** — adopted by Anthropic Skills, Microsoft Agent Skills, and major AI-agent frameworks. This repositions `memory_scope` from an internal convention to an industry-aligned, first-class architectural pillar and makes it the strongest defensible differentiator on the path to v1. Complementary findings: the host-native distribution tiers (official marketplace, community marketplaces, managed seed) give the plugin a staged path from `joselimmo-marketplace` to `claude-plugins-official`; the `${CLAUDE_PLUGIN_DATA}` persistent directory combined with the manifest-diff pattern solves the cross-version state problem without ad-hoc solutions; and the `dependencies[]` field with semver ranges (Claude Code ≥ v2.1.110) provides a clean inter-plugin interop mechanism, though cross-marketplace deps are allowlist-gated by design.
+
+**Key Technical Findings:**
+
+- **Host compatibility is total.** All 9 brainstorming principles map cleanly onto documented host primitives. The plugin does not need to fight the host on any design axis.
+- **Progressive Disclosure is the name of the game.** `memory_scope` per workflow phase is the plugin's strongest remaining differentiator and is aligned, not orthogonal, to host direction.
+- **Three hard constraints drive skill/agent design.** No hooks/MCP/permissionMode on plugin agents; fail-closed on malformed `hooks/hooks.json`; copy-on-install cache with 7-day GC.
+- **Convention beats feature.** Host-absorbable features (storage, compaction, auto-activation) cannot absorb a *memory-and-composition convention* without the host itself becoming a framework — defensibility comes from the spec, not the code.
+- **Eight porcelain commands sit at the boundary of the "long-slash-command list" anti-pattern.** Mitigation: `/backlog` as primary surface, advisor-driven recommendation model, and strict namespacing.
+
+**Strategic Technical Recommendations (top 5):**
+
+1. **Ship `spec/memory-convention.md v0.1` alongside Day-1 plugin skeleton.** The spec is the primary distribution asset; the code is the proof-of-implementation.
+2. **Enforce `claude plugin validate` as a hard CI gate from commit #1.** Malformed hooks are a total-failure mode; catching them locally is the only acceptable default.
+3. **Declare `memory_scope` in every skill's frontmatter.** Leads the positioning and aligns with host-native direction (Anthropic Skills descriptions).
+4. **Prefer native `Explore` subagent over a custom `explore-codebase` skill.** Reduces maintenance and demonstrates plugin-composes-with-host. Confirm in Research #3.
+5. **Reuse Claude Code built-in mechanisms wherever possible.** `${CLAUDE_PLUGIN_DATA}` for persistent state, `userConfig` for sensitive values, scoped settings for per-install configuration — no custom alternatives.
+
+---
+
+## Table of Contents
+
+1. [Research Overview](#research-overview) — scope, inputs, key findings at a glance
+2. [Technical Research Scope Confirmation](#technical-research-scope-confirmation)
+3. [Technology Stack Analysis](#technology-stack-analysis)
+   - Manifest Languages and Schemas
+   - Component Types
+   - Storage, Cache, and State
+   - Development Tools and CLI Surface
+   - Distribution Infrastructure
+   - Technology Adoption Trends
+4. [Integration Patterns Analysis](#integration-patterns-analysis)
+   - Discovery & Installation Protocol
+   - Host Loading & Component Registration
+   - Invocation Protocols
+   - Inter-Plugin Interoperability
+   - Permission & Trust Boundaries
+   - Event & Hook Integration Pattern
+   - Integration Security Patterns
+5. [Architectural Patterns and Design](#architectural-patterns-and-design)
+   - System Architecture Patterns
+   - Design Principles and Best Practices
+   - Scalability and Performance Patterns (Context Engineering)
+   - Composition and Orchestration Patterns
+   - Security Architecture Patterns
+   - Data (Memory) Architecture Patterns
+   - Deployment and Operations Architecture
+6. [Implementation Approaches and Technology Adoption](#implementation-approaches-and-technology-adoption)
+   - Technology Adoption Strategies
+   - Development Workflows and Tooling
+   - Testing and Quality Assurance
+   - Deployment and Operations Practices
+   - Team Organization and Skills
+   - Cost Optimization and Resource Management
+   - Risk Assessment and Mitigation
+7. [Technical Research Recommendations](#technical-research-recommendations)
+   - Implementation Roadmap
+   - Technology Stack Recommendations
+   - Skill Development Requirements
+   - Success Metrics and KPIs
+8. [Research Synthesis and Conclusion](#research-synthesis-and-conclusion)
+   - Cross-Sectional Insights
+   - Strategic Impact Assessment
+   - Next Steps
+   - Research Limitations
+   - Research Completion Metadata
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+Five insights emerge only when the research sections are considered together; none is visible from a single section.
+
+1. **The host substrate reinforces, rather than constrains, the brainstorming's architectural principles.** Unix Pipeline → skills + typed files; Porcelain/Plumbing → commands + skills; Precondition-Driven → frontmatter fields; Two-Tier Memory → `memory/project/` + `memory/backlog/` directories; Selective Memory Loading → host-native Progressive Disclosure pattern. Every principle has a host mechanism waiting for it. **This is unusual** — frameworks typically fight their substrate on 1–2 axes. This plugin does not need to.
+2. **`memory_scope` is the strongest remaining defensible differentiator, and it is aligned with host direction, not orthogonal to it.** Anthropic Skills already load descriptions eagerly and content lazily — this is Progressive Disclosure at the skill level. The plugin extends the pattern to the memory layer. Because the pattern is already established at one level, adopting it at another is natural to users and hard for competitors to dismiss as over-engineering.
+3. **The three hard constraints are not annoyances — they are architectural information.** Plugin-shipped agents cannot declare hooks/MCP/permissionMode (security boundary, not bug), malformed `hooks/hooks.json` is fail-closed (host protects against silent partial-load failures), and copy-on-install cache with 7-day GC (update safety for concurrent sessions). Designing *with* these constraints produces better architecture than designing around them.
+4. **The 8-porcelain-command count is at the anti-pattern boundary, but the mitigation is architectural, not cosmetic.** Industry consensus flags long slash-command lists as bad UX. Our mitigation — `/backlog` as the documented primary surface with the advisor proposing the next command — restructures the user's relationship to the commands. Users do not memorize 8 commands; they consult `/backlog` and react. This is defensible, but it must be documented explicitly in the README or the anti-pattern critique stands.
+5. **Spec-first distribution is architecturally free on Claude Code.** The marketplace structure has no opinion about `spec/` at the repo root. Separating `spec/` from `plugins/<name>/` costs nothing at the plugin layer and directly unlocks the "standard convention" positioning from the domain research. There is no reason not to do it on Day 1.
+
+### Strategic Impact Assessment
+
+**On the 7-day MVP plan:**
+
+- The plan survives scrutiny. No step needs to be removed. Day 1 gains `spec/memory-convention.md v0.1` as a non-code deliverable. Day 3's subagent decision is sharpened: prefer native `Explore` unless a capability gap emerges. Day 7's dogfood acceptance test gains one more criterion — the Unix interop test (third-party skill producing or consuming a typed artifact).
+- The plan loses nothing. All other deliverables are implementable with the host primitives documented in this research.
+
+**On the 9 architectural principles:**
+
+- All 9 survive. Three are sharpened: Principle #1 (Unix Pipeline) requires the third-party interop contract to earn the name; Principle #5 (Two-Tier Memory) is the strongest positioning asset when published as a spec; Principle #6 (Selective Memory Loading) is the strongest *remaining* underdeployed differentiator, now externally validated.
+- The rejection list from the brainstorming is externally confirmed at every entry (persona dialogue, draft-consolidation, Make/Bazel graphs, external vector DBs for memory, single-file scratchpad).
+
+**On the 8 open decisions from the brainstorming:**
+
+- Decision #1 (artifact type taxonomy) — ready to settle. MVP enum: `adr | convention | learning | glossary | overview | epic | story | plan | review | rule`. Validate at write time via `validate-artifact-frontmatter`.
+- Decision #2 (memory file naming) — kebab-case throughout; no date prefix on ADRs (semver on the plugin, sequential number `NNN-` on ADRs).
+- Decision #3 (epic / story IDs) — `epic-NNN` + `story-NNN-kebab-slug`. Avoids conflict with marketplace/plugin naming conventions.
+- Decision #4 (`memory_scope` vocabulary) — fixed MVP enum: `glossary`, `overviews`, `adr-summaries`, `adrs-by-tag`, `conventions`, `learnings-by-tag`. Extensible in a spec minor bump.
+- Decision #5 (lean-boot output shape) — template: `Epic: <id> / Story: <id>:<status> / Next: <command>`. Single line, ≤ 120 chars.
+- Decision #6 (`.workflow.yaml` content) — MVP keys: `domain-map`, `skip-heuristics`, `lean-boot-mode`. Documented in the spec.
+- Decision #7 (subagent output contract) — **typed artifact file** (not conversational return). Cache file to `memory/backlog/epic-XXX/scratch/` for the caller to read. Honors Unix Pipeline principle.
+- Decision #8 (plugin repo vs consumer repo) — three locations at the repo root: `spec/` (convention), `plugins/<name>/` (reference implementation), and ADRs for non-reversible decisions in `aidd_docs/adr/` or equivalent.
+
+**On the positioning refinement from the domain research:**
+
+- Fully compatible. The host substrate has no opposition to a spec-first layout. The plugin's strongest distribution asset becomes the spec — marketplace submission is a downstream goal, not the primary one.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Lock the 8 open decisions above (or challenge specific ones before Day 1).
+2. Draft `spec/memory-convention.md v0.1` — 1 page — and `spec/skill-composition.md v0.1` — 1 page. The spec is the Day-1 deliverable of equal weight to the plugin skeleton.
+3. Run Research #2 (Frontmatter Schemas for Typed Artifacts) to sharpen the exact frontmatter field list before coding the validator.
+
+**Short term (Days 1–7):**
+
+4. Execute the roadmap as adjusted in the Recommendations section.
+5. On Day 3, revisit the native `Explore` vs custom `explore-codebase` decision once Research #3 is complete.
+6. On Day 7, run the dogfood + Unix interop test together. Ship v1 only when both pass.
+
+**Medium term (weeks 2–6):**
+
+7. v1.1 integration test with a third-party skill.
+8. v1.5 public promotion of the spec (blog post, Reddit, outreach to Superpowers / AIDD maintainers).
+9. v2 submission to the Anthropic official marketplace.
+
+**Ongoing:**
+
+10. Quarterly watch-list review of host-native feature releases; per-release `does this absorb a plugin responsibility?` assessment.
+11. Monitor community signals (`does the framework still matter?` threads) for positioning adjustments.
+12. Coordinate with the four sibling research tracks (#2–#5) as they run; fold their outputs into ADRs before they bitrot.
+
+### Research Limitations
+
+- **Acceptance criteria for the Anthropic official marketplace are not publicly documented in detail.** Signals are inferred from successful submissions (Superpowers, Jan 2026) and general language ("quality and security standards"). The research cannot state what will be accepted — only what increases the probability.
+- **Token-budget measurements are targets, not measured values.** The `≤ 500 tokens for SessionStart` hard cap, `15–25k per story cycle` indicative — these come from the brainstorming and host documentation; this research did not run token-cost experiments. Will be measured in dogfood.
+- **Unofficial JSON Schema may lag the host.** `hesreallyhim/claude-code-json-schema` documents known deviations from `claude plugin validate`. Treat it as IDE tooling, not as the canonical validator.
+- **Cross-OS SessionStart testing is not performed in this research.** Must be covered in Research #5 and validated on Day 6.
+- **Marketplace-absorbed features are projected, not measured.** The assumption that Anthropic will absorb native memory storage / compaction / auto-activation is supported by public statements and industry observers, but specific future releases are not guaranteed.
+- **No primary interviews.** All findings rest on desk research: official docs, public repos, named articles, community threads.
+
+### Research Completion Metadata
+
+- **Research Topic:** Claude Code Plugin Architecture, Manifest Schema, and Marketplace Distribution Mechanics
+- **Research Type:** Technical (track 1 of 5)
+- **Author:** Cyril
+- **Completion Date:** 2026-04-17
+- **Source Verification:** All factual claims cited against Claude Code official documentation (`code.claude.com`), Anthropic repositories, public marketplace registries, named community sources, and the prior domain research. Critical claims multi-source validated.
+- **Confidence Level:** High on documented host mechanics (plugin schema, CLI, caching, distribution); medium on marketplace-absorption projections and community fatigue signals; medium on cross-OS SessionStart behavior (deferred to Research #5).
+- **Primary Sources:**
+  - [code.claude.com/docs/en/plugins-reference](https://code.claude.com/docs/en/plugins-reference)
+  - [code.claude.com/docs/en/plugin-marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
+  - [code.claude.com/docs/en/plugins](https://code.claude.com/docs/en/plugins)
+  - [code.claude.com/docs/en/discover-plugins](https://code.claude.com/docs/en/discover-plugins)
+  - [code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills)
+  - [code.claude.com/docs/en/permissions](https://code.claude.com/docs/en/permissions)
+  - [code.claude.com/docs/en/plugin-dependencies](https://code.claude.com/docs/en/plugin-dependencies)
+  - [github.com/anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official)
+- **Secondary Sources:**
+  - [github.com/hesreallyhim/claude-code-json-schema](https://github.com/hesreallyhim/claude-code-json-schema) — unofficial JSON schemas
+  - [github.com/ivan-magda/claude-code-plugin-template](https://github.com/ivan-magda/claude-code-plugin-template) — community scaffolding template
+  - [newsletter.swirlai.com/p/agent-skills-progressive-disclosure](https://www.newsletter.swirlai.com/p/agent-skills-progressive-disclosure) — Progressive Disclosure pattern
+  - [mindstudio.ai/blog/progressive-disclosure-ai-agents-context-management](https://www.mindstudio.ai/blog/progressive-disclosure-ai-agents-context-management) — agent context-management
+  - [mindstudio.ai/blog/claude-code-5-workflow-patterns-explained](https://www.mindstudio.ai/blog/claude-code-5-workflow-patterns-explained) — 5 workflow patterns
+  - [rosmur.github.io/claudecode-best-practices](https://rosmur.github.io/claudecode-best-practices/) — anti-pattern catalog
+- **Inputs from prior work:**
+  - Brainstorming session (`_bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md`)
+  - Domain research (`_bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md`)
+- **Sibling research tracks** (not yet run):
+  - Research #2 — Frontmatter Schemas for Typed Artifacts
+  - Research #3 — Subagents as Context-Isolation Primitives
+  - Research #4 — MCP for Tool Integration
+  - Research #5 — SessionStart Hook & Hook Lifecycle
+
+_This technical research document serves as the Track-1 deliverable of a five-track sequential technical research on the custom Claude Code plugin. It consolidates the factual substrate required for Day-1 implementation decisions and will be cross-referenced by the four sibling tracks. Ship-ready as of 2026-04-17._
