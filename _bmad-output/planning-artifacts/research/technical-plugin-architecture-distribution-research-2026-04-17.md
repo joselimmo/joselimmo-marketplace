@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2]
+stepsCompleted: [1, 2, 3]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -242,3 +242,247 @@ _Sources:_
 - **Legacy `commands/` directory is being phased out** in favor of `skills/` with `SKILL.md`. Documentation explicitly recommends `skills/` for new plugins; both still work.
 
 _Source: cross-reference of [plugins](https://code.claude.com/docs/en/plugins), [plugins-reference](https://code.claude.com/docs/en/plugins-reference), [discover-plugins](https://code.claude.com/docs/en/discover-plugins), and public plugin repositories — accessed 2026-04-17._
+
+---
+
+## Integration Patterns Analysis
+
+> **Domain-adapted interpretation**: for a Claude Code plugin, "integration patterns" covers (1) the discovery/install protocol between user, marketplace, and host, (2) the loading/registration contract between plugin and Claude Code, (3) the invocation protocols exposing plugin functionality to Claude, (4) inter-plugin interoperability (dependencies, namespacing, strict mode), (5) the trust/permission boundary, and (6) the event/hook protocol. Standard protocols (REST, GraphQL, Kafka, AMQP) do not apply at this layer.
+
+### Discovery & Installation Protocol
+
+The host-marketplace-plugin protocol is built on three primitives: **marketplace registration**, **plugin resolution**, and **local caching**.
+
+**Registration flow** (marketplace → host):
+
+1. User runs `/plugin marketplace add <source>`, where `<source>` resolves to one of: GitHub `owner/repo`, git URL, local path, or a remote URL to a `marketplace.json`.
+2. Claude Code clones (for git-based) or downloads (for URL-based) the catalog into `~/.claude/plugins/marketplaces/<name>/`.
+3. The marketplace name becomes the user-facing identifier (`@<marketplace>`), subject to the reserved-names list.
+4. Entry is persisted in `~/.claude/plugins/known_marketplaces.json` (user-scoped).
+
+**Installation flow** (marketplace entry → plugin cache):
+
+1. `/plugin install <name>@<marketplace>` looks up the entry in the registered marketplace.
+2. The `source` field dispatches the fetcher (path / github / url / git-subdir / npm).
+3. The plugin files are **copied** (not symlinked, not used in-place) to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. A separate directory per version. Orphans garbage-collected after 7 days.
+4. The plugin's entry is added to the scope's settings file (`enabledPlugins` in `~/.claude/settings.json` for `user` scope, `.claude/settings.json` for `project`, `.claude/settings.local.json` for `local`).
+5. If the plugin declares `dependencies`, they are auto-installed and listed at the end of the install output (requires Claude Code ≥ v2.1.110).
+
+**Update flow**:
+
+- Auto-update runs at session start for marketplaces with auto-update enabled (on by default for official marketplaces, off for third-party/local dev).
+- Private marketplaces require `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` in the environment for background auto-update (interactive flows use existing `git` credential helpers / SSH agent).
+- `/reload-plugins` is the equivalent of "hot reload" — picks up plugin file changes without restart, including skills, agents, hooks, plugin MCP servers, plugin LSP servers.
+
+_Confidence: high — all flows explicitly documented._
+
+_Source: [Discover and install plugins](https://code.claude.com/docs/en/discover-plugins), [Plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17._
+
+### Host Loading & Component Registration
+
+When a plugin is enabled, Claude Code registers its components in the active session on a deterministic order:
+
+1. **Parse `plugin.json`** (if present). Extract metadata + path overrides. If the manifest is absent, fall back to default locations and derive the plugin name from the directory.
+2. **Discover components** at each default (or overridden) location: `skills/`, `commands/`, `agents/`, `hooks/hooks.json`, `.mcp.json`, `.lsp.json`, `monitors/monitors.json`, `bin/`, `settings.json`, `output-styles/`.
+3. **Validate frontmatter** of every component file. Invalid YAML frontmatter on a skill/agent/command loads the file with no metadata (degraded) and surfaces a warning. A malformed `hooks/hooks.json` prevents the **entire plugin** from loading (hard failure).
+4. **Register components** with host namespacing:
+   - Skills and commands → `/<plugin-name>:<skill-name>` (namespace prevents collisions across plugins).
+   - Agents → appear in `/agents` interface and are invokable by Claude based on `description`.
+   - Hooks → registered against their declared lifecycle events.
+   - MCP servers → spawned as subprocesses with `${CLAUDE_PLUGIN_ROOT}` substitution.
+   - Monitors → spawned at session start (or on-skill-invoke, per `when` field).
+   - `bin/` entries → added to the Bash tool `PATH` for the session.
+5. **Apply `settings.json`** from the plugin root. Only `agent` and `subagentStatusLine` are currently honored; unknown keys silently ignored. `settings.json` takes priority over inline `settings` in `plugin.json`.
+
+**Scope precedence & conflicts**:
+
+- Same-name skills across levels: **enterprise > personal > project** (plugins use namespacing, so no conflict with those levels).
+- Same-name plugin in `--plugin-dir` and an installed marketplace: the `--plugin-dir` copy wins (dev-override pattern). Exception: marketplace plugins force-enabled by managed settings.
+- `strict: false` in marketplace entry: the marketplace entry defines all components; a `plugin.json` that also declares components produces a conflict error — plugin fails to load.
+
+**Observability**:
+
+- `claude --debug` exposes per-plugin loading trace: which components registered, parse errors, MCP initialization.
+- `/plugin` → **Errors** tab surfaces parse/load errors for each installed plugin.
+- `/doctor` surfaces dependency errors (`range-conflict`, `dependency-version-unsatisfied`, `no-matching-tag`) alongside other health checks.
+
+_Confidence: high._
+
+_Source: [Plugins reference — debugging section](https://code.claude.com/docs/en/plugins-reference), [Skills](https://code.claude.com/docs/en/skills) — accessed 2026-04-17._
+
+### Invocation Protocols (Host ↔ Plugin Components)
+
+Claude Code exposes plugin functionality through **three invocation protocols**. Each has a different trust and activation model.
+
+**Protocol 1 — Explicit slash invocation (user-triggered).** The user types `/<plugin-name>:<skill-name> [args]`. This is the primary protocol for skills with side effects. The skill's `SKILL.md` content is rendered (with `$ARGUMENTS`, `$0..$N`, `${CLAUDE_SESSION_ID}`, `${CLAUDE_SKILL_DIR}` substitutions) and enters the conversation as a single message. Claude Code does **not** re-read the skill file on later turns — write guidance as standing instructions, not one-time steps.
+
+**Protocol 2 — Model-driven invocation (auto-activation).** Claude selects a skill/agent based on the `description` frontmatter field. Discoverability rules:
+
+- Skill descriptions are loaded into context at session start so Claude knows what's available. Full skill content loads only on invocation.
+- Each entry's combined `description + when_to_use` is truncated at **1,536 characters** in the listing. Front-load the key use case.
+- Total skill-listing budget scales at **1% of context window**, fallback 8,000 chars, overridable via `SLASH_COMMAND_TOOL_CHAR_BUDGET`.
+- Setting `disable-model-invocation: true` removes the skill from Claude's context entirely (only user-invocable).
+- Setting `user-invocable: false` keeps the description in context but hides the skill from the `/` menu (only Claude-invocable).
+
+**Protocol 3 — Preprocessed shell injection.** The `` !`command` `` inline syntax (and the ` ```! ` fenced block form) runs shell commands **before** the skill content is sent to Claude. Command output replaces the placeholder — Claude sees actual data, not the command. Disable org-wide with `disableSkillShellExecution: true` in managed settings.
+
+**Argument passing**:
+
+- `$ARGUMENTS` → full argument string as typed.
+- `$ARGUMENTS[N]` / `$N` → shell-style quoted positional args (`"hello world"` is one arg).
+- If the skill doesn't include `$ARGUMENTS` and the user passed arguments, they're appended as `ARGUMENTS: <value>`.
+
+**Skill content lifecycle**:
+
+- Invoked skill content stays in the conversation for the rest of the session (not re-read).
+- Auto-compaction carries invoked skills forward with a budget: **first 5,000 tokens of each most-recent invocation**, combined budget **25,000 tokens**, filled from most recent back. Older invocations may be dropped.
+
+**Invocation pathways for our plugin**:
+
+- Workflow commands (`/backlog`, `/discover`, `/plan-story`, `/implement`, `/reflect`) → Protocol 1, with `disable-model-invocation: true` to prevent Claude from self-triggering workflow stages.
+- State/advisor skill (`state-manager`) → candidate for Protocol 2 (auto-activation when user asks "what's next") and/or Protocol 3 (preprocessing to read `ACTIVE.md` + `INDEX.md`).
+- Background-loading context (glossaries, overviews) → `user-invocable: false` and/or loaded as conversation context, not commands.
+
+_Confidence: high — all semantics explicitly documented._
+
+_Source: [Skills — invocation sections](https://code.claude.com/docs/en/skills) — accessed 2026-04-17._
+
+### Inter-Plugin Interoperability
+
+Three mechanisms govern how plugins interact with each other and with host-level configuration.
+
+**Mechanism 1 — Dependencies field (plugin ↔ plugin).** A plugin declares `dependencies: [...]` in `plugin.json`. Each entry is a bare string (tracks latest of the named plugin) or an object `{ name, version?, marketplace? }`.
+
+- `version` accepts any Node `semver` range: `~2.1.0`, `^2.0`, `>=1.4`, `=2.1.0`. Pre-releases excluded unless range opts in (`^2.0.0-0`).
+- Resolution: against **git tags** on the marketplace repository, using the `{plugin-name}--v{version}` naming convention. Marketplace maintainers must tag releases with this convention for resolution to work.
+- Cross-marketplace deps: require the target marketplace be allowlisted in the root marketplace's `marketplace.json` — **blocked by default**.
+- Auto-install: Claude Code resolves + installs declared deps on install, listing added deps at the end.
+- Multi-plugin range intersection: constraints from all installed plugins are intersected; highest satisfying version wins. Auto-update respects the intersection. `range-conflict` error if empty intersection.
+- Errors: `range-conflict`, `dependency-version-unsatisfied`, `no-matching-tag` — surfaced in `/plugin` UI, `claude plugin list --json` (via `errors` field), and `/doctor`.
+- Requires Claude Code ≥ **v2.1.110**.
+- For `npm` sources: tag-based resolution does not apply; constraint checked at load time only.
+
+**Mechanism 2 — Strict mode (plugin ↔ marketplace entry).** The marketplace entry's `strict` boolean controls authority:
+
+- `strict: true` (default) — `plugin.json` is the authority. Marketplace entry can supplement with extra components.
+- `strict: false` — marketplace entry is the whole definition. If the plugin repo ships a `plugin.json` declaring components, that's a conflict — plugin fails to load. Useful when a marketplace operator wants to curate a plugin differently than its author intended.
+
+**Mechanism 3 — Namespacing (plugin ↔ host).** Every plugin component is namespaced by `<plugin-name>:<component-name>` for user-visible invocations. Plugin skills cannot collide with enterprise/personal/project skills because those levels use non-namespaced names. **Reserved marketplace names** (e.g. `claude-plugins-official`, `anthropic-marketplace`) are blocked at marketplace-creation time.
+
+**Important constraint observed**: plugin-shipped agents **cannot** declare `hooks`, `mcpServers`, or `permissionMode` in their frontmatter (security restriction). Non-plugin agents (`.claude/agents/*`) can.
+
+_Confidence: high. Known gap: there is no `engines` field in `plugin.json` to pin Claude Code minimum version — requested as a feature in [issue #17272](https://github.com/anthropics/claude-code/issues/17272); missing as of Apr 2026. Plugins must document their minimum Claude Code version in their README._
+
+_Sources:_
+- [Constrain plugin dependency versions](https://code.claude.com/docs/en/plugin-dependencies) — accessed 2026-04-17
+- [Plugin marketplaces — strict mode section](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17
+- [GitHub issue #17272: `engines` field request](https://github.com/anthropics/claude-code/issues/17272) — open, Apr 2026
+
+### Permission & Trust Boundaries
+
+Plugins run at full user trust by default — they can execute arbitrary code via hooks, bin executables, MCP server subprocesses, and monitors. The Claude Code permission model is layered on top of that trust and governs **tool-call approval**, not code execution.
+
+**Three-tier permission system** (evaluated in order — **deny > ask > allow**, first match wins):
+
+- **Allow**: tool runs without prompt.
+- **Ask**: prompt shown before each use.
+- **Deny**: tool call blocked.
+
+**Scopes of permission rules** (most → least restrictive):
+
+1. Managed (org policy, OS-specific managed settings file) — highest priority.
+2. User (`~/.claude/settings.json`).
+3. Project (`.claude/settings.json`).
+4. Local (`.claude/settings.local.json`).
+5. Plugin-declared (`allowed-tools` in a skill frontmatter, plugin `settings.json`).
+
+**Critical invariant**: permissions that are restricted in an outer scope **cannot be loosened in an inner scope** (`deny` cannot become `ask`/`allow`; `ask` cannot become `allow`). This protects against malicious plugins trying to escalate.
+
+**Plugin-scoped permissions**:
+
+- A skill can declare `allowed-tools: Bash(git add *) Bash(git commit *)` to pre-approve specific tools **only while the skill is active**. Anything not listed still goes through the session's normal permission rules.
+- To build a locked-down agent, pair `allowedTools` with `permissionMode: dontAsk` — listed tools approved, everything else denied outright. **This combination is NOT available to plugin-shipped agents** — `permissionMode` is among the forbidden frontmatter fields for plugin agents.
+- Plugin `settings.json` can ship default permission rules, but they are subject to the outer-scope-wins invariant.
+
+**Skill access control** (Claude-invocation only):
+
+- Deny all skills: add `Skill` to the deny rule list.
+- Permit/deny specific skills: `Skill(name)` for exact, `Skill(name *)` for prefix+any-args.
+- `disable-model-invocation: true` also blocks Skill-tool programmatic invocation (stronger than `user-invocable: false`, which only hides from menu).
+
+**Sandboxing (complementary to permissions)**:
+
+- OS-level Bash sandboxing is enabled per-environment (macOS Seatbelt, Linux namespaces) and restricts filesystem + network for the Bash tool and child processes. Does not apply to MCP servers or hook commands.
+- Hooks run **unsandboxed** at hook trust level, same as monitors.
+- Supply-chain risk: plugins can ship bin/ executables added to PATH, MCP servers as subprocesses, hook scripts, and monitor scripts. A Snyk audit cited in the prior domain research reported **36%** of audited published skills contained prompt-injection vectors. The documentation explicitly warns: *"Plugins and marketplaces are highly trusted components that can execute arbitrary code on your machine with your user privileges. Only install plugins and add marketplaces from sources you trust."*
+
+**Managed marketplace lockdown** (`strictKnownMarketplaces` in managed settings):
+
+- Empty array `[]`: users cannot add any marketplace.
+- Allowlist of sources: exact match on each field (`repo`, `ref`, `url`, etc.).
+- `hostPattern` / `pathPattern` regex: allow entire host (GitHub Enterprise) or filesystem path (`^/opt/approved/`).
+- Paired with `extraKnownMarketplaces` in managed settings, admins can pre-register allowed marketplaces so users don't need to add them.
+
+_Confidence: high. Weak signal: there is no documented cryptographic signing or verification of plugins or marketplaces as of Apr 2026. Security rests on host-platform blessing (official marketplace), source trust, and managed-settings allowlists. See also prior research for community fatigue around this gap._
+
+_Sources:_
+- [Configure permissions](https://code.claude.com/docs/en/permissions) — accessed 2026-04-17
+- [Skills — pre-approve tools / restrict access](https://code.claude.com/docs/en/skills) — accessed 2026-04-17
+- [GitHub issue #10093: tool permissions in agents/plugins](https://github.com/anthropics/claude-code/issues/10093) — open, Apr 2026
+- Prior domain research (`domain-agentic-workflows-ecosystem-research-2026-04-17.md`) — Snyk 36% prompt-injection finding
+
+### Event & Hook Integration Pattern
+
+Hooks are the event-driven integration surface. A full inventory of the ~27 lifecycle events and detailed execution semantics is deferred to **Research #5 (SessionStart Hook & Hook Lifecycle)**. This section documents only the plugin-relevant integration pattern.
+
+**Declaration surfaces** (priority order):
+
+1. `hooks/hooks.json` at plugin root — preferred for multi-hook plugins.
+2. Inline `hooks` key in `plugin.json` — acceptable for simple cases.
+3. Additional hook files via manifest `"hooks": ["./a.json", "./b.json"]` — multi-file composition.
+
+**Event → handler binding**:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/format.sh" }]
+      }
+    ]
+  }
+}
+```
+
+**Four handler types**:
+
+- `command` — shell execution. Hook input arrives on stdin as JSON; parse with `jq -r '.tool_input.file_path'`.
+- `http` — POST the event JSON to a URL. Zero shell dependency, good for observability.
+- `prompt` — evaluate a prompt with an LLM. `$ARGUMENTS` placeholder for context.
+- `agent` — run an agentic verifier for complex validation.
+
+**Integration points for the plugin's needs**:
+
+- `SessionStart` → lean-boot content (Research #5, hard target ≤ 500 tokens).
+- `PostToolUse(Write|Edit)` → opportunistic context capture (v2 post-edit reflection channel per brainstorming).
+- `InstructionsLoaded` → detect when a CLAUDE.md or `.claude/rules/*.md` is loaded, useful for scope-aware behavior.
+- `PreCompact` / `PostCompact` → protect architectural decisions through compaction (aligns with host native compaction documented in prior domain research).
+- `Stop` / `SessionEnd` → flush `ACTIVE.md` state, update `INDEX.md`.
+
+**Critical constraint**: malformed `hooks/hooks.json` blocks the entire plugin from loading (hard failure). CI should run `claude plugin validate` on every commit that touches hooks.
+
+_Source: [Plugins reference — Hooks section](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-17. Full lifecycle analysis deferred to Research #5._
+
+### Integration Security Patterns (plugin-specific)
+
+- **Supply-chain trust** — no cryptographic signing exists. Trust rests on: (a) host marketplace blessing (Anthropic-verified badge), (b) repo provenance (public GitHub, known author), (c) code review before install. Advise users to prefer `sha`-pinned plugin sources over `ref`-pinned, for tamper-evidence.
+- **Path-traversal containment** — plugins cannot reference `../` outside their own directory post-install (files aren't copied). Symlinks are preserved through the cache if absolute paths are needed.
+- **Private-repo auth** — HTTPS via `gh auth login` / macOS Keychain / `git-credential-store` works for interactive flows. Background auto-update requires `GITHUB_TOKEN` / `GL_TOKEN` / `BITBUCKET_TOKEN` environment variables.
+- **Managed lockdown** — `strictKnownMarketplaces: []` disables user-added marketplaces entirely; allowlist with `hostPattern`/`pathPattern` regex covers internal hosts.
+- **Plugin-data isolation** — `${CLAUDE_PLUGIN_DATA}` is keyed on `<plugin-id>` (sanitized), each plugin has a dedicated directory. No shared-data mechanism between plugins by design.
+- **User-config sensitive values** — stored in system keychain (or `~/.claude/.credentials.json` fallback), ~2 KB total shared with OAuth tokens. Non-sensitive values in `settings.json` under `pluginConfigs[<id>].options`.
+- **MCP server permissions** — `.mcp.json` or inline; servers start as subprocesses, all tools they expose must still pass the session's permission evaluation. MCP tools appear under the MCP tool namespace — deny/allow rules can target them specifically.
+
+_Source: [Plugins reference — caching / auth / env var sections](https://code.claude.com/docs/en/plugins-reference), [Plugin marketplaces — private repos section](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17._
