@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -770,3 +770,344 @@ _Sources:_
 - [Plugin marketplaces — version resolution / release channels](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17
 - [Plugins reference — debugging section](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-17
 - Brainstorming 7-day roadmap; domain-research positioning refinement
+
+---
+
+## Implementation Approaches and Technology Adoption
+
+> **Domain-adapted interpretation**: this section covers the practical side of *building* a Claude Code plugin in a solo-first context — tooling, workflows, testing, deployment, cost, and risk. Generic categories (team organization for an enterprise, vendor evaluation, CI/CD for a distributed service) are adapted to the solo-dev, OSS, community-marketplace reality of this project.
+
+### Technology Adoption Strategies
+
+The brainstorming fixed a **7-day solo MVP** with dogfood against a real project on Day 7 as the acceptance test. This research validates that cadence and sharpens two deliverables:
+
+**Sequencing strategy — "spec-first, then implementation, then proof".**
+
+1. **Days 1–2 — substrate**: plugin skeleton, manifest schemas, `validate-artifact-frontmatter` + fixture files per artifact type, seed `spec/memory-convention.md v0.1` alongside (domain research mandate).
+2. **Days 3–4 — memory + discovery**: `/init-project`, `state-manager`, `load-memory-scope`, `/discover`, `/plan-story`.
+3. **Days 5–6 — execution + multi-epic**: `/implement`, `/reflect`, `/remember`, `/backlog`, `/switch-epic`, `/abandon-epic`, `.workflow.yaml`, `SessionStart` hook.
+4. **Day 7 — dogfood + polish**: full-cycle run, usage README, ship v1.
+
+**Adoption pattern observed in peers** — big-bang launches underperform staged releases. Superpowers shipped in Oct 2025 and only landed in the Anthropic official marketplace in Jan 2026 — three months of iteration based on real-use feedback. Our plan must bake in the same cycle: v1 (week 1) → v1.1 with interop proof (week 3) → v1.5 with spec promotion (~month 1) → v2 marketplace submission (~month 3).
+
+**Adjacent-framework adoption lessons** (from prior domain research):
+
+- BMAD v6's "90% token savings" was **a reaction to user criticism**, not a feature. Shipping a lean plugin is easier than retrofitting leanness onto a verbose one — keep the leanness discipline from Day 1.
+- AutoGPT's vector-DB reversal took **months** and hurt the project's reputation. Do not ship an architectural commitment you might reverse — validate at write time, not in a separate consolidation step.
+- Spec-kit's multi-host portability was announced late and retroactive. Our plugin is Claude Code-first by choice; cross-host via MCP only for v1.5+.
+
+_Sources:_
+- Prior domain research — Superpowers / BMAD / AutoGPT / Spec-kit trajectories
+- Brainstorming 7-day roadmap
+
+### Development Workflows and Tooling
+
+**Core loop — edit → reload → test.**
+
+1. Edit files in the plugin directory.
+2. Run `/reload-plugins` in an active Claude Code session — picks up changes to skills, agents, hooks, plugin MCP servers, plugin LSP servers without restart.
+3. Test the changed component directly (`/my-plugin:skill arg1 arg2`).
+4. Observe `/plugin` → Errors tab and `claude --debug` logs for any load-time failure.
+
+**Dev-install pattern** — use `claude --plugin-dir ./plugins/<name>` to load the plugin from source without going through marketplace installation. Multiple `--plugin-dir` flags allow loading several plugins at once. When a `--plugin-dir` plugin matches a marketplace plugin by name, the local copy wins (except for managed-force-enabled plugins).
+
+**Scaffolding**:
+
+- Community template: [`ivan-magda/claude-code-plugin-template`](https://github.com/ivan-magda/claude-code-plugin-template) — GitHub template with scaffolding, validation commands, hooks, skills, agents, and CI/CD workflows. A fast starting point even if we deviate.
+- Reference layouts: [`anthropics/claude-plugins-official`](https://github.com/anthropics/claude-plugins-official) — copy the layout conventions exactly to minimize friction for future marketplace review.
+
+**Editor / IDE tooling**:
+
+- The unofficial [`hesreallyhim/claude-code-json-schema`](https://github.com/hesreallyhim/claude-code-json-schema) schemas give autocompletion + validation in VS Code / JetBrains via the JSON Schema Store convention. Worth wiring up on Day 1.
+- A `CLAUDE.md` in the plugin repo root gets auto-loaded by Claude when the developer works on the plugin itself — document conventions, forbidden patterns, and testing steps there.
+
+**Source control discipline**:
+
+- Semver tags on every release. For dependency resolution (if we ever introduce deps), use the `{plugin-name}--v{version}` tag convention.
+- `CHANGELOG.md` updated per release — explicit breaking-change entries.
+- ADRs for non-reversible decisions (matches the project's own `adr` type in the frontmatter taxonomy).
+
+_Sources:_
+- [Create plugins — dev workflow sections](https://code.claude.com/docs/en/plugins) — accessed 2026-04-17
+- [ivan-magda/claude-code-plugin-template](https://github.com/ivan-magda/claude-code-plugin-template) — accessed 2026-04-17
+
+### Testing and Quality Assurance
+
+Plugin testing is **eval-driven, not unit-test-driven** — there is no official Jest-equivalent for plugins in 2026. The practical test pyramid is:
+
+**Tier 1 — Static validation** (mandatory, CI-gated):
+
+- `claude plugin validate .` — validates `plugin.json`, `marketplace.json`, skill/agent/command frontmatter, `hooks/hooks.json`. Hard fail on any error.
+- JSON Schema check against the unofficial `hesreallyhim/claude-code-json-schema` (optional, catches some cases `claude plugin validate` misses).
+- Custom linter: check every `memory/**/*.md` fixture conforms to the frontmatter-type enum.
+
+**Tier 2 — Eval-based skill tests** (recommended, manual + CI):
+
+- Anthropic ships a **`skill-creator`** meta-skill that evaluates skills across five dimensions: frontmatter completeness, description pushiness (too-eager activation), line count compliance, WHY explanations, eval pass rate. Use it as an acceptance check on every skill before release.
+- Hand-written eval cases: for each skill, a short prompt that should (or should not) trigger auto-activation, with expected outputs. Run interactively at minimum.
+
+**Tier 3 — Integration dogfood** (mandatory, pre-release):
+
+- Full story cycle run on a real side-project: `/init-project` → `/discover` → `/plan-story` → `/implement` → `/reflect`. At least two stories across two parallel epics per release.
+- Measure token cost per cycle. If a cycle crosses 25k tokens, that's a decomposition failure — root-cause before shipping.
+- Recommended: ship a **golden-path smoke script** in the repo — a sequence of slash commands + expected artifacts — that a reviewer can execute to sanity-check a release.
+
+**Tier 4 — Third-party interoperability (v1.1 gate, per domain research)**:
+
+- One demonstrable test where a non-plugin skill (hand-written or another plugin's skill) produces a typed artifact that one of our skills consumes cleanly — or vice versa. This is the **Unix test**.
+
+**Hook development specifics**:
+
+- Industry recommendation observed: **prefer prompt-based hooks over command hooks** for maintainability. Reserve command hooks for deterministic checks and external tool integration.
+- Cross-OS testing: `SessionStart` must work on Linux, macOS, and Windows (PowerShell). A script that shells out to `jq` breaks on Windows without WSL — plan accordingly.
+
+_Sources:_
+- [Testing Claude Code Skills with the Skill Creator (Medium / Karkera)](https://medium.com/@karkeralathesh/the-complete-guide-to-testing-claude-code-skills-with-the-skill-creator-1ae3821bd7b8) — accessed 2026-04-17
+- [Plugins reference — debugging / validation](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-17
+
+### Deployment and Operations Practices
+
+**Release process** (solo, manual-first, scriptable later):
+
+1. Bump `plugin.json` version (SemVer).
+2. Update `CHANGELOG.md`.
+3. Run `claude plugin validate .` locally.
+4. Commit and tag: `git tag v1.0.0 && git push --tags`.
+5. Push to `joselimmo-marketplace`'s main branch — if the marketplace entry uses a `ref` of `main` or `latest`, auto-update picks the new version within the next Claude Code session.
+6. For channel releases, tag `stable` / `latest` and have two separate marketplace entries (one `ref: stable`, one `ref: latest`).
+
+**CI/CD pipeline** (GitHub Actions, minimum viable):
+
+- `on: pull_request` — runs `claude plugin validate .` on the PR branch. Fail on validation error.
+- `on: push: tags: ['v*']` — verifies the tag matches the `version` in `plugin.json`; publishes a GitHub Release with the `CHANGELOG.md` entry.
+- Optional: run a token-budget smoke test that invokes a golden-path cycle and asserts token consumption stays within target (requires a non-interactive runner; Claude Code supports `-p` / headless mode, referenced in the docs).
+
+**Observability**:
+
+- No first-class plugin telemetry exists in the host. Ship a lightweight opt-in hook that logs `SessionStart` + key transitions to a local file (`${CLAUDE_PLUGIN_DATA}/logs/`) — useful during dogfood, removed or opt-in after v1.
+- User-side: rely on `claude --debug` + `/plugin` Errors tab + `/doctor` for post-hoc diagnosis.
+- README troubleshooting section names the five most likely failure modes (invalid manifest, wrong directory, non-executable hook, missing `${CLAUDE_PLUGIN_ROOT}`, absolute path).
+
+**Auto-update considerations**:
+
+- Anthropic-blessed marketplaces have auto-update enabled by default; third-party marketplaces default to off. Users of our plugin via `joselimmo-marketplace` must opt into auto-update or pin to a `sha` for reproducibility.
+- For users behind firewalls (airgapped CI), document `CLAUDE_CODE_PLUGIN_SEED_DIR` usage.
+
+_Sources:_
+- [Claude Code GitHub Actions](https://code.claude.com/docs/en/github-actions) — accessed 2026-04-17
+- [Plugin marketplaces — version resolution / auto-updates](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17
+
+### Team Organization and Skills
+
+**Phase 1 — solo** (weeks 1–4). Single author, single committer. Decision velocity prioritized over governance.
+
+**Phase 2 — community open** (month 2+). Accept external contributors via standard GitHub PR flow. Minimum gates:
+
+- PR template requiring: which ADR (if any) this touches, which spec clause, which skill/command changed, how tested.
+- `CODEOWNERS` on `spec/` and `plugins/<name>/.claude-plugin/plugin.json` — spec changes and manifest changes require author approval.
+- A `CONTRIBUTING.md` linking to the spec and to the frontmatter schema.
+
+**Skill requirements for the author**:
+
+- **Claude Code internals** — plugin manifest, hooks, skills, agents, subagents. This research covers the core.
+- **YAML / JSON / Markdown** — the substrate. No code generation.
+- **Shell scripting cross-OS** — SessionStart hook must be cross-platform. Bash for Linux/macOS; PowerShell fallback for Windows.
+- **Prompt engineering / skill writing** — skill descriptions and SKILL.md content need to trigger reliably without over-triggering.
+- **Semver discipline** — critical for dependency resolution and release channels.
+- **Product discipline** — resisting scope creep. The rejection list is the friend; every "could we also..." goes through the v2+ backlog before touching MVP.
+
+**External inputs by phase**:
+
+- MVP: zero external dependencies beyond Claude Code itself. No npm packages, no Python libs. Everything is markdown + JSON + shell.
+- v1.5+: optional MCP servers (opt-in per consumer project). v2+: possible cross-host support (Cursor, Copilot) via MCP.
+
+### Cost Optimization and Resource Management
+
+**Development cost** (author-side):
+
+- The entire plugin is authored in Claude Code itself, using the same infrastructure it describes. Token cost of development = normal Claude Code usage + 7 days of focused work.
+- No server-side infrastructure required for MVP. `joselimmo-marketplace` is a GitHub repo; hosting is free.
+
+**Runtime cost** (consumer-side) — this is where the architecture pays off:
+
+| Operation                    | Target budget  | Enforcement                                                |
+| :--------------------------- | :------------- | :--------------------------------------------------------- |
+| `SessionStart` lean boot     | ≤ 500 tokens   | Hard cap. Measure with `/debug` at every release.          |
+| First command call           | 1.5–3k         | Soft. Dependent on `memory_scope` of the command.          |
+| Full story cycle (plan→impl→reflect) | 15–25k | Overflow is a decomposition failure, not a design target.  |
+| Skill description budget     | ≤ 1,536 / skill | Front-load the key use case.                               |
+| Total skill listing          | 1% of context  | Fallback 8k chars; `SLASH_COMMAND_TOOL_CHAR_BUDGET` to raise. |
+| MCP tool listing (if any)    | ≪ 20k          | Exclude MCP from MVP entirely.                             |
+
+**Budget-aware design rules**:
+
+- Every skill that loads memory declares the exact scope. No `load everything relevant`.
+- `INDEX.md` stays small (one line per entry) — grows linearly but shallowly.
+- `state-manager` output follows a fixed template — no prose generation.
+
+**Cost-monitoring cadence**:
+
+- Weekly during dogfood: record token consumption per story cycle. Flag any cycle > 25k.
+- Per-release: re-run the golden-path smoke and compare to previous release. Any > 10% regression is a blocker.
+
+_Source: brainstorming Phase 3 constraints + host-documented compaction/budget rules._
+
+### Risk Assessment and Mitigation
+
+Priority-ranked from most to least likely to hurt the project:
+
+**Risk 1 — Host absorption of differentiators** (likelihood: medium, impact: high).
+
+Anthropic can ship native memory compaction, auto-activation, selective loading. **Mitigation**: per domain research, compete on convention/spec, not on mechanism. The two-tier `memory/` layout, the frontmatter taxonomy, and the precondition-driven orchestration are all artifacts of *our convention* — the host cannot absorb a convention without becoming a framework.
+
+**Risk 2 — Malformed `hooks/hooks.json` blocks the entire plugin** (likelihood: high in early dev, impact: total).
+
+**Mitigation**: CI gate on `claude plugin validate`. Never merge a change that touches hooks without passing validate locally first.
+
+**Risk 3 — Cross-OS SessionStart failure** (likelihood: medium, impact: high).
+
+A Bash-only hook breaks on Windows without WSL. **Mitigation**: ship a tiny portable runner (Node.js or Python) shipped alongside the plugin; or provide `.workflow.yaml` lean-boot modes (`always` / `new-session-only` / `manual` / `interactive`) that let users opt-out if their environment doesn't support the default.
+
+**Risk 4 — Anti-pattern of 8 slash commands** (likelihood: medium — could be read as bloat by reviewers; impact: positioning).
+
+**Mitigation**: `/backlog` is the documented primary surface; the other 7 are advertised as reactive, invoked via the advisor. Explicitly frame this in the README.
+
+**Risk 5 — Supply-chain / prompt injection** (likelihood: medium per Snyk 36% audit finding; impact: reputational).
+
+**Mitigation**: minimal `allowed-tools` per skill, `PreToolUse(Write)` hook that validates artifact frontmatter, no bundled secrets, `sha`-pinnable sources encouraged.
+
+**Risk 6 — Marketplace acceptance delay** (likelihood: high for official Anthropic marketplace; impact: medium — v2 concern, not MVP).
+
+**Mitigation**: ship to `joselimmo-marketplace` first; submit to official marketplace when the spec has external adopters (stronger credential than submission without traction).
+
+**Risk 7 — Community fatigue** (likelihood: medium; impact: medium).
+
+**Mitigation**: positioning as "the missing standard for memory + composition that BMAD, Superpowers, Spec-kit all lack" — not "another workflow framework." First sentence of README must differentiate.
+
+**Risk 8 — Spec drifts from implementation** (likelihood: high if spec is written only in week 1; impact: high).
+
+**Mitigation**: `spec/` and `plugin/` versioned independently; every plugin release with a breaking change must either update the spec (bump spec minor) or be rejected.
+
+_Source: prior domain research + architectural review, this document._
+
+---
+
+## Technical Research Recommendations
+
+### Implementation Roadmap (adjusted 7-day MVP)
+
+Keeps the brainstorming cadence; adds spec-first + interop-test deliverables per domain research.
+
+**Day 1 — Plugin skeleton + spec draft**
+
+- Create `plugins/workflow-<name>/.claude-plugin/plugin.json` (start with `name` only; add metadata as needed).
+- Register the plugin in the marketplace's `.claude-plugin/marketplace.json` with a relative-path `source`.
+- Wire up the JSON Schema autocompletion from `hesreallyhim/claude-code-json-schema` in VS Code / JetBrains.
+- Draft `spec/memory-convention.md v0.1` — 1 page max. Two-tier layout, frontmatter schema, naming rules, `memory_scope` enum.
+- Draft `spec/skill-composition.md v0.1` — precondition declaration, artifact types, no-upward-dep rule.
+- Set up GitHub Actions: validate on PR + tag-driven release.
+- Write the frontmatter schemas for all 10 artifact types; seed one fixture file per type.
+- Ship `validate-artifact-frontmatter` plumbing skill.
+- Seed the plugin README with principles, architecture overview, and a "how to install" section.
+
+**Day 2 — Memory system core**
+
+- Implement the `memory/project/` + `memory/backlog/` scaffolding generator (part of `/init-project` later).
+- `state-manager` skill: reads `ACTIVE.md` + `INDEX.md`, proposes next command, refreshes `INDEX.md` (read-your-writes).
+- `load-memory-scope` plumbing skill (fixed-enum MVP).
+
+**Day 3 — Brownfield bootstrap**
+
+- Decide: reuse native `Explore` subagent vs ship `explore-codebase`. **Default recommendation: reuse native `Explore`** — demonstrates plugin-composes-with-host. Revisit if native lacks a capability we need. (Deeper analysis in Research #3.)
+- Implement `/init-project` porcelain: wires exploration → generates seed `memory/project/*` files.
+- Test on two real brownfield projects (one Angular, one Java) for polyvalence check.
+
+**Day 4 — Discovery & planning commands**
+
+- Implement `/discover` (challenge + decompose + emergent-context section).
+- Implement `/plan-story` with explicit `memory_scope` declaration.
+- Wire precondition checks in `state-manager`.
+
+**Day 5 — Implement & reflect**
+
+- Implement `/implement` porcelain.
+- Implement `/reflect` with iterative review loop + deferred memory capture at approval.
+- Implement `/remember` (lightweight on-demand capture).
+
+**Day 6 — Multi-epic, config, lean boot**
+
+- Implement `/backlog` actionable dashboard.
+- Implement `/switch-epic` + `/abandon-epic`.
+- Implement `.workflow.yaml` loader + `detect-domain-from-paths`.
+- Implement `SessionStart` hook with the four modes (`always` / `new-session-only` / `manual` / `interactive`). Cross-OS.
+
+**Day 7 — Dogfood & polish**
+
+- Full-cycle run on a real side-project: two stories across two parallel epics.
+- Token budget measurement per cycle. Decomposition fix if any cycle > 25k.
+- Write usage doc in README. Ship v1 (tag `v1.0.0`, push to marketplace).
+
+**v1.1 gate (week 2–3)**: demonstrable Unix interop test — one artifact produced outside the plugin (hand-written or from another skill) consumed by a plugin skill. Document as an example in README.
+
+**v1.5 milestone (~month 1)**: public promotion of the spec (blog post, Reddit, outreach to Superpowers / AIDD maintainers). AGENTS.md generation in `/init-project`. Optional MCP integration for a non-trivial server.
+
+**v2 milestone (~month 3)**: submit to Anthropic official marketplace via [claude.ai/settings/plugins/submit](https://claude.ai/settings/plugins/submit). Introduce lightweight RFC process for spec evolution.
+
+### Technology Stack Recommendations
+
+| Layer                | Technology                                  | Rationale                                             |
+| :------------------- | :------------------------------------------ | :---------------------------------------------------- |
+| Manifest             | JSON (Claude Code native)                   | Required by host; use the schema repo for IDE help.   |
+| Skills / agents / commands | Markdown + YAML frontmatter           | Host native; editor tooling everywhere.               |
+| Hooks                | JSON → shell / prompt / HTTP / agent        | Start with prompt-based for portability; reserve shell for deterministic checks. |
+| Validation           | `claude plugin validate` (primary)          | First-class CLI; always in CI.                        |
+| CI                   | GitHub Actions                              | Validate on PR; release on tag; optional token smoke. |
+| Dev loop             | `claude --plugin-dir` + `/reload-plugins`   | No rebuild step; markdown edits are instant.          |
+| Versioning           | SemVer + git tags                           | Required for dependency resolution and channels.      |
+| Distribution         | `joselimmo-marketplace` (own) → Anthropic official (v2) | Self-controlled launch, marketplace blessing later. |
+| Editor support       | `hesreallyhim/claude-code-json-schema`      | Unofficial but maintained JSON schemas.               |
+| Monitoring           | `claude --debug` + `/plugin` Errors tab + `/doctor` | No first-class telemetry; rely on host diagnostics. |
+
+### Skill Development Requirements
+
+**For the author (Cyril)**:
+
+- Deep reading of the Claude Code docs — `plugins`, `plugins-reference`, `plugin-marketplaces`, `skills`, `sub-agents`, `hooks`, `permissions`, `plugin-dependencies`. This research consolidates the essentials; the full docs remain the authority.
+- Fluency in the plugin manifest schema and frontmatter taxonomy — every release touches either or both.
+- Cross-OS shell scripting. Linux + macOS are primary; Windows via PowerShell must be tested before v1.
+- Prompt engineering discipline — skill descriptions that trigger reliably without over-triggering. The `skill-creator` 5-dimension eval is a useful external check.
+- Minimum viable product discipline — resist v2+ creep during the 7-day build.
+
+**For future contributors** (v2+):
+
+- Same knowledge baseline, enforced via PR template + `CODEOWNERS` on sensitive paths.
+- Familiarity with the existing ADRs before suggesting architectural changes.
+
+### Success Metrics and KPIs
+
+**Functional (MVP acceptance)**:
+
+- `claude plugin validate .` passes on every commit (binary).
+- Full-cycle dogfood run completes on 2 real projects (binary).
+- Token budget per story cycle: median ≤ 20k, p95 ≤ 25k.
+- `SessionStart` output ≤ 500 tokens, measured on a cold session.
+
+**Distribution (v1 → v1.5)**:
+
+- `joselimmo-marketplace` hosts v1 within 7 days of project start.
+- ≥ 1 demonstrable third-party interop by week 3 (the Unix test).
+- Spec published as a standalone document by week 4.
+
+**Adoption (v1.5 → v2)**:
+
+- First external adopter of the spec (any third-party skill or plugin author referencing our frontmatter schema) — qualitative signal.
+- ≥ 10 GitHub stars on the plugin repo — weak but non-zero signal of discoverability.
+- Anthropic marketplace submission accepted (binary, unpredictable timeline).
+
+**Operational (ongoing)**:
+
+- No release blocked by validate failure.
+- Every release ships a changelog entry.
+- No reported `range-conflict` or `dependency-version-unsatisfied` error on installed instances.
+
+_Source: targets derived from brainstorming Phase 3 + host-documented limits + domain-research positioning._
