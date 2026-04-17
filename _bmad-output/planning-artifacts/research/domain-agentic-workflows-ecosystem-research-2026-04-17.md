@@ -1,10 +1,11 @@
 ---
-stepsCompleted: [1, 2, 3, 5]
+stepsCompleted: [1, 2, 3, 5, 6]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
 workflowType: 'research'
-lastStep: 5
+lastStep: 6
 stepsSkipped: [4]
+workflowCompleted: true
 research_type: 'domain'
 research_topic: 'Agentic Workflows Ecosystem (competitive landscape of AI-assisted development workflow frameworks, with emphasis on open-source frameworks such as BMAD, Superpowers, Spec-kit, AIDD, and adjacent)'
 research_goals: 'Competitive intelligence: (1) identify where the market is converging (patterns adopted by multiple frameworks), (2) identify which approaches are being abandoned or in decline, (3) surface adaptable patterns and anti-patterns for a token-efficient, anti-BMAD Claude Code plugin design'
@@ -22,9 +23,39 @@ source_verification: true
 
 ---
 
+## Executive Summary
+
+The agentic workflow framework ecosystem is **pre-consolidation, mindshare-driven, and technically converging on a small set of cross-framework patterns** — MCP, auto-activating skills, subagents-as-context-isolation, constitution files, phase-gating, and context compaction. Gartner projects **40% of today's agents will not survive to 2027**; the 4 category leaders today (Anthropic Skills, GitHub Spec-kit, Superpowers, BMAD) account for the majority of community attention but will not all remain leaders.
+
+Two complementary signals define the window of opportunity. First, the **heavy-methodology segment is visibly contested** — BMAD is the subject of explicit community fatigue ("BMAD sucks," token-cost GitHub issues, "does the framework still matter?" threads), while Superpowers has captured the "same quality at lower token cost" slot and is the one to beat. Second, the **host platforms are absorbing raw primitives** (memory storage, compaction, auto-activation) — so differentiation by feature is increasingly untenable. What the host cannot absorb without becoming a framework itself is an **opinionated convention**: a standard mechanism for project memory and a composition protocol for skills.
+
+This research concludes that the defensible positioning for a new entrant is **not another lean framework, but a portable convention + a Unix-style composition protocol, shipped with an opinionated reference implementation**. Adjusted against the existing brainstorming, the core principles remain intact; the strategic deliverable shifts from one artifact (the plugin) to two (the specification and the reference plugin), with third-party interoperability as a first-class gate.
+
+**Key Findings:**
+
+- **Market convergence on 8 technical patterns** — MCP (de-facto standard since Linux Foundation move Dec 2025, 10k+ servers), auto-activating skills, subagents-for-isolation, scoped hooks, constitution files, phase-gating with safeguards, memory compaction, and (emerging) selective loading by workflow phase.
+- **Clear abandonment signals** — external vector DBs for agent memory (AutoGPT reversal), heavy persona dialogue, monolithic session-scoped planning, and proprietary host-tool protocols. Every item on the brainstorming's rejection list is validated.
+- **Host-absorption risk is real but reframed** — Anthropic can standardize storage, not meaning. A convention layer is structurally outside what the host can safely absorb.
+- **Community fatigue with heavy methodology is measurable** — multiple Reddit threads and GitHub issues specifically ask for lighter alternatives; Superpowers has captured this gap commercially.
+- **Distribution asymmetry** — Anthropic marketplace inclusion is emerging as the de-facto quality signal (Superpowers accepted Jan 2026); community marketplaces are high-volume but low-signal.
+
+**Strategic Recommendations (top 5):**
+
+1. **Ship a specification separately from the plugin.** `spec/memory-convention.md` + `spec/skill-composition.md` must be publishable and implementable by third parties without importing this plugin's code.
+2. **Make third-party skill interoperability a v1.1 gate**, not a v2 aspiration. One demonstrable integration test (a native Anthropic Skill or hand-written skill producing/consuming a typed artifact) proves the Unix positioning.
+3. **Keep the brainstorming's 9 architectural principles and 8-day MVP roadmap**, but add the spec deliverable from day 1 even if it stays short. The spec is the primary distribution asset.
+4. **Treat host-native features as substrate, not competition.** When Anthropic ships native memory compaction, the convention benefits — it does not lose.
+5. **Adopt MCP only for agent-to-tool**, never for skill-to-skill composition. Skill composition remains artifact-based (typed files with frontmatter); this is Unix-correct and host-agnostic.
+
+---
+
 ## Research Overview
 
-[Research overview and methodology will be appended here]
+This report is the output of a structured domain-research workflow on the agentic workflow framework ecosystem, with emphasis on open-source frameworks that sit between foundation-model hosts (Anthropic, OpenAI, Google, GitHub) and the end-developer experience. The research was commissioned in the context of designing a Claude Code plugin positioned as an anti-BMAD, token-efficient, AIDD-inspired workflow layer; the brainstorming document (`brainstorming-session-2026-04-17-1545.md`) served as input and cadre.
+
+Scope covered: (i) market sizing of the host commercial layer (AI code generation, AI coding assistants, agent markets), (ii) competitive landscape of the OSS framework layer with a focus on BMAD-Method, Superpowers, GitHub Spec-kit, Anthropic/OpenAI/Gemini Skills, Agent OS, AIDD, and conventions like AGENTS.md, (iii) technical-trend analysis of convergence and abandonment patterns, (iv) explicit risk mapping against host-absorption, community-fatigue, and mono-host exposure. The regulatory axis was deliberately skipped as immaterial to the OSS layer; licensing and supply-chain concerns are folded into the competitive and risk sections.
+
+Methodology: web-sourced research with explicit citations for all factual claims, multi-source validation on critical claims (market share, abandonment signals, framework trajectories), and confidence levels flagged for weak signals. The synthesis section below and the Executive Summary above consolidate the cross-sectional insights that emerged once all five research sections were complete.
 
 ---
 
@@ -528,5 +559,72 @@ The initial framing of the project was *"lean, anti-BMAD, AIDD-inspired Claude C
 - **Security baseline**: every skill declares its tool permissions minimally; hook-based validation for write operations; no arbitrary shell execution without user approval.
 - **Token-budget assertions**: ship smoke tests that measure per-story-cycle token consumption against the 15–25k budget. A regression here signals decomposition failure.
 - **Distribution redundancy**: publish to `joselimmo-marketplace` AND aim for Anthropic official marketplace inclusion. **But the primary distribution asset is the spec, not the plugin** — a well-written convention document that others reference is worth more than marketplace placement.
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+Five insights emerge only when the five research axes are considered together; none is visible from a single axis.
+
+1. **The market is fragmented at the surface but convergent at the protocol layer.** 11 frameworks compete on methodology and positioning; underneath, they are quietly agreeing on MCP, auto-activation semantics, file-based typed artifacts, and `SKILL.md`-style frontmatter. The frameworks that win the next 18 months will be those that align with the protocol layer and differentiate on the opinionated layer above it — not the reverse.
+2. **Token-cost is the single most cited framework criticism and the single most-discussed refactor driver.** BMAD v6's "90% savings" pitch, Mem0's 80% compression engine, Superpowers' "same output at lower token cost" positioning, AutoGPT's memory reversal, and the user's own brainstorming anti-BMAD stance are all instances of the same dynamic. **Token-efficiency is not a feature — it is the acceptance test.**
+3. **Anthropic's platform strategy is the dominant force in the framework layer, not any framework.** Marketplace curation, Skills auto-activation, built-in subagents, and now the Linux-Foundation donation of MCP are all moves that shape what frameworks can profitably differentiate on. A framework strategy that ignores Anthropic's platform direction is a strategy with a 12-month shelf life.
+4. **The "does the framework still matter?" question is a healthy market signal, not a terminal one.** The question is being asked because the first wave of heavy methodologies (BMAD, Superpowers) solved enough problems that the community now demands that the next wave justify its complexity. A lean, convention-first entry is the literal answer to that question.
+5. **Distribution > invention.** Every major feature of every major framework has been reimplemented elsewhere within 1–2 cycles. The moat is not technical novelty; it is (in priority order) host blessing, community adoption of conventions, and repo velocity. The plugin's ADR-level decisions must prioritize these over feature breadth.
+
+### Strategic Impact Assessment
+
+**For the project's brainstorming baseline:** every one of the 9 architectural principles survives scrutiny. The corrections are additive, not subtractive:
+- Principle #1 (Unix Pipeline) is *underspecified*, not wrong — it needs a third-party interop contract to earn the name.
+- Principle #5 (Two-Tier Memory) is correct but must be published as spec, not shipped only as code.
+- Principle #6 (Selective Memory Loading) is the one principle that is *not yet converged* across the industry — this is the strongest remaining differentiator and should lead the positioning narrative.
+- The rejection list (vector DBs, persona dialogue, draft-consolidation, Make/Bazel graphs) is externally validated by market reversals and criticism threads.
+
+**For the 7-day MVP roadmap:** the roadmap remains correct but gains one non-code deliverable — a short `spec/memory-convention.md` drafted alongside Day 1 skeleton work. The spec is initially minimal and evolves with the implementation; what matters is that it is versioned and publishable independent of the plugin code.
+
+**For the open decisions in the brainstorming:** the research updates three of them:
+- _Decision #4 (memory_scope vocabulary):_ confirm the fixed MVP enum approach, and add `memory_scope` to the spec — it is the pattern most-aligned with host direction.
+- _Decision #7 (subagent output contract):_ the research confirms typed file output, not conversational return. Aligns with Unix Pipeline and is host-portable.
+- _Decision #8 (plugin repo vs consumer repo separation):_ add a third location — `spec/` at the repo root, outside `plugins/`, to signal its independence.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Draft `spec/memory-convention.md v0.1` — 1-page max. Capture the two-tier folder layout, frontmatter schema, naming rules, and the `memory_scope` enum. Publish it as a doc, not an implementation.
+2. Settle the 8 open decisions from the brainstorming (already mostly queued; research above updates 3 of them).
+3. Optionally run `/bmad-product-brief` or `/bmad-prfaq` to consolidate the refined positioning into a 1-page product document before starting the PRD.
+
+**Short term (days 1–7 of implementation, per the brainstorming roadmap):**
+
+4. Execute Day 1 → Day 7 of the brainstorming roadmap as-is, with the addition of maintaining the spec alongside the code.
+5. On Day 7's dogfood test, explicitly test the **Unix composability gate** — produce at least one artifact outside the plugin (e.g., manually-written `.md` with correct frontmatter) and verify the plugin consumes it cleanly.
+
+**Medium term (weeks 2–6):**
+
+6. v1.1 integration test with a native Anthropic Skill or community skill as the interop proof.
+7. v1.5 public promotion of the spec — blog post, Reddit posts, outreach to adjacent framework authors (Superpowers, AIDD maintainers).
+8. v2 marketplace submission.
+
+**Ongoing:**
+
+9. Quarterly watch-list review of host-native feature releases, with explicit "does this absorb a plugin responsibility?" assessment per release.
+10. Monitor the `does the framework still matter?` community conversation — it is the single best signal for when lean-framework positioning gains or loses relevance.
+
+### Research Limitations
+
+- **Star count discrepancies** — one source reports Superpowers at 121K ⭐ vs Ry Walker's 57K. The higher figure likely reflects promotional aggregation across repos or short-term spikes. All comparisons in this document use the lower (conservative) figure.
+- **Community sentiment sources skew Reddit-heavy** — representative of active enthusiasts, not of silent enterprise users. Enterprise adoption data is thinner and drawn mostly from Anthropic's own 2026 Agentic Coding Trends Report.
+- **MCP adoption figures are Anthropic-sourced** (10k servers, 97M downloads). Cross-validation with Foundation-side or third-party telemetry would strengthen confidence.
+- **No primary interviews conducted** — this is desk research only. Findings on maintainer direction (especially BMAD v6 plans, Superpowers roadmap) rely on published material.
+
+### Research Completion
+
+- **Research Topic:** Agentic Workflows Ecosystem — competitive landscape of AI-assisted development workflow frameworks
+- **Research Completion Date:** 2026-04-17
+- **Source Verification:** All factual claims cited; critical claims multi-source validated
+- **Confidence Level:** High on convergence patterns and competitive positioning; medium on long-horizon (24-month+) projections; medium on non-public framework roadmaps
 
 ---
