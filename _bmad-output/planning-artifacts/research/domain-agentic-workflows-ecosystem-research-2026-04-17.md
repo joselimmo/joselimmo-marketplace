@@ -468,33 +468,65 @@ _Sources:_
 
 ### Challenges and Risks
 
-- **Host absorption risk** (highest): 12-month horizon for Anthropic to ship native equivalents of memory tiers, selective loading, or INDEX.md generation. Mitigate by keeping the plugin's added value in **orchestration + opinionated methodology**, not in raw primitives the host will duplicate.
+- **Host absorption risk — REFRAMED (see Positioning Refinement below):** the initial concern was that Anthropic would ship a native memory layer and make your plugin redundant. The more accurate framing is that Anthropic *cannot* ship an opinionated memory *convention* without itself becoming a framework — which would undermine its own marketplace. What the host *will* absorb is generic mechanics (storage, compaction, loading). What it *cannot* absorb is (a) a convention for what the memory means, and (b) a composition protocol between skills from different authors. **Risk repositioned: compete on mechanism/convention, not on features.**
 - **Marketplace distribution risk**: the Anthropic-official marketplace is the highest-quality distribution surface but requires approval. Plan for a quality bar from v1 (tests, docs, security).
 - **Prompt injection risk**: Snyk 36%. Mitigate via minimal tool-call surfaces and explicit hook-level validation.
-- **Community fatigue risk**: the "does the framework still matter?" thread signals that another methodology framework must justify its existence against host-native capabilities. **Positioning must be sharp**: not "another framework" but "the lightweight opinionated alternative."
+- **Community fatigue risk**: the "does the framework still matter?" thread signals that another methodology framework must justify its existence against host-native capabilities. **Positioning must be sharp**: not "another framework" but "the convention + composition protocol layer."
 - **Mono-host risk**: Claude Code itself is less OSS-resilient than OpenCode / OpenHands / Cline. If Anthropic deprioritizes, your plugin inherits that fragility. MCP compatibility + AGENTS.md adoption hedge this.
+- **Standard-without-adoption risk (new, critical):** "Standard" is an attribute others grant you, not one you assign. If the convention ships tightly coupled to your implementation, it is just another opinionated plugin — no matter what you call it. Mitigation requires **spec-first publication** and at least one demonstration of portability.
+- **Third-party composition risk (new):** a Unix-style pipeline that only chains skills authored by the same plugin is an internal pipeline, not Unix. True composability requires a contract that external skills (Anthropic Skills, Superpowers skills, community packs) can honor. Without it, the "skill composition" positioning does not survive scrutiny.
+
+## Positioning Refinement (post-analysis, 2026-04-17)
+
+The initial framing of the project was *"lean, anti-BMAD, AIDD-inspired Claude Code plugin with memory + commands."* After this research and user pushback, the framing tightens to:
+
+> **A standard convention for project memory + a composition protocol for skills, with an opinionated reference implementation.**
+
+**What this changes:**
+
+1. **Two artifacts, not one.** The project ships (i) a **written specification** of the memory convention and the skill-composition protocol, publishable independently of the code, and (ii) a **reference implementation** that uses the spec. The spec is the candidate standard; the implementation is proof that the spec is implementable.
+2. **Third-party compatibility is a first-class concern.** Every design decision is tested against: *can an Anthropic Skill, a Superpowers skill, or a hand-written skill from a third party produce/consume the typed artifacts without importing this plugin?* If no, the design fails the Unix test.
+3. **Value-prop shift.** Competes less on "better SDLC than BMAD" and more on "the missing standard for memory + composition that BMAD, Superpowers, Spec-kit all lack." Host cannot absorb this without itself becoming a framework.
+4. **Defensibility shift.** Host-native features (storage, compaction, auto-activation) are no longer direct threats — they become the *substrate* the convention sits on top of. The host absorbing memory storage actually helps this positioning.
+
+**What this demands (additional to the 7-day MVP):**
+
+- A `SPEC.md` (or equivalent) written as a standalone convention doc, cross-tool in language. No Claude Code-specific wording where the underlying idea is portable.
+- A minimal contract doc for skill authors: *"if your skill writes to `memory/project/`, here is the frontmatter schema it must follow to interoperate with the composition protocol."*
+- At least one **non-trivial integration test** demonstrating a third-party skill (native Anthropic or community) producing an artifact that a plugin skill consumes — or vice versa. Even a contrived example proves the point.
+- Separation in the repo: `spec/` (pure convention), `plugin/` (reference implementation). No upward dependency from `spec/` into `plugin/`.
+
+**Open questions this framing surfaces:**
+
+- *Who arbitrates schema evolution?* For a single-repo plugin, the maintainer decides. For a convention people adopt, you need a lightweight RFC or versioning process. Not MVP-critical, but must be sketched by v2.
+- *What happens when a third-party skill violates the contract?* Graceful degradation? Hard failure? Validation-at-write (`validate-artifact-frontmatter` skill) already in the design covers this — reuse it as the enforcement point.
+- *Is MCP the right transport for skill-to-skill composition?* Likely not — MCP is for agent-to-tool, not for skill-to-skill artifact exchange. File-based (with typed frontmatter) remains the Unix-correct answer. Worth stating explicitly in the spec to pre-empt the question.
 
 ## Recommendations
 
 ### Technology Adoption Strategy
 
-1. **Adopt MCP for any cross-tool needs** (research, exploration subagents) from v1. Keep your plugin's core workflow single-host but make the data layer portable.
-2. **Ship an `AGENTS.md` in the consumer repo**, generated by `/init-project`. Gives free portability marketing + aligns with the 18K-star convention.
-3. **Declare `memory_scope` in all skills' YAML frontmatter** — matches Anthropic Skills idiom, pre-empts host-absorption objections.
-4. **Use built-in Claude Code subagents** (Explore, Plan) rather than shipping your own where possible. Reduces maintenance surface.
+1. **Ship spec + implementation separately.** `spec/memory-convention.md` + `spec/skill-composition.md` written as portable documents. `plugins/<name>/` as reference implementation. Publish both in the same repo, but treat them as independent deliverables.
+2. **Adopt MCP for agent-to-tool needs only** — not for skill-to-skill composition. Skill composition is artifact-based (typed files with frontmatter), which is Unix-correct and host-agnostic.
+3. **Generate `AGENTS.md` in the consumer repo** via `/init-project`. Positions the plugin as a good citizen of the cross-host convention landscape, not a walled garden.
+4. **Declare `memory_scope` in every skill's YAML frontmatter** — pre-empts host-absorption objections *and* is part of what the spec mandates.
+5. **Use built-in Claude Code subagents** (Explore, Plan) where possible rather than shipping your own. Reduces maintenance surface and demonstrates the point that the plugin composes with host primitives rather than replacing them.
 
 ### Innovation Roadmap
 
-- **v1 (7-day MVP)**: land the 8 commands + 6 skills as brainstormed. No MCP-specific features yet.
-- **v1.5 (1 month post-MVP)**: MCP compatibility for subagents; AGENTS.md generation; `/export-docs`.
-- **v2 (3-6 months)**: marketplace submission to Anthropic; post-edit reflection skill; observation-based workflow learning.
-- **Watch list** (quarterly): host-native competing features (Claude Code native memory, compaction, sub-agent memory). Be prepared to pivot the positioning toward what the host will *not* natively absorb (opinionated SDLC discipline, per-project methodology enforcement).
+- **v1 (7-day MVP)**: 8 commands + 6 plumbing skills as brainstormed, **plus** a first draft of `spec/memory-convention.md` (even if short). Ship the spec alongside the code, even if the spec is still evolving.
+- **v1.1 (~2 weeks)**: one integration test proving a non-plugin skill (native Anthropic skill or hand-written) can produce/consume a typed artifact. Even contrived. This is the Unix test.
+- **v1.5 (~1 month)**: MCP compatibility for subagents; AGENTS.md generation; `/export-docs`. Promote the spec publicly (blog post, Reddit, HN) *before* seeking marketplace inclusion — adoption of the spec by any third-party skill author is a stronger credential than marketplace approval.
+- **v2 (3–6 months)**: Anthropic marketplace submission; post-edit reflection skill; observation-based workflow learning; lightweight RFC process for spec evolution.
+- **Watch list** (quarterly): host-native features. Every time Anthropic/OpenAI/GitHub ship a memory-layer primitive, **treat it as substrate the convention sits on top of**, not as competition.
 
 ### Risk Mitigation
 
-- **Versioning & deprecation discipline**: tag releases, write changelogs, publish ADRs for breaking changes.
+- **Convention-decoupling discipline**: no design decision in `spec/` may reference the plugin's internal code structure. If a choice can only be implemented by this plugin, it does not belong in the spec.
+- **Third-party compatibility gate**: any new artifact type or frontmatter field must pass the question *"can a skill I don't control produce this correctly?"* before being added to the spec.
+- **Versioning & deprecation discipline**: tag releases, write changelogs, publish ADRs for breaking changes. Version the spec independently of the plugin (`spec/v0.1.0`, `plugin/v1.0.0`).
 - **Security baseline**: every skill declares its tool permissions minimally; hook-based validation for write operations; no arbitrary shell execution without user approval.
 - **Token-budget assertions**: ship smoke tests that measure per-story-cycle token consumption against the 15–25k budget. A regression here signals decomposition failure.
-- **Distribution redundancy**: publish to `joselimmo-marketplace` AND aim for Anthropic official marketplace inclusion. If official listing is delayed, community marketplace provides continuity.
+- **Distribution redundancy**: publish to `joselimmo-marketplace` AND aim for Anthropic official marketplace inclusion. **But the primary distribution asset is the spec, not the plugin** — a well-written convention document that others reference is worth more than marketplace placement.
 
 ---
