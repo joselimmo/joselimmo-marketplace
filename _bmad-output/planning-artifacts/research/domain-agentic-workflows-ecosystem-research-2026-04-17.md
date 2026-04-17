@@ -1,9 +1,10 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
 workflowType: 'research'
-lastStep: 3
+lastStep: 5
+stepsSkipped: [4]
 research_type: 'domain'
 research_topic: 'Agentic Workflows Ecosystem (competitive landscape of AI-assisted development workflow frameworks, with emphasis on open-source frameworks such as BMAD, Superpowers, Spec-kit, AIDD, and adjacent)'
 research_goals: 'Competitive intelligence: (1) identify where the market is converging (patterns adopted by multiple frameworks), (2) identify which approaches are being abandoned or in decline, (3) surface adaptable patterns and anti-patterns for a token-efficient, anti-BMAD Claude Code plugin design'
@@ -368,5 +369,132 @@ _Sources:_
 - https://claude.com/plugins
 - https://code.claude.com/docs/en/discover-plugins
 - https://github.com/obra/superpowers-marketplace
+
+---
+
+## Technical Trends and Innovation
+
+> Note: Step 4 (Regulatory Environment) was deliberately skipped — the framework layer is OSS-permissive and regulation is not a material driver. Observations on licensing and supply-chain security are folded into Step 3 ("Competitive Dynamics") and Step 5 ("Challenges and Risks") below.
+
+### Emerging Technologies — Convergence Patterns
+
+Across the 11 frameworks surveyed, the following technical patterns are **converging** (adopted by 3+ independent frameworks and endorsed by host platforms):
+
+1. **Model Context Protocol (MCP) as cross-host standard.** MCP went from Anthropic-internal (Nov 2024) → donated to the Linux Foundation's **Agentic AI Foundation** (Dec 2025, co-founded by Anthropic, Block, OpenAI, backed by Google, Microsoft, AWS, Cloudflare). **By March 2026: 10,000+ active MCP servers, 97M monthly SDK downloads** (Python + TS). All major providers aboard. **This is now the de-facto standard** for connecting agents to tools and data. [anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation][a2a-mcp.org]
+2. **Skill auto-activation on context detection.** Pioneered by Anthropic Skills. `SKILL.md` with YAML frontmatter declares activation conditions → Claude decides when to load. **Every skill now gets a slash-command interface** (2026 unification). Replaces the old explicit-invocation-only model. [alexop.dev][code.claude.com]
+3. **Subagents as context-isolation primitive (never personas).** Claude Code ships built-in `Explore` (Haiku-backed for speed), `Plan` (research), `General-purpose`. Subagents get a **persistent memory field** — a directory surviving across conversations. Frameworks that treated subagents as "personas that debate" (BMAD) are being corrected by community practice toward this use-case. [code.claude.com][smartscope.blog]
+4. **Hooks scoped to component lifecycle.** `PreToolUse`, `PostToolUse`, etc. Now declared directly in Skill / Subagent / Command frontmatter rather than global settings — scoped to the invocation that created the context. [smartscope.blog]
+5. **Constitution / non-negotiable principles file.** Pioneered by Spec-kit's `constitution.md`. Present in Agent OS as "standards." Being adopted as a pattern independent of a specific framework.
+6. **Phase-gated discipline with safeguards.** Superpowers enforces clarify → design → plan → code → verify, with **architectural review forced after 3 failed fix attempts**. Safeguard logic is increasingly being embedded at the framework level, not left to the model.
+7. **Context / memory compaction.** Claude Code native compaction summarizes conversations when nearing context limits while preserving architectural decisions, unresolved bugs, implementation details. Mem0 reports **up to 80% prompt-token reduction** via its compression engine. Compaction is shifting from opt-in tool to default host behavior. [thenewstack.io]
+8. **Selective memory loading by workflow phase.** Not yet formalized industry-wide, but visible in BMAD v6 token-savings work and matches your brainstorming's Principle #6. This is an **emerging but not yet converged** pattern — still a differentiation opportunity.
+
+_Sources:_
+- https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation
+- https://a2a-mcp.org/blog/mcp-full-form
+- https://alexop.dev/posts/understanding-claude-code-full-stack/
+- https://code.claude.com/docs/en/sub-agents
+- https://smartscope.blog/en/generative-ai/claude/claude-code-best-practices-advanced-2026/
+- https://thenewstack.io/memory-for-ai-agents-a-new-paradigm-of-context-engineering/
+
+### Abandoned or Declining Patterns (direct input to "what to avoid")
+
+Matched against your research goal #2 — "which approaches are being abandoned":
+
+- ❌ **External vector DBs for agent memory at the framework level.** AutoGPT removed external vector DB support entirely in late 2023, defaulting to a simple local file for memory storage. The team found that typical agent runs didn't generate enough distinct facts to justify the index. **Direct validation of your brainstorming's rejection of "Database Migrations for Memory."**
+- ⚠️ **Heavy persona dialogue between agents.** Actively criticized. BMAD GitHub issues #511 ("big tokens cost") and #1235 ("Excessive Token Usage in Workflows"); Reddit threads "BMAD method sucks," "What's better than BMAD." BMAD v6 itself is a response. **Your brainstorming's reframing of subagents as context-isolation primitives (not dialogue personas) is aligned with the corrected pattern, not the declining one.**
+- ⚠️ **Monolithic session-scoped planning.** The Spec-kit community discussion explicitly notes: "artifacts generated based on previous ones tend to forget details and change requirements — Decision A in first-stage becomes Decision B in second or third stage." **Validation of your brainstorming's Principle #9 (story-scoped context budget).** Session-scoped approaches lose fidelity; story-scoped ones survive.
+- ⚠️ **Cross-project memory at the framework level.** No framework in scope has solved this; most explicitly scope memory to a single project/repo (AIDD, your plugin design, Anthropic Skills). No convergence signal. **Wisely excluded from your MVP.**
+- ⚠️ **"One-shot full PRD/Architecture/Epic upfront"** (BMAD-style). Being challenged by lighter artifact chains (Spec-kit's single spec + plan + tasks, AGENTS.md minimalism). Reddit thread *"Does the framework still matter?"* frames this as an open community question — a trend in formation, not confirmed.
+- ❌ **Closed/proprietary tool protocols for agent-host communication.** MCP's Linux-Foundation move effectively buries pre-standard alternatives. Any framework doubling down on a proprietary agent-tool bus is skating uphill.
+
+_Sources:_
+- https://autogpt.net/babyagi-complete-guide-what-it-is-and-how-does-it-work/
+- https://github.com/bmad-code-org/BMAD-METHOD/issues/511
+- https://github.com/bmad-code-org/BMAD-METHOD/issues/1235
+- https://www.reddit.com/r/BMAD_Method/comments/1r6aruo/bmad_method_sucks/
+- https://github.com/github/spec-kit/discussions/152
+- https://www.reddit.com/r/BMAD_Method/comments/1pcqarr/agent_os_vs_bmad_vs_spec_kit_does_the_framework/
+
+### Digital Transformation — Industry Shift
+
+The framework layer exists because the underlying developer workflow is itself being transformed:
+
+- **AI used in ~60% of developer work**, but only **0–20% of tasks "fully delegatable"** — constant collaborator, not autonomous replacement. [Anthropic 2026 Agentic Coding Trends Report]
+- **Trust deficit driving structure**: 29% trust in AI output (down from 70%+ in 2023) → developers demand verifiable, reviewable workflows — which is exactly the adoption driver for agentic frameworks.
+- **AI agent memory market itself**: USD **6.27B (2025) → 28.45B (2030)**, CAGR **35%** (Mordor Intelligence). The memory layer is becoming a distinct market vertical, separate from the agent/framework layer.
+- **Adoption trajectory**: by **2027, >50% of regional teams will run fully Agentic SDLC**; by **2029, ~two-thirds** (PwC). The "framework layer" is therefore riding a rising tide for at least 3 more years.
+
+_Sources:_
+- https://resources.anthropic.com/2026-agentic-coding-trends-report
+- https://thenewstack.io/memory-for-ai-agents-a-new-paradigm-of-context-engineering/
+- https://www.pwc.com/m1/en/publications/2026/docs/future-of-solutions-dev-and-delivery-in-the-rise-of-gen-ai.pdf
+
+### Innovation Patterns
+
+- **Feature diffusion is fast and asymmetric.** Auto-activation, constitution files, phase-gating, subagent-for-isolation all spread across competing frameworks within 1–2 release cycles. **First-movers rarely retain the moat**; distribution and host blessing matter more than being first.
+- **Hosts absorb features.** Jamie Lord (Apr 2026): *"Claude Code's memory tool ecosystem is mostly redundant with its own defaults."* Any third-party framework differentiating on a capability the host will likely ship natively within 12 months is on borrowed time. **Safe differentiators are orthogonal to host-native features**: opinionated methodology, convention enforcement, multi-host portability, domain-specific skills.
+- **Context engineering has displaced prompt engineering** as the critical discipline (The New Stack). The challenge shifted from "write a good prompt" to "ensure the right information is present at the right time."
+- **MCP enables skill-catalog portability** across hosts. Frameworks that invest in MCP compatibility hedge against host lock-in.
+
+_Sources:_
+- https://lord.technology/2026/04/11/claude-codes-memory-tool-ecosystem-is-mostly-redundant-with-its-own-defaults.html
+- https://thenewstack.io/memory-for-ai-agents-a-new-paradigm-of-context-engineering/
+
+### Future Outlook (12–24 months)
+
+- **Consolidation wave incoming.** Gartner: **40% of today's agents will not survive to 2027** — replaced by superior options. By star-power today's top 4 (Anthropic Skills, Spec-kit, Superpowers, BMAD) are best positioned, but category leaders will shift.
+- **Multi-agent coordination becomes default.** Single-agent frameworks will be reframed as "sub-agent building blocks" inside larger orchestration. Agent OS, Claude-Flow, MS Amplifier are positioned for this layer.
+- **Bounded autonomy** (escalation paths, audit trails, human checkpoints) becomes a hard requirement, especially for enterprise adoption. Frameworks without explicit safeguard protocols will be locked out of regulated industries.
+- **Autonomous long-running sessions** ("hours or days") replace the turn-by-turn interaction model for routine tasks. Implications: review becomes asynchronous, audit trails become central artifacts.
+- **Security/signing standards emerge.** 36% prompt-injection rate in audited skills is untenable. Expect some form of package-signing or marketplace verification in 12–24 months.
+- **Your specific bet (story-scoped context budget, lean memory, no persona dialogue, opinionated-but-lightweight)**: well-aligned with the consolidation wave. The risk is not being wrong on direction — it is being **out-distributed** by a host-native or marketplace-blessed equivalent.
+
+_Sources:_
+- https://resources.anthropic.com/2026-agentic-coding-trends-report
+- https://thenewstack.io/5-key-trends-shaping-agentic-development-in-2026/
+- https://www.pwc.com/m1/en/publications/2026/docs/future-of-solutions-dev-and-delivery-in-the-rise-of-gen-ai.pdf
+- https://machinelearningmastery.com/7-agentic-ai-trends-to-watch-in-2026/
+
+### Implementation Opportunities (applied to your plugin project)
+
+- ✅ **MCP compatibility from day 1**: ensures portability if Anthropic ever deprioritizes Claude Code. Low implementation cost (subagents can fetch data via MCP servers).
+- ✅ **Auto-activating skills with `memory_scope` frontmatter**: matches host-native direction (Anthropic Skills) while adding your differentiator (phase-scoped loading).
+- ✅ **Subagents as context-isolation primitives only** (explore-codebase, research-web, adversarial-review): already in your design, validated by industry trajectory.
+- ✅ **Constitution-style `.workflow.yaml`**: aligns with the emerging cross-framework pattern.
+- ✅ **Phase-gated discipline with explicit safeguards**: Superpowers-inspired, community-proven.
+- ✅ **Story-scoped context budget**: a rare, underdeployed differentiator. Keep it — it is not in any major competitor yet.
+- ⚠️ **Avoid**: external vector DBs, cross-project memory, monolithic PRD/arch/epic chains, persona dialogue. All validated-as-declining by this research.
+
+### Challenges and Risks
+
+- **Host absorption risk** (highest): 12-month horizon for Anthropic to ship native equivalents of memory tiers, selective loading, or INDEX.md generation. Mitigate by keeping the plugin's added value in **orchestration + opinionated methodology**, not in raw primitives the host will duplicate.
+- **Marketplace distribution risk**: the Anthropic-official marketplace is the highest-quality distribution surface but requires approval. Plan for a quality bar from v1 (tests, docs, security).
+- **Prompt injection risk**: Snyk 36%. Mitigate via minimal tool-call surfaces and explicit hook-level validation.
+- **Community fatigue risk**: the "does the framework still matter?" thread signals that another methodology framework must justify its existence against host-native capabilities. **Positioning must be sharp**: not "another framework" but "the lightweight opinionated alternative."
+- **Mono-host risk**: Claude Code itself is less OSS-resilient than OpenCode / OpenHands / Cline. If Anthropic deprioritizes, your plugin inherits that fragility. MCP compatibility + AGENTS.md adoption hedge this.
+
+## Recommendations
+
+### Technology Adoption Strategy
+
+1. **Adopt MCP for any cross-tool needs** (research, exploration subagents) from v1. Keep your plugin's core workflow single-host but make the data layer portable.
+2. **Ship an `AGENTS.md` in the consumer repo**, generated by `/init-project`. Gives free portability marketing + aligns with the 18K-star convention.
+3. **Declare `memory_scope` in all skills' YAML frontmatter** — matches Anthropic Skills idiom, pre-empts host-absorption objections.
+4. **Use built-in Claude Code subagents** (Explore, Plan) rather than shipping your own where possible. Reduces maintenance surface.
+
+### Innovation Roadmap
+
+- **v1 (7-day MVP)**: land the 8 commands + 6 skills as brainstormed. No MCP-specific features yet.
+- **v1.5 (1 month post-MVP)**: MCP compatibility for subagents; AGENTS.md generation; `/export-docs`.
+- **v2 (3-6 months)**: marketplace submission to Anthropic; post-edit reflection skill; observation-based workflow learning.
+- **Watch list** (quarterly): host-native competing features (Claude Code native memory, compaction, sub-agent memory). Be prepared to pivot the positioning toward what the host will *not* natively absorb (opinionated SDLC discipline, per-project methodology enforcement).
+
+### Risk Mitigation
+
+- **Versioning & deprecation discipline**: tag releases, write changelogs, publish ADRs for breaking changes.
+- **Security baseline**: every skill declares its tool permissions minimally; hook-based validation for write operations; no arbitrary shell execution without user approval.
+- **Token-budget assertions**: ship smoke tests that measure per-story-cycle token consumption against the 15–25k budget. A regression here signals decomposition failure.
+- **Distribution redundancy**: publish to `joselimmo-marketplace` AND aim for Anthropic official marketplace inclusion. If official listing is delayed, community marketplace provides continuity.
 
 ---
