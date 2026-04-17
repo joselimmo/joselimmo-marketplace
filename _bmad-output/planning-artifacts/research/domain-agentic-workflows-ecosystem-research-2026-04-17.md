@@ -1,9 +1,9 @@
 ---
-stepsCompleted: [1, 2]
+stepsCompleted: [1, 2, 3]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
 workflowType: 'research'
-lastStep: 2
+lastStep: 3
 research_type: 'domain'
 research_topic: 'Agentic Workflows Ecosystem (competitive landscape of AI-assisted development workflow frameworks, with emphasis on open-source frameworks such as BMAD, Superpowers, Spec-kit, AIDD, and adjacent)'
 research_goals: 'Competitive intelligence: (1) identify where the market is converging (patterns adopted by multiple frameworks), (2) identify which approaches are being abandoned or in decline, (3) surface adaptable patterns and anti-patterns for a token-efficient, anti-BMAD Claude Code plugin design'
@@ -174,5 +174,199 @@ _Sources:_
 - https://rywalker.com/research/agentic-skills-frameworks
 - https://www.reddit.com/r/BMAD_Method/comments/1pcqarr/agent_os_vs_bmad_vs_spec_kit_does_the_framework/
 - https://www.reddit.com/r/ClaudeCode/comments/1pba1ud/spec_driven_development_sdd_speckit_openspec_bmad/
+
+---
+
+## Competitive Landscape
+
+> Note on "market share": since these are free OSS frameworks, direct revenue share is unavailable. Proxies used below: GitHub stars, marketplace inclusion (Anthropic official), community discussion volume, and analyst/journalist coverage. Star counts are as of early 2026 unless noted; single-source counts are flagged with confidence level.
+
+### Key Players and Market Leaders
+
+**Tier 1 — Host-blessed catalogs (broadest distribution, lowest prescription):**
+- **Anthropic Agent Skills (~73K ⭐)** — Official. Auto-loading `SKILL.md` files. Skills activate automatically when Claude detects relevant context; no explicit slash trigger required. Bundled with Claude Code. Distribution moat: built into the host. [rywalker.com][platform.claude.com]
+- **OpenAI Skills (~9K ⭐)** and **Google Gemini Skills (~1.8K ⭐)** — Platform-specific counterparts; much smaller mindshare than Anthropic's. [rywalker.com]
+
+**Tier 2 — Spec-driven frameworks:**
+- **GitHub Spec-kit (~71K ⭐)** — CLI (`specify`) that scaffolds Constitution → Specify → Plan → Tasks → Implement. Works across Copilot, Claude Code, Gemini CLI. GitHub brand + cross-tool coverage = strong incumbency signal. [github.com/github/spec-kit]
+- **OpenSpec** and **PromptX** — smaller SDD alternatives, more opinionated. [redreamality.com]
+
+**Tier 3 — Full-methodology enforcers (heaviest prescription):**
+- **Superpowers (obra)** — 14 agentic skills forcing a 5-phase discipline: clarify → design → plan → code → verify. **Accepted into the Anthropic official marketplace on 2026-01-15**. MIT licensed. Star count disputed: Ry Walker survey reports ~57K ⭐; popularaitools.ai reports ~121K ⭐ as of Apr 2026 (low confidence on the higher figure, likely promotional inflation). Still: **growth velocity is the highest in the category**. [blog.fsck.com][claude.com/plugins/superpowers]
+- **BMAD-Method (~37K ⭐)** — 8+ personas covering full agile SDLC (Analyst, PM, Architect, PO, SM, Dev, QA, Orchestrator). Most comprehensive. "Feels like a technical co-founder who is also a PM, architect and scrum master." Learning curve explicitly flagged as real. v6 reportedly improved token efficiency ("90% savings" per one author — unverified). [rywalker.com][hieutrantrung.it]
+- **Agent OS (buildermethods)** — Command-driven: `/plan-product → /shape-spec → /write-spec → /create-tasks → /implement-tasks | /orchestrate-tasks`. Uses profiles, personas, subagents, "standards as skills." Positioned between Spec-kit's lightness and BMAD's completeness. [buildermethods.com/agent-os]
+
+**Tier 4 — Orchestration runtimes:**
+- **Claude-Flow (~14K ⭐)** — multi-agent execution engine.
+- **Microsoft Amplifier (~3K ⭐)** — MS-backed orchestration layer.
+
+**Tier 5 — Conventions / lightweight patterns:**
+- **AGENTS.md (~18K ⭐)** — de-facto convention for describing a repo to agents, cross-tool. Low prescription, high portability. [rywalker.com]
+- **paralleldrive/aidd** — "the standard framework for AI Driven Development"; specification-first methodology; explicit AIDD branding; metaprograms + agent orchestration + prompt modules. Direct inspiration for your project's `.claude/` + `aidd_docs/` pattern. [github.com/paralleldrive/aidd]
+- **Babysitter (~317 ⭐)** — minimal, niche.
+
+**Adjacent — OSS coding agent hosts (not frameworks, but they're the "engines" frameworks ride on):**
+- **OpenCode (~95K ⭐)** leads the OSS host race (Mar 2026), **OpenHands (~68K ⭐)** backed by $18.8M Series A, **Cline (~59K ⭐)** IDE-native with safety controls, **Aider** git-native minimalist. Anthropic Claude Code is commercial — "entirely in Anthropic's hands; no community to carry it forward" if deprioritized. [ossinsight.io][thenewstack.io]
+
+_Sources:_
+- https://rywalker.com/research/agentic-skills-frameworks
+- https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+- https://github.com/github/spec-kit
+- https://redreamality.com/blog/-sddbmad-vs-spec-kit-vs-openspec-vs-promptx/
+- https://blog.fsck.com/2025/10/09/superpowers/
+- https://claude.com/plugins/superpowers
+- https://github.com/bmad-code-org/BMAD-METHOD
+- https://medium.com/@hieutrantrung.it/from-token-hell-to-90-savings-how-bmad-v6-revolutionized-ai-assisted-development-09c175013085
+- https://buildermethods.com/agent-os
+- https://github.com/paralleldrive/aidd
+- https://ossinsight.io/blog/coding-agent-wars-2026
+- https://thenewstack.io/open-source-coding-agents-like-opencode-cline-and-aider-are-solving-a-huge-headache-for-developers/
+
+### Market Share and Competitive Positioning
+
+_Mindshare distribution (by GitHub stars, Ry Walker Apr 2026):_ Anthropic Skills (~73K) ≈ Spec-kit (~71K) > Superpowers (~57K) > BMAD (~37K) > wshobson/agents (~29K) > AGENTS.md (~18K) > Claude-Flow (~14K) > OpenAI Skills (~9K) > Amplifier (~3K) > Gemini Skills (~1.8K) > Babysitter (~317).
+
+_Positioning map (two axes — prescription level × portability):_
+
+```
+                HIGH prescription
+                      │
+            BMAD ─────┤───── Superpowers
+                      │
+                      │          Agent OS
+                      │
+      Spec-kit ───────┼─────── Anthropic Skills
+                      │
+                      │          OpenAI Skills
+                      │          Gemini Skills
+                      │
+        AIDD ─────────┤─────── AGENTS.md
+                      │
+                LOW prescription
+ SINGLE-HOST ─────────┴───────── CROSS-HOST
+```
+
+- **High prescription + single-host**: BMAD, Superpowers → opinionated methodology, Claude Code-first.
+- **High prescription + cross-host**: Agent OS, Spec-kit → structured process, multi-tool.
+- **Low prescription + single-host**: Anthropic/OpenAI/Gemini Skills → vendor catalogs, auto-loaded.
+- **Low prescription + cross-host**: AGENTS.md, AIDD → conventions that travel.
+
+_Value-proposition clusters:_
+- "Give me a full virtual team" → BMAD, Superpowers
+- "Force me to think before coding" → Spec-kit, OpenSpec, Agent OS
+- "Hand me a skill catalog" → Anthropic/OpenAI/Gemini Skills, wshobson/agents
+- "Just a repo convention" → AGENTS.md, AIDD
+
+_Customer segments served:_
+- **Solo devs / indie**: gravitate toward Spec-kit (lightness) or Superpowers (quality).
+- **Small teams**: Agent OS, Superpowers.
+- **Enterprises / large agile orgs**: BMAD targets this explicitly.
+- **Tool builders**: AGENTS.md (as portable contract), Skills catalogs (as distribution surface).
+
+_Sources:_
+- https://rywalker.com/research/agentic-skills-frameworks
+- https://www.reddit.com/r/BMAD_Method/comments/1pcqarr/agent_os_vs_bmad_vs_spec_kit_does_the_framework/
+
+### Competitive Strategies and Differentiation
+
+- **Anthropic/OpenAI/Google Skills** → **distribution-as-moat**. They own the host; auto-loading is their key differentiator. Devs don't install; skills just appear.
+- **GitHub Spec-kit** → **brand + ubiquity**. Cross-tool CLI + GitHub blessing. Lightweight enough to add to any workflow.
+- **Superpowers** → **quality-per-token**. Positioned as "same output quality as BMAD at a fraction of the cost" in community reviews. MIT + free + no tiers.
+- **BMAD** → **full SDLC coverage**. Differentiates by being the most complete; trades off token cost and learning curve. v6 is a response to token-cost criticism.
+- **Agent OS** → **cross-tool orchestration**. Its moat is multi-agent workflow portability.
+- **AGENTS.md** → **convention-as-standard**. Wins if it becomes the lingua franca; already adopted cross-tool.
+- **AIDD (paralleldrive)** → **specification-first minimalism** + metaprogram bundling.
+
+_Innovation approaches:_
+- Anthropic Skills pioneered **auto-activation on context detection** — no slash, no mention, skill loads itself. A strong UX advantage.
+- Superpowers introduced **phase-gated discipline** with safeguards (e.g., architectural review forced after 3 failed fix attempts).
+- BMAD's v6 reportedly introduces **selective loading** to reduce token bleed (aligns with your own `Selective Memory Loading by Workflow Phase` principle).
+- Spec-kit's **constitution.md** (non-negotiable principles) is a durable pattern spreading to other frameworks.
+
+_Sources:_
+- https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/
+- https://www.anthropic.com/news/skills
+- https://www.reddit.com/r/ClaudeCode/comments/1reg7l9/whats_better_than_the_bmad_method/
+- https://medium.com/@hieutrantrung.it/from-token-hell-to-90-savings-how-bmad-v6-revolutionized-ai-assisted-development-09c175013085
+
+### Business Models and Value Propositions
+
+_Primary business models:_
+- **Platform-owned (free-with-host)**: Anthropic/OpenAI/Gemini Skills. Revenue flows to the host API; the framework itself is a retention/stickiness asset.
+- **Commercial-adjacent OSS** (GitHub Spec-kit): Free tool, drives Copilot + GitHub Actions usage.
+- **Pure OSS, author-led** (Superpowers, BMAD, AIDD, Agent OS, Claude-Flow): MIT / permissive, no paid tier, no SaaS. Monetization (if any) is indirect — consulting, sponsorship, reputation capital.
+- **VC-backed agent hosts** (OpenHands $18.8M Series A): eventually a managed cloud play.
+
+_Revenue streams observed in the framework layer: near-zero._ This is a **mindshare economy**, not a revenue economy. That is precisely why **switching cost is low** and **competitive intensity is high**.
+
+_Sources:_
+- https://claude.com/plugins/superpowers
+- https://github.com/bmad-code-org/BMAD-METHOD
+- https://thenewstack.io/open-source-coding-agents-like-opencode-cline-and-aider-are-solving-a-huge-headache-for-developers/
+
+### Competitive Dynamics and Entry Barriers
+
+_Barriers to entry — low technical, high adoption:_
+- Anyone can ship a skills pack; GitHub distribution is free.
+- Adoption requires: documentation quality, maintainer cadence, host-platform blessing (marketplace inclusion), community champions.
+- **Anthropic marketplace inclusion** is emerging as the de-facto "seal of approval" (Superpowers, Jan 2026) — a new **soft barrier**.
+
+_Competitive intensity — high:_
+- Monthly cadence of new frameworks and features through 2025-2026.
+- Feature diffusion is fast: auto-loading, subagents, phase-gating, constitution files all spread across 2–3 competing frameworks within 1–2 release cycles.
+
+_Signals of saturation / consolidation pressure (early 2026):_
+- Reddit threads titled *"BMAD method sucks"*, *"What's better than BMAD"*, *"Does the framework still matter?"* — community fatigue with heavy methodology.
+- Jamie Lord, Apr 2026: *"Claude Code's memory tool ecosystem is mostly redundant with its own defaults."* — suggests the market is starting to compress: hosts absorb features that third-party frameworks used to differentiate on. [lord.technology]
+
+_Switching costs — low:_
+- Frameworks are rarely entrenched in CI/CD; they live in `.claude/`, `.github/`, or similar conventions.
+- Users frequently run **multiple frameworks in parallel** or swap quickly. 70% of devs already use 2–4 tools concurrently.
+
+_Signals of decline / abandonment:_
+- **No framework in scope is officially abandoned.** But clear direction-of-travel signals exist:
+  - **Heavy persona dialogue** (BMAD-style, AutoGPT-style) is in **decline**. Users openly complain about token cost and verbosity; v6 BMAD explicitly tries to reduce this.
+  - **External vector DBs for memory** were abandoned by AutoGPT (switched back to simple file storage) — a rare clear "this was wrong" reversal.
+  - **BabyAGI / AutoGPT / MetaGPT** — not dead, but no longer leading the narrative; referenced mostly historically in 2026 coverage.
+  - **Heavy multi-file planning artifacts** (BMAD-style full PRD/architecture/epic chain) are being challenged by **lighter artifact chains** (Spec-kit's single spec + plan + tasks, or AGENTS.md minimalism).
+
+_Sources:_
+- https://www.reddit.com/r/BMAD_Method/comments/1r6aruo/bmad_method_sucks/
+- https://www.reddit.com/r/ClaudeCode/comments/1reg7l9/whats_better_than_the_bmad_method/
+- https://github.com/bmad-code-org/BMAD-METHOD/issues/1235
+- https://github.com/bmad-code-org/BMAD-METHOD/issues/511
+- https://lord.technology/2026/04/11/claude-codes-memory-tool-ecosystem-is-mostly-redundant-with-its-own-defaults.html
+- https://autogpt.net/babyagi-complete-guide-what-it-is-and-how-does-it-work/
+
+### Ecosystem and Partnership Analysis
+
+_Supplier relationships (host → framework):_
+- Anthropic hosts the Claude API + Claude Code + official marketplace. Its blessing is the most valuable partnership asset in the ecosystem right now.
+- GitHub hosts Spec-kit (1st-party OSS), Copilot (paid), and the repo/distribution infrastructure for the majority of frameworks.
+- OpenAI, Google, Microsoft each have their own skill ecosystems but smaller reach in the agentic-workflow niche.
+
+_Distribution channels:_
+- **GitHub** — primary distribution for all OSS frameworks.
+- **Anthropic official marketplace** — curated, quality-gated.
+- **Community marketplaces** — e.g., obra/superpowers-marketplace, claudepluginhub.com, claudemarketplaces.com. Low curation, high volume.
+
+_Technology partnerships:_
+- **MCP (Model Context Protocol)** is emerging as the cross-host interface standard — enables "skills once, hosts many."
+- Frameworks that bet on MCP early (Spec-kit, Agent OS) gain multi-host portability.
+- Frameworks tied to a single host (Anthropic Skills) trade portability for deep integration.
+
+_Ecosystem control:_
+- **Model providers** control the substrate (API + model + SDK).
+- **GitHub** controls the distribution substrate.
+- **No framework author controls a meaningful chokepoint yet** — which is why the space remains fragmented and open.
+
+_Implication for your plugin:_
+- Publishing to the `joselimmo-marketplace` + following Claude Code plugin conventions puts you on the **community marketplace** tier. Aspiration-tier would be **Anthropic official marketplace inclusion** (Superpowers-style) — that's the most valuable distribution asset for a framework-layer project.
+
+_Sources:_
+- https://github.com/anthropics/claude-plugins-official
+- https://claude.com/plugins
+- https://code.claude.com/docs/en/discover-plugins
+- https://github.com/obra/superpowers-marketplace
 
 ---
