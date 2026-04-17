@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "docsDir": "aidd_docs",
+  "tools": {
+    "claude": {
+      "toolId": "claude",
+      "version": "3.3.0",
+      "files": [
+        {
+          "relativePath": ".mcp.json",
+          "hash": "2a2df9f5ba0fb4755eb5971ea55b467f",
+          "frameworkPath": "config/mcp.json"
+        },
+        {
+          "relativePath": "CLAUDE.md",
+          "hash": "e755462d9a366b170aeaba4500e6a2e8",
+          "frameworkPath": "aidd_docs/templates/AGENTS.md"
+        }
+      ],
+      "mergeFiles": []
+    }
+  },
+  "docs": {
+    "version": "3.3.0",
+    "files": [
+      {
+        "relativePath": "aidd_docs/CONTRIBUTING.md",
+        "hash": "4ca7de071ce4ae11ab7be297d9b8c48c"
+      },
+      {
+        "relativePath": "aidd_docs/memory/external/.gitkeep",
+        "hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "relativePath": "aidd_docs/memory/internal/.gitkeep",
+        "hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "relativePath": "aidd_docs/README.md",
+        "hash": "32d1209ac11ebe42b2c41e35695a465c"
+      },
+      {
+        "relativePath": "aidd_docs/tasks/.gitkeep",
+        "hash": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "relativePath": "aidd_docs/CATALOG.md",
+        "hash": "7160ca5f17c7093c09435aaa3ed19ed4"
+      }
+    ]
+  },
+  "scripts": null
+}

@@ -1,6 +1,4 @@
 *.iml
 .idea
-.claude
-.aidd
-aidd_docs/templates
 .vscode
+.aidd/cache/
