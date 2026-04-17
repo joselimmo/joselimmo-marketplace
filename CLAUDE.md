@@ -34,3 +34,28 @@ All instructions and information above are willing to be up to date, but always 
 - If memory is not loaded above: run `ls -1tr aidd_docs/memory/` then read each file
 - If needed: load files from `aidd_docs/memory/external/*` when user request it
 - If needed: load files from `aidd_docs/memory/internal/*`, you have to think about it
+
+## Repository
+
+This repo is a Claude Code plugin marketplace named `joselimmo-marketplace`.
+
+### Layout
+
+- `.claude-plugin/marketplace.json` — marketplace registry (plugin entries with relative `source`)
+- `plugins/<plugin-name>/.claude-plugin/plugin.json` — each plugin's manifest
+- `plugins/<plugin-name>/{agents,skills,commands}/` — plugin content
+- `.claude/` — **local dev tooling for this repo only**, NOT shipped inside any plugin
+- `aidd_docs/` — AIDD framework docs + project memory (per-repo, partially gitignored)
+
+### Conventions
+
+- Add a new plugin: create `plugins/<name>/.claude-plugin/plugin.json` AND register it in `.claude-plugin/marketplace.json` (`plugins[]` with `source: "./plugins/<name>"`).
+- Keep marketplace and plugin `version` fields in sync when bumping.
+- Never move AIDD-framework content from `.claude/` into a plugin without re-packaging — the two have different distribution targets.
+
+### Commands
+
+No build / test / lint pipeline yet (no `package.json`). Local testing of the marketplace:
+
+- `/plugin marketplace add ./` — register this repo as a local marketplace
+- `/plugin install <plugin>@joselimmo-marketplace` — install a plugin
