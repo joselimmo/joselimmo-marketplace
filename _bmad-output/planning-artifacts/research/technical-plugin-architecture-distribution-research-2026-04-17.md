@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -486,3 +486,287 @@ _Source: [Plugins reference — Hooks section](https://code.claude.com/docs/en/p
 - **MCP server permissions** — `.mcp.json` or inline; servers start as subprocesses, all tools they expose must still pass the session's permission evaluation. MCP tools appear under the MCP tool namespace — deny/allow rules can target them specifically.
 
 _Source: [Plugins reference — caching / auth / env var sections](https://code.claude.com/docs/en/plugins-reference), [Plugin marketplaces — private repos section](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17._
+
+---
+
+## Architectural Patterns and Design
+
+> **Domain-adapted interpretation**: this section examines the architectural patterns that a Claude Code plugin targeting an anti-BMAD, token-efficient workflow must adopt or reject. It synthesizes findings from the Claude Code host docs, cross-framework observations from the domain research, named industry patterns (Progressive Disclosure, Unix Pipeline, Porcelain/Plumbing), and the 9 architectural principles from the brainstorming. Validation against three questions: (a) does the host substrate support it? (b) is it converging across competing frameworks? (c) does it solve an observed failure mode in this ecosystem?
+
+### System Architecture Patterns
+
+**Pattern 1 — Unix Pipeline Philosophy** (brainstorming principle #1 — confirmed).
+
+Transformations are small, typed, pure, composable. Each plugin command produces and consumes typed artifacts (markdown files with YAML frontmatter). No command is aware of the next; composition emerges from artifact chaining.
+
+- _Host fit_: Claude Code components are already file-first. Skills are markdown; artifacts are markdown; hooks are JSON. No orthogonal state store.
+- _Industry convergence_: observed in AGENTS.md, AIDD, and in Spec-kit's Spec → Plan → Tasks → Implement chain. Not observed in BMAD's agent-dialogue model (which is the anti-pattern being rejected).
+- _Risk_: the "Unix test" — a third-party skill producing or consuming the same typed artifact — is a gate this plugin must pass, per the domain research recommendation.
+
+**Pattern 2 — Porcelain vs Plumbing** (brainstorming principle #3 — confirmed).
+
+Two-layer split inspired by Git: **porcelain** = user-facing slash commands; **plumbing** = composable skills that porcelain commands invoke.
+
+- _Host fit_: Claude Code supports both. `commands/` and `skills/` are structurally equivalent (both expose `/name` invocations), but a plugin can enforce the split by convention: porcelain `skills/` carry full workflow context; plumbing `skills/` expose focused primitives.
+- _Anti-pattern warning_: industry sources explicitly flag "a long list of complex custom slash commands" as an anti-pattern (context-engineering community consensus). Our brainstorming plans **8 porcelain commands + 6 plumbing skills**. This is at the boundary. Mitigation: 80% of invocations should flow through `/backlog` (primary UX surface), with `state-manager` recommending the next command. The user rarely memorizes the 8 commands — they react to the advisor.
+- _Industry convergence_: Superpowers' 5-phase discipline (clarify → design → plan → code → verify) is porcelain-only; wshobson/agents exposes porcelain over a plumbing catalog of ~55 agents; Agent OS uses `/plan-product → /shape-spec → /write-spec → /create-tasks → /implement-tasks`. The pattern is converging.
+
+**Pattern 3 — Precondition-Driven Orchestration** (brainstorming principle #4 — confirmed).
+
+No hard-coded command sequence. Each porcelain command declares `requires: [...]`, `produces: type`, `memory_scope: [...]` in frontmatter. A state-manager introspects current artifacts and emits the list of runnable commands.
+
+- _Host fit_: the `description` field of a skill already carries this role for Claude. Extending with explicit `requires`/`produces`/`memory_scope` fields is a non-official convention — documented in the spec, not required by the host.
+- _Industry convergence_: **not yet converged**. This is a differentiator. Most frameworks either enforce a rigid sequence (BMAD) or a loose catalog (Anthropic Skills). Precondition declarations sit in the gap.
+
+**Pattern 4 — Ambient Capture, No Dedicated Docs Phase** (brainstorming principle #7 — confirmed).
+
+Memory capture is a byproduct of `/reflect`, not a separate step. Three channels: deferred byproduct, explicit `/remember`, and v2+ post-edit reflection.
+
+- _Host fit_: Claude Code's `PostToolUse(Write|Edit)` hook is the natural trigger point for the v2+ channel. `Stop` / `SessionEnd` hooks for flushing state.
+- _Industry convergence_: no competing framework has explicitly formalized this, but the direction-of-travel validates it (no framework in the domain research ships a separate "docs update" command).
+
+_Sources:_
+- [Progressive disclosure as system design pattern (SwirlAI)](https://www.newsletter.swirlai.com/p/agent-skills-progressive-disclosure) — accessed 2026-04-17
+- [Progressive disclosure in AI agents (MindStudio)](https://www.mindstudio.ai/blog/progressive-disclosure-ai-agents-context-management) — accessed 2026-04-17
+- [Claude Code Best Practices — anti-pattern warning on slash commands](https://rosmur.github.io/claudecode-best-practices/) — accessed 2026-04-17
+- Brainstorming document, principles #1, #3, #4, #7 — `_bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md`
+
+### Design Principles and Best Practices
+
+**Principle 1 — Progressive Disclosure** (formally named industry pattern, validates brainstorming principle #6).
+
+Originally a UX pattern (show only what is needed at the current step), now a formalized AI-agent architecture pattern with a documented three-layer structure:
+
+- **Layer 1 — Index**: lightweight metadata (title, description, token count, capabilities). Always loaded.
+- **Layer 2 — Details**: full content, loaded on relevance.
+- **Layer 3 — Deep dive**: reference docs, examples, scripts. Loaded on explicit need.
+
+Claude Code's native skill model already implements this: descriptions in context, full `SKILL.md` loaded on invocation, supporting files (`reference.md`, scripts/) loaded only when referenced. Our plugin must preserve this at the memory layer — a skill that loads `memory/project/glossary.md` on every call defeats the pattern.
+
+**Operational rule**: each skill's `memory_scope` frontmatter declares which memory files it loads. Scopes are fixed-enum (MVP): `glossary`, `overviews`, `adr-summaries`, `adrs-by-tag`, `conventions`, `learnings-by-tag`. Progressive disclosure is enforced at the scope layer, not inside skill content.
+
+**Principle 2 — Single Responsibility per Skill**.
+
+Plumbing skills do one thing. `state-manager` reads state + recommends + refreshes INDEX. `load-memory-scope` reads files matching scopes/tags. `validate-artifact-frontmatter` validates. `extract-diff-patterns` mines learnings. No skill accumulates concerns.
+
+**Principle 3 — Artifact-as-Contract** (brainstorming principle #2).
+
+Skills are pure functions over typed files. Input type → output type. No side effects beyond the declared output artifact. A skill that reads `epic.md` and writes `plan.md` must not silently update `INDEX.md` — that's the `state-manager`'s job.
+
+**Principle 4 — Write Guidance, Not Scripts** (derived from Claude Code skill lifecycle).
+
+Invoked skill content enters the conversation once and stays — Claude Code does **not** re-read the skill file on later turns. Write `SKILL.md` as standing instructions ("When reviewing code, check for..."), not as step-by-step scripts that assume per-turn re-execution.
+
+**Principle 5 — Description-Front-Loaded** (derived from host truncation rules).
+
+Skill descriptions are truncated at **1,536 characters** in the listing (and the total listing budget scales at 1% of context window, fallback 8,000 chars). Front-load the key use case in the first sentence. Rear-loaded descriptions get silently truncated and skills fail to auto-activate.
+
+**Principle 6 — Anti-Pattern Catalog** (from brainstorming + industry sources, cross-validated).
+
+Explicit rejection list:
+
+- ❌ BMAD-style persona dialogue between agents — high token cost, validated as declining (community criticism + BMAD v6 response).
+- ❌ Monolithic session-scoped planning — fidelity loss across stages (Spec-kit community note, validates brainstorming principle #9 on story-scoped budget).
+- ❌ External vector DB for agent memory — AutoGPT reversal (rare clear "this was wrong" signal in the domain).
+- ❌ Long list of complex slash commands as primary UX — context-engineering community consensus. Mitigation: `/backlog` as the single primary entry point; the 8 porcelain commands are reactive surfaces.
+- ❌ Monolithic MCP installation (>20k tokens of MCP tool listings) — "cripples Claude" per industry sources. For our plugin, MCP servers are **opt-in per project** via `.workflow.yaml`, not bundled.
+- ❌ Draft+consolidation ritual (killed on YAGNI in brainstorming Phase 3). Quality filter at write time instead.
+
+_Sources:_
+- [Skill authoring best practices (Anthropic)](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) — accessed 2026-04-17
+- [Progressive Disclosure Matters (aipositive)](https://aipositive.substack.com/p/progressive-disclosure-matters) — accessed 2026-04-17
+- Prior domain research — for BMAD / AutoGPT / Spec-kit anti-pattern citations
+
+### Scalability and Performance Patterns (Context Engineering)
+
+For a workflow plugin, "scalability" is measured in **tokens per story cycle**, not in requests per second. The brainstorming set targets: `SessionStart ≤ 500` (hard), first command call `1.5–3k` (soft), full story cycle `15–25k` (indicative — overflow = decomposition failure). The following patterns protect that budget.
+
+**Pattern 1 — Index-First, Content-Lazy** (brainstorming principle #5/#6 × Progressive Disclosure).
+
+Always-loaded: `INDEX.md` of `memory/project/` + `ACTIVE.md` pointer. On-demand: full content by scope. `state-manager` refreshes `INDEX.md` on every pass (read-your-writes invariant — prevents stale pointers).
+
+**Pattern 2 — Selective Memory Loading by Workflow Phase** (brainstorming principle #6 — **rare, underdeployed differentiator**).
+
+Per-command `memory_scope` declaration. `/discover` loads glossary + overviews + ADR summaries + product details. `/plan-story` loads tech details + ADRs by tag. `/implement` loads patterns + learnings by domain. Never load "everything that might be relevant" — that is the context-rot failure mode named in progressive-disclosure literature.
+
+**Pattern 3 — Story-Scoped Context Budget** (brainstorming principle #9).
+
+The budget is evaluated per story cycle (plan → implement → reflect), not per session. If a single need overflows, `/discover` must decompose until each story fits ~15–25k. Industry echo: "token efficiency is not a feature — it is the acceptance test" (prior domain research synthesis).
+
+**Pattern 4 — Compaction-Aware Skill Design** (derived from Claude Code compaction rules).
+
+Auto-compaction carries invoked skills forward with a 25k-token total budget, filled from most recent back. After a long session, earlier skills may be dropped. Implications:
+
+- Put the most important instructions **at the top** of `SKILL.md` (first 5k tokens survive compaction).
+- Hook `PreCompact` / `PostCompact` to preserve architectural decisions (`ACTIVE.md` contents should survive).
+- `state-manager` can re-attach itself after compaction if critical — a skill that needs to stay resident must be re-invoked.
+
+**Pattern 5 — Epic-Level Isolation** (brainstorming principle #8).
+
+No cross-epic dependencies by design. Multi-epic parallel workspaces under `memory/backlog/epic-XXX/` with `/switch-epic` for clean context switch. Avoids the failure mode of an in-flight epic contaminating another's reasoning context.
+
+**Pattern 6 — MCP Budget Ceiling** (derived from industry cap).
+
+If MCP servers are bundled, their combined tool listings must stay well below the documented "20k tokens cripples Claude" threshold. Our plugin ships zero MCP servers in v1; optional `.workflow.yaml` entries let consumers opt in per project.
+
+**Pattern 7 — Subagent for Context Isolation, Never for Personas** (brainstorming Lens 1 / Lens 6).
+
+Use `context: fork` on skills when a task needs isolation (codebase exploration, research, adversarial review). The subagent inherits from a chosen agent type (`Explore`, `Plan`, `general-purpose`), not from a "persona." Benefits: fork context is separate from the main conversation — heavy exploration does not pollute the 25k budget of the parent.
+
+_Sources:_
+- [Progressive Disclosure in AI Agents (Medium/Fernández)](https://medium.com/@martia_es/progressive-disclosure-the-technique-that-helps-control-context-and-tokens-in-ai-agents-8d6108b09289) — accessed 2026-04-17
+- [Skill content lifecycle / compaction](https://code.claude.com/docs/en/skills) — accessed 2026-04-17
+- Brainstorming principles #5–#9
+
+### Composition and Orchestration Patterns
+
+Industry sources catalogue **five agentic workflow patterns** observed in the Claude Code ecosystem (MindStudio / Anthropic nomenclature):
+
+| Pattern           | Description                                                               | Fit for our plugin                                                                  |
+| :---------------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------- |
+| Sequential        | Fixed-order pipeline (A → B → C).                                         | ❌ Rejected. Our plugin uses precondition-driven, not sequential.                   |
+| Operator          | One orchestrator + multiple tool calls.                                   | ✅ Partial fit for `state-manager` (recommends, does not execute).                  |
+| Split-and-merge   | Fan-out parallel subtasks, merge results.                                 | ⚠️ Useful inside a story (`explore-codebase` + `research-web` in parallel). Not at the workflow level.  |
+| Agent teams       | Personas debating each other.                                             | ❌ Rejected (BMAD anti-pattern; token-inefficient).                                 |
+| Headless          | Fully autonomous, no human gates.                                         | ❌ Rejected at workflow level; the `/reflect` review loop requires user approval.   |
+
+**Our composition model** — explicit naming: **Advisor + Reactive Porcelain**.
+
+- `state-manager` (skill, plumbing) is the **advisor** — it reads state, proposes the next command, never executes.
+- Porcelain commands are **reactive** — each declares preconditions and is invokable only when its inputs exist.
+- The user's primary interaction is `/backlog` → see advisor's recommendation → run the suggested command.
+- No automatic chaining. No hidden orchestration. The user remains the conductor; the plugin provides the score.
+
+**Advantages**:
+
+- Token-transparent: the user sees exactly what is invoked and why.
+- Composable with third parties: a native Anthropic Skill or hand-written skill that produces a typed artifact fits the precondition model without modification.
+- Failure-observable: a precondition miss is visible before any token is spent on a doomed command.
+
+**Constraints**:
+
+- Requires discipline in artifact frontmatter — every typed file must declare its `type` for precondition matching to work.
+- Not suited for long-running autonomous tasks; that is not this plugin's positioning.
+
+**Reuse of host-native subagents**:
+
+- Prefer native `Explore` subagent for codebase scans over a custom `explore-codebase` skill, where feasible. Reduces maintenance surface and demonstrates plugin-composes-with-host rather than plugin-replaces-host.
+- Decision deferred to Research #3 (Subagents as Context-Isolation Primitives).
+
+_Sources:_
+- [5 Claude Code Workflow Patterns (MindStudio)](https://www.mindstudio.ai/blog/claude-code-5-workflow-patterns-explained) — accessed 2026-04-17
+- [wshobson/agents — agent catalog reference](https://github.com/wshobson/agents) — accessed 2026-04-17
+
+### Security Architecture Patterns
+
+**Pattern 1 — Trust Boundary at Plugin Install**.
+
+A plugin is trusted with full user privileges once installed. The security budget is spent at install time (source review, provenance, signing when available). Runtime permissions govern **tool approval**, not code execution — a malicious plugin can already execute arbitrary code.
+
+**Pattern 2 — Minimum Viable Permission Declaration**.
+
+For each skill, declare `allowed-tools` as narrowly as possible. A commit skill needs `Bash(git add *) Bash(git commit *) Bash(git status *)`, not `Bash`. Narrow permissions reduce blast radius and surface intent.
+
+**Pattern 3 — Hook-Based Validation at Artifact Boundaries**.
+
+`PreToolUse` hooks can block a tool call outright or force a prompt. For our plugin: validate that artifact writes honor the frontmatter schema before the `Write` tool persists them. `validate-artifact-frontmatter` is the enforcement point, called both by the `/reflect` memory-capture flow and by a `PreToolUse(Write)` hook matched against `memory/**/*.md`.
+
+**Pattern 4 — Fail-Closed on Hook Parse Errors**.
+
+A malformed `hooks/hooks.json` blocks the entire plugin from loading. Our CI must run `claude plugin validate` on every commit that touches hooks. A failing validate in CI is a hard fail, not a warning.
+
+**Pattern 5 — Zero Bundled Secrets**.
+
+The `userConfig` block prompts the user for secrets at enable time and stores sensitive values in the system keychain (~2 KB limit, shared with OAuth tokens). No secret lives in the plugin repo or in the cache directory. `sensitive: true` per secret key.
+
+**Pattern 6 — No Cross-Plugin Data Sharing**.
+
+Each plugin has its own `${CLAUDE_PLUGIN_DATA}` directory. Do not rely on shared-state patterns between plugins. If plugins must coordinate, they do so via typed artifacts in `memory/`, which are user-owned, not plugin-owned.
+
+_Source: [Configure permissions](https://code.claude.com/docs/en/permissions), [Plugins reference — userConfig / env vars](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-17._
+
+### Data (Memory) Architecture Patterns
+
+**Pattern 1 — Two-Tier Memory Split** (brainstorming principle #5).
+
+- `memory/project/` — **curated, permanent**. Glossary, overviews, ADRs, conventions, learnings. Consumer-repo-owned; committed to version control.
+- `memory/backlog/` — **ephemeral workflow artifacts**. `ACTIVE.md`, `BACKLOG.md`, per-epic folders. Committed or gitignored depending on team preference.
+
+Naming `memory/` (not `aidd_docs/` or `.claude/memory/`) makes the structure discoverable without reading plugin docs. A third-party skill authoring the frontmatter schema can write to `memory/project/` without importing this plugin.
+
+**Pattern 2 — Frontmatter-Typed Artifacts**.
+
+Every `.md` file in `memory/` and `memory/backlog/` carries a YAML frontmatter block with at minimum:
+
+```yaml
+---
+type: adr | convention | learning | glossary | overview | epic | story | plan | review | rule
+title: <human-readable>
+tags: [<tag>, <tag>]
+status: draft | active | superseded | archived
+superseded_by: <file-id>  # if status=superseded
+---
+```
+
+Type taxonomy is a fixed MVP enum. Unknown types fail validation. Extensions go through a versioning process (spec evolution) — not individual plugin decisions.
+
+**Pattern 3 — Auto-Maintained `INDEX.md`**.
+
+`memory/project/INDEX.md` is machine-generated — never hand-edited. `state-manager` rewrites it on every pass (read-your-writes). Contents: one line per entry (`<relative-path>` — `<title>` — `[<tags>]` — `<status>`). Enables fast Tier-1 loading (index) without opening each file.
+
+**Pattern 4 — No-Archive Policy**.
+
+Epics are either **finished** (their artifacts remain in `memory/backlog/epic-XXX/`) or **abandoned** (`/abandon-epic` deletes the folder). No `archived/` subtree. Finished epics contribute to `memory/project/learnings/*` via deferred capture, and their raw artifacts remain for reference but are not proactively indexed in `INDEX.md` once closed.
+
+**Pattern 5 — Ambient Capture Channels**.
+
+- **Deferred byproduct**: `/reflect` mines the review loop on `approved` and proposes capture candidates.
+- **On-demand**: `/remember` accepts an inline observation and writes to the appropriate `memory/project/` target (type declared in the invocation).
+- **Post-edit (v2+)**: `PostToolUse(Write|Edit)` hook flags candidate captures passively — reviewed during `/reflect`.
+
+**Pattern 6 — Path-Based Domain Auto-Detection**.
+
+`.workflow.yaml` declares a `domain-map` mapping path globs to domain tags (`src/auth/** → auth`, `src/payments/** → billing`). Skills that read `memory/project/learnings/*` filter by the domain tag of the current story's main edit paths. Avoids loading unrelated learnings.
+
+**Pattern 7 — Separate Spec from Implementation** (from domain research, positioning refinement).
+
+The memory convention and composition protocol are published as a **portable spec** (`spec/memory-convention.md`, `spec/skill-composition.md`) — a third party can implement them without importing our plugin. The plugin is the **reference implementation**. This separation is architectural, not cosmetic: `spec/` cannot reference `plugin/` internals.
+
+_Sources:_
+- Brainstorming principles #5, #6, #8, and domain research positioning refinement
+- [Plugins — settings/hooks semantics](https://code.claude.com/docs/en/plugins) — accessed 2026-04-17
+
+### Deployment and Operations Architecture
+
+**Pattern 1 — Git-Tagged Releases as Primary Version Source**.
+
+The plugin repo uses semver tags on `main`. The marketplace repo (same or different repo) references the plugin via a `ref:` matching those tags. For multi-plugin monorepos hosting our plugin alongside others, use the `{plugin-name}--v{version}` tag convention (required for plugin-dependency resolution).
+
+**Pattern 2 — Release Channel Split via Marketplace Duplication**.
+
+If release channels are needed, two separate marketplace catalogs (same repo, different `ref:`). `stable-<name>` points at `ref: stable`, `latest-<name>` at `ref: latest`. Users assigned to channels via `extraKnownMarketplaces` in managed settings. Critical constraint: different refs **must** declare different `version` in `plugin.json`; same-version refs are treated as identical and updates are skipped.
+
+**Pattern 3 — Validation in CI**.
+
+Every push must run `claude plugin validate .` as a hard gate. Catches: invalid JSON, missing required fields, malformed YAML frontmatter in skills/agents/commands, invalid `hooks/hooks.json`. A failure here blocks merge.
+
+**Pattern 4 — Dogfood Against a Real Project**.
+
+The brainstorming roadmap ends with Day 7 = full-cycle run on a real project with two parallel epics. This is the acceptance test, not a nice-to-have. Architectural decisions that fail dogfood get rolled back before v1.
+
+**Pattern 5 — Spec-First Documentation**.
+
+Day-1 ships a `spec/memory-convention.md v0.1` alongside the plugin skeleton. The spec is shorter than the code and published before or at the same time. Positioning per domain research: the spec is the primary distribution asset, the plugin is the proof-of-implementation.
+
+**Pattern 6 — Minimal Marketplace Surface at Launch**.
+
+Publish to `joselimmo-marketplace` only at v1. Submission to the official Anthropic marketplace (`claude-plugins-official`) is a v2 target — the marketplace accepts via [claude.ai/settings/plugins/submit](https://claude.ai/settings/plugins/submit) or [platform.claude.com/plugins/submit](https://platform.claude.com/plugins/submit), with basic automated review + optional "Anthropic Verified" badge for plugins that pass a quality/safety review. No public acceptance criteria — empirically, plugins that ship with tests, docs, security hygiene, and a clean README stand a better chance.
+
+**Pattern 7 — Observable Failure Modes**.
+
+Rely on `claude --debug`, `/plugin` Errors tab, and `/doctor` for field diagnostics. Ship a one-page troubleshooting section in the README that names the five most likely failure modes (invalid manifest, wrong directory structure, non-executable hook script, missing `${CLAUDE_PLUGIN_ROOT}`, absolute path). Every failure mode has a documented fix.
+
+_Sources:_
+- [Plugin marketplaces — version resolution / release channels](https://code.claude.com/docs/en/plugin-marketplaces) — accessed 2026-04-17
+- [Plugins reference — debugging section](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-17
+- Brainstorming 7-day roadmap; domain-research positioning refinement
