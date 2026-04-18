@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -778,3 +778,234 @@ Rationale:
 | `adversarial-review-wrapper` | B (custom) | Sonnet or Opus declared in frontmatter | `memory: project` |
 
 _Source: architectural arbitrage based on Research #1–#3 findings + step-02 cost data._
+
+---
+
+## Implementation Approaches and Technology Adoption
+
+> **Domain-adapted interpretation**: this section covers the practical side of *implementing* subagents — authoring workflow, testing strategy, cost monitoring, and risk management — in the solo-first context. Generic categories adapted.
+
+### Adoption Strategy
+
+**MVP scope (Day 1–7)**:
+
+- Ship plumbing skills `explore-codebase-wrapper` and `research-web-wrapper` as **Option C (hybrid)** — each a thin skill with `context: fork` + `agent: Explore`/`general-purpose`.
+- Ship **Option B** custom subagent `adversarial-review-wrapper` as a file `agents/adversarial-review-wrapper.md` with its own system prompt + `memory: project`.
+- No `isolation: "worktree"` usage in MVP (Issue #39886 risk; write-isolated work not needed until v2+).
+- Add `scratch` to the MVP type enum (11 values total).
+
+**v1.5+**:
+
+- Consider upgrading `explore-codebase-wrapper` from Option C to Option B if accumulated codebase knowledge via `memory: project` becomes valuable.
+- Consider `memory: project` on `research-web-wrapper` for citation caching.
+- Verify `isolation: "worktree"` bug status; adopt if green.
+
+**v2+**:
+
+- Test-writer subagent dispatched from `/implement`.
+- Post-edit reflection subagent triggered on `PostToolUse(Write|Edit)`.
+- Agent-teams coordination (Research #4+ territory if we explore it).
+
+### Development Workflows
+
+**Authoring loop for a custom subagent (Option B)**:
+
+1. Create `plugins/<name>/agents/<agent>.md` with frontmatter + system prompt.
+2. Register the frontmatter `name` + `description` carefully (description is the auto-dispatch trigger).
+3. Declare `model`, `tools`, `memory`, `maxTurns` per design table in step-04.
+4. Test via dev install: `claude --plugin-dir ./plugins/<name>`.
+5. Invoke via `/agents` UI or via a parent skill with `context: fork` + `agent: <agent>`.
+6. Iterate on the system prompt using the Shape B self-check pattern.
+
+**Authoring loop for a hybrid skill (Option C)**:
+
+1. Create `plugins/<name>/skills/<skill>/SKILL.md`.
+2. Frontmatter declares `context: fork` + `agent: Explore` (or `general-purpose`).
+3. Body contains the exact prompt template including `$ARGUMENTS`, `@path` references, and the Shape B contract ("Write to `memory/backlog/epic-<id>/scratch/<slug>.md`, return only the path").
+4. Test by invoking the skill directly: `/<plugin-name>:<skill-name> <args>`.
+5. Verify the scratch file is created and valid (via `validate-artifact-frontmatter`).
+
+**Tooling**:
+
+- `claude --plugin-dir` for dev loading.
+- `/reload-plugins` for in-session updates.
+- `/plugin` Errors tab for load-time diagnostics.
+- `claude --debug` for dispatch-time traces.
+- Fixtures in `examples/` for Shape B output structure.
+
+### Testing and Quality Assurance
+
+**Tier 1 — Static validation** (CI):
+
+- `claude plugin validate` on every commit. Catches frontmatter schema errors in skill/agent files.
+- JSON Schema check on `examples/subagent-outputs/*.md` — verifies the shape B artifacts match the memory-artifact schema.
+
+**Tier 2 — Dispatch unit test** (manual + scripted):
+
+- For each plumbing subagent, a canned prompt invocation producing a known expected Shape B output path.
+- Script in `scripts/test-subagents.sh` invoking via `claude -p` (headless mode) + asserting the file is created.
+- Not fully deterministic (LLM output varies), but path creation is deterministic.
+
+**Tier 3 — Output-contract eval** (manual):
+
+- Each subagent's system prompt should consistently produce a well-formed artifact with a valid slug-style filename.
+- Run 5 invocations per subagent with varied prompts. Count how many produce valid Shape B vs violate (return prose instead of file, wrong path, bad frontmatter).
+- Target: 5/5 valid. 4/5 acceptable for v1 with a fix in the system prompt before v1.1.
+
+**Tier 4 — Dogfood** (Day 7):
+
+- Full story cycle with two epics running in parallel. Every subagent invocation counted and logged. Missing artifacts or budget overruns are Day-7 blockers.
+
+**Tier 5 — Anti-regression test** (v1.1+):
+
+- After each release, run the Tier 3 eval. Track pass rate over time. A drop indicates the system prompt needs re-tuning.
+
+### Deployment and Operations
+
+**Release process**:
+
+- Bump plugin version in `plugin.json`.
+- If a subagent's system prompt changed, note it in `CHANGELOG.md` under "Subagent contract changes."
+- Tag release: `git tag v1.x.y && git push --tags`.
+- Auto-update picks up next session.
+
+**Operations / monitoring**:
+
+- No first-class token metering for subagent invocations.
+- Manual: user can count subagent dispatches per story cycle; should match the Composition Model table.
+- Dogfood logs (opt-in via a `SessionStart` log file during Day 1–7) capture per-invocation token costs from `claude --debug` output.
+
+**Versioning**:
+
+- Subagent system prompts are versioned with the plugin. No independent version.
+- Breaking changes to the expected output shape = plugin major version bump (+ ADR).
+
+### Team Organization and Skills
+
+**Solo (weeks 1–4)**:
+
+- Cyril owns all subagent definitions.
+- `CODEOWNERS`: trivial.
+
+**Community-open (month 2+)**:
+
+- External contributors may propose new subagents via PR. Gate:
+  - ADR required for any new subagent (justify the context-isolation need).
+  - PR must include Tier 1 + Tier 2 + Tier 3 eval results.
+  - CODEOWNERS approval on `agents/` + `skills/*/SKILL.md`.
+
+**Author skills**:
+
+- Prompt engineering — the subagent's system prompt is the contract.
+- Cost awareness — know which model to pick.
+- Discipline — resist shipping subagents for tasks that don't need isolation (most don't).
+
+### Cost Optimization and Resource Management
+
+Summary table re-stated (from step-04):
+
+| Axis                                   | Target / limit                                 |
+| :------------------------------------- | :--------------------------------------------- |
+| Shape B return message                 | ≤ 200 tokens                                   |
+| `explore-codebase-wrapper` cost        | ~5k tokens (Haiku)                             |
+| `research-web-wrapper` cost            | ~15-25k tokens (Sonnet)                        |
+| `adversarial-review-wrapper` cost      | ~10-20k tokens (Opus or Sonnet)                |
+| Total subagent dispatch per story cycle | ~50k tokens in subagent contexts; ~600 tokens to parent |
+| Parent story-cycle budget              | ≤ 25k (unchanged) — subagents are off-budget   |
+
+**Monitoring tactics**:
+
+- Per-release Tier 3 + Tier 4 measurements logged to `_bmad-output/metrics/`.
+- A dogfood run that exceeds parent 25k budget = decomposition failure OR subagent Shape B contract violation. Root-cause required.
+
+### Risk Assessment and Mitigation
+
+Priority-ranked:
+
+**Risk 1 — Shape B contract violation** (high likelihood early; impact: parent budget explosion).
+
+Mitigation: self-check at end of subagent prompt, CI Tier 3 eval, explicit error message if file not found.
+
+**Risk 2 — `isolation: "worktree"` bug #39886** (low likelihood since we don't rely in MVP; impact: if v1.5+ we adopt).
+
+Mitigation: verify bug status at Day 3 and v1.5. Fallback: manual `git worktree add` via `WorktreeCreate` hook.
+
+**Risk 3 — Subagent over-triggering** (medium likelihood; impact: token waste, user friction).
+
+Mitigation: `description` fields written as "Use when..." with tight trigger conditions. Monitor Tier 3 false-positive rate.
+
+**Risk 4 — Anthropic changes native `Explore` behavior** (low likelihood 12mo; medium likelihood 24mo; impact: Hybrid (Option C) subagents break).
+
+Mitigation: subagent eval Tier 3 catches behavior changes. Escalation path: upgrade to Option B custom subagent.
+
+**Risk 5 — `memory: project` drift** (medium over 6+ months; impact: `adversarial-review-wrapper` accumulates obsolete patterns).
+
+Mitigation: periodic manual prune of `.claude/agent-memory/adversarial-review-wrapper/MEMORY.md`. Document in CONTRIBUTING.md.
+
+**Risk 6 — Prompt injection via `@path`** (low likelihood for internal plugin skills; higher for third-party-composed flows).
+
+Mitigation: system prompt treats `@` content as untrusted data (step-04 security principle).
+
+**Risk 7 — Subagent costs hidden from user** (medium likelihood; impact: surprise billing).
+
+Mitigation: README explains token profile per subagent. `/costs` command (v2+) could report per-subagent spend.
+
+### Recommendations — Roadmap Adjusted
+
+**Day 1**: schema extension — add `scratch` to `schemas/memory-artifact.schema.json` type enum (11 values). Update `spec/memory-convention.md`. Update `examples/` with a valid `scratch.md` fixture.
+
+**Day 3 (brownfield bootstrap)**:
+
+- Verify `isolation: "worktree"` bug status (Issue #39886). Note result.
+- Ship `skills/explore-codebase-wrapper/SKILL.md` with `context: fork` + `agent: Explore` + Shape B contract.
+- Invoke from `/init-project` to generate seed memory files.
+
+**Day 4 (discovery/planning)**:
+
+- Ship `skills/research-web-wrapper/SKILL.md` with `context: fork` + `agent: general-purpose`.
+- Wire into `/plan-story` for ADR research.
+
+**Day 5 (reflect)**:
+
+- Ship `agents/adversarial-review-wrapper.md` as a custom subagent (Option B) with `memory: project`.
+- Wire into `/reflect` as the reviewer in the Superpowers-style chain.
+
+**Day 7 (dogfood)**:
+
+- Full-cycle dogfood; count subagent invocations per story; verify Shape B compliance; verify budget under 25k/parent.
+
+**v1.1**:
+
+- Tier 5 anti-regression test suite. Track Shape B compliance rate release-to-release.
+
+**v1.5**:
+
+- Evaluate Option B upgrade for `explore-codebase-wrapper` if `memory: project` patterns have emerged.
+- Revisit `isolation: "worktree"` if bug #39886 closed.
+
+**v2**:
+
+- Test-writer subagent dispatched from `/implement`.
+- Post-edit reflection via `PostToolUse(Write|Edit)` (third capture channel).
+
+### Success Metrics and KPIs
+
+**Functional**:
+
+- Every plumbing subagent produces Shape B artifact on ≥ 4/5 invocations (target 5/5).
+- Every story cycle's parent-context stays ≤ 25k with subagent dispatch.
+- Every subagent's declared `model` matches its task complexity (verified via Tier 3).
+
+**Adoption / credibility**:
+
+- Tier 3 eval passed on every release (binary).
+- Per-release Shape B compliance rate logged in `_bmad-output/metrics/`.
+- Anti-regression Tier 5 passes (binary).
+
+**Operational**:
+
+- No dogfood cycle exceeds 25k parent budget traceable to subagent leak.
+- No production invocation returns incomplete artifact without error.
+- No `PreToolUse(Write)` hook rejection traceable to subagent output.
+
+_Source: synthesized from step-02/03/04 findings + brainstorming budgets + Research #1 roadmap._
