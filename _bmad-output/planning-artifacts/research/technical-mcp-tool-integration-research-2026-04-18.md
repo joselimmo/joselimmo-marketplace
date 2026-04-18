@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -482,3 +482,217 @@ Five failure modes, distinct responses.
 - Mitigation: don't attach MCP servers to Haiku subagents. Enforce this at plugin design time.
 
 _Source: [code.claude.com/docs/en/mcp — debugging section](https://code.claude.com/docs/en/mcp), community issues — accessed 2026-04-18._
+
+---
+
+## Architectural Patterns and Design
+
+> **Domain-adapted interpretation**: for MCP, "architectural patterns" covers the substrate boundary (agent↔tool YES, skill↔skill NO), bundling policy (zero in MVP, opt-in v1.5+), the Haiku exclusion rule, integration with our Advisor + Reactive Porcelain × Delegated Plumbing composition, security architecture, and the key decision: `research-web-wrapper` MCP vs native.
+
+### System-Level Patterns
+
+**Pattern 1 — MCP is for agent↔tool, not skill↔skill** (confirmed from Research #1).
+
+This was stated as a design rule in Research #1 and is reinforced by every source surveyed. MCP wraps external capabilities (GitHub, Exa, filesystem, databases) behind a JSON-RPC interface so Claude can call them. Skill-to-skill composition happens via **typed artifacts** (Research #2), not via MCP. Two reasons:
+
+- MCP has measurable token overhead (pre-Tool Search) and implementation overhead (server subprocess, handshake, JSON-RPC).
+- Skill composition should be host-agnostic — a third-party skill must be able to compose with ours without spinning up an MCP server.
+
+**Pattern 2 — Bundle nothing, opt-in everything** (plugin-stance).
+
+Our MVP ships **zero MCP servers**. Users who want MCP servers add them via `.workflow.yaml` or `.mcp.json` at the consumer project level. Two reasons:
+
+- Claude Code's official marketplace already ships MCP-wrapped plugins for the most common integrations (GitHub, Slack, etc.). Re-bundling them duplicates the ecosystem.
+- Bundling MCP creates a hard dependency on external APIs (keys, quotas, outages) — our workflow plugin should work offline, on any codebase, with no signup.
+
+**Pattern 3 — Haiku exclusion rule** (derived from Tool Search model-compatibility constraint).
+
+Haiku-backed subagents (`explore-codebase-wrapper` uses native `Explore` on Haiku) **must not have MCP servers attached**. Haiku does not support Tool Search, so every MCP tool's full description loads into its context — defeating the cost efficiency that made Haiku attractive in the first place. Design implication:
+
+- Workflow skills that dispatch to Haiku subagents never declare MCP tools in `allowed-tools`.
+- Skills that might want MCP must target Sonnet/Opus subagents.
+
+**Pattern 4 — Server name prefix discipline** (collision prevention).
+
+If we ever bundle MCP servers, prefix with `workflow-<name>-` to avoid cross-plugin silent collisions (observed in step-03). This is cheap insurance.
+
+_Source: synthesized from Research #1 (substrate boundary), step-02/03 (cost constraints), cross-plugin collision analysis._
+
+### Design Principles for MCP Usage in the Plugin
+
+**Principle 1 — No bundled MCP servers in MVP.** Spec says so. Code says so. Tests confirm so.
+
+**Principle 2 — Opt-in via consumer config (v1.5+).**
+
+Consumer projects can opt in by either:
+
+- Adding entries to their own `.mcp.json` at repo root (host-native mechanism). Our plugin reads nothing here; it inherits whatever the host loads.
+- Declaring in `.workflow.yaml`:
+  ```yaml
+  mcp:
+    research-web:
+      server: exa
+      api_key_env: EXA_API_KEY
+  ```
+  Our `research-web-wrapper` checks this config; if declared, routes to the MCP server; else uses native WebSearch. This is the **graceful fallback pattern**.
+
+**Principle 3 — Document, don't automate.**
+
+The plugin's README includes a "Recommended MCP integrations" section listing the 3-4 servers that work well with each plumbing skill (Exa for research-web, Memory optional for long-lived agents, etc.). Instructions show users how to add them to their own `.mcp.json`. No plugin-auto-install.
+
+**Principle 4 — Assume Tool Search on.**
+
+By 2026 default, Tool Search is enabled. Our plugin does not configure `ENABLE_TOOL_SEARCH`. If a user runs in an environment where Tool Search is disabled (proxy, Haiku model), they see the pre-2026 cost profile — that's on them, documented in the README.
+
+**Principle 5 — Plugin-shipped agents are restricted from declaring `mcpServers`** (from Research #1).
+
+Confirmed again here. Plugin-shipped custom subagents (our `adversarial-review-wrapper`) can use MCP tools **only if** the MCP servers are declared at the plugin root (`.mcp.json` or inline `mcpServers` in `plugin.json`), NOT in the agent's own frontmatter. This is a security feature.
+
+### Scalability and Cost Patterns
+
+**Pattern 1 — Tool Search as Free Cost Reduction**.
+
+Tool Search is on by default and requires no plugin configuration on Sonnet/Opus. Our Sonnet/Opus subagents automatically benefit from 85% context reduction on MCP tool listings. No code required.
+
+**Pattern 2 — Haiku Quarantine**.
+
+Our Haiku-backed plumbing (native `Explore` via `context: fork`) sits in a zone where MCP is too expensive. Keep MCP tool requirements out of those skills. Explicitly document this constraint in the skill body ("This skill uses native Explore — do not add MCP tool requirements").
+
+**Pattern 3 — Tool-Listing Budget Ceiling (as a fallback)**.
+
+For users who run Tool Search disabled (proxies, Haiku-only setups), document a ceiling: **no more than 3-4 MCP servers recommended**. Above that, context pollution dominates.
+
+**Pattern 4 — Per-Server Cost Discipline**.
+
+When we document recommended integrations in the README, include per-server token costs from step-02 (Playwright ~3.5k, Gmail ~2.6k, SQLite ~400). Gives consumers a transparent baseline.
+
+### Composition & Orchestration — MCP's Place in Our Model
+
+Research #1 introduced Advisor + Reactive Porcelain. Research #3 extended with Delegated Plumbing. MCP sits as a **capability substrate** under the subagent layer:
+
+```
+                   ┌──────────────┐
+                   │  state-manager│  (advisor)
+                   └──────┬───────┘
+                          ↓ recommends
+                   ┌──────────────┐
+                   │  /<command>  │  (porcelain)
+                   └──────┬───────┘
+                          ↓ may dispatch
+                   ┌──────────────┐
+                   │  plumbing    │  (skill composes)
+                   └──────┬───────┘
+                          ↓ context: fork
+                   ┌──────────────┐
+                   │  subagent    │  (isolated context)
+                   └──────┬───────┘
+                          ↓ (may call MCP if Sonnet/Opus)
+          ┌──────────────────────────────┐
+          │  MCP server subprocess        │  (filesystem, GitHub, Exa, etc.)
+          └──────────────────────────────┘
+```
+
+**Boundary rule**: MCP is reached only by subagents (or by the parent directly). Skills never speak MCP; they speak to subagents which may speak MCP. This preserves the host-agnostic nature of skill composition.
+
+**Integration per subagent**:
+
+- `explore-codebase-wrapper` (Haiku via `Explore`) — NO MCP.
+- `research-web-wrapper` (Sonnet via `general-purpose`) — MCP opt-in via `.workflow.yaml` (v1.5+).
+- `adversarial-review-wrapper` (Sonnet/Opus custom) — could use MCP servers declared at plugin root (e.g., a code-quality server). v1.5+ territory.
+
+_Source: composition synthesis across Research #1–#4._
+
+### Security Architecture (MCP-Specific)
+
+**Supply-chain trust**:
+
+- MCP servers run at user privileges. Same trust level as plugins.
+- Anthropic-authored servers (Filesystem, Git, Postgres, SQLite, GitHub, Brave, Memory) are the "trusted" tier — `modelcontextprotocol/servers` repo, first-party.
+- Third-party servers (Exa, Tavily, community contributions) — vet before use.
+- Our plugin documents: "Recommended servers are known; others are consumer's choice."
+
+**API key / secret handling**:
+
+- Pattern 1 from step-03 (`userConfig` + system keychain) is the recommended secure default.
+- Never ship API keys in fixture files.
+- CI that runs integration tests with live MCP servers must use GitHub Secrets (or equivalent).
+
+**Network surface**:
+
+- HTTP MCP servers are outbound connections. Respect the consumer's firewall / proxy settings. `ANTHROPIC_BASE_URL` proxy users need `ENABLE_TOOL_SEARCH` explicit (step-02).
+- Self-hosted MCP servers (localhost stdio) have zero network surface beyond what the server binary itself does.
+
+**Hook-level control**:
+
+- `PreToolUse` on `mcp__<server>__*` patterns allows enterprise users to intercept/validate MCP tool calls. Document this in the README as a safety pattern.
+
+**Principle**: our plugin ships no security-critical MCP by default, so the security architecture at the plugin layer is minimal. When consumers opt in, the security discipline inherits from Research #1's supply-chain section.
+
+_Source: Research #1 security architecture + MCP-specific analysis in this track._
+
+### Data Architecture
+
+**Where MCP does NOT fit**:
+
+- **Persistent memory**: the official Memory MCP server duplicates our `memory/` two-tier architecture (Research #2) and subagent `memory:` field (Research #3). Recommendation: do NOT use Memory MCP. Our layer is richer and under user control.
+- **Filesystem ops**: Claude Code's native Read/Write/Edit cover this. Filesystem MCP is redundant.
+- **Git ops**: Claude Code's native Bash + git commands cover this. Git MCP is useful for read-only introspection if the agent should not be able to write — edge case, not our MVP.
+
+**Where MCP DOES fit** (for consumer opt-in):
+
+- External APIs with no native tool equivalent: Exa for web search, Linear/Jira for project management, Sentry for error telemetry, Postgres for live DB queries.
+- Wrapping domain-specific services (Kubernetes, Terraform, cloud providers).
+
+_Source: architectural analysis based on step-02 catalog + native Claude Code capabilities._
+
+### The Decision: `research-web-wrapper` Native vs MCP
+
+Four concrete options, one recommended.
+
+**Option A — Native `WebSearch`/`WebFetch` via general-purpose subagent** (current pin from Research #3).
+
+- Skill declares `context: fork` + `agent: general-purpose`.
+- Subagent uses native `WebSearch` and `WebFetch` tools.
+- Zero MCP surface. Zero API key. Zero consumer setup.
+- Quality: Claude's native `WebSearch` is competent. Published benchmarks do not cover it directly.
+- Cost: 15-25k tokens per invocation (Shape B write-to-file keeps parent off budget).
+
+**Option B — MCP-based Exa server bundled**.
+
+- Plugin declares `mcpServers: { "workflow-exa": { ... } }` in `plugin.json`.
+- Requires consumer to provision an Exa API key via `userConfig`.
+- Quality: 81% WebWalker benchmark (vs 71% Tavily, undocumented for native WebSearch). 50-75% token reduction via query-dependent highlights.
+- Cost: bundled server = plugin forces the dependency. Users without Exa subscription get a broken plugin.
+
+**Option C — MCP-based Exa, opt-in via `.workflow.yaml`** (v1.5+ recommendation).
+
+- Plugin does NOT bundle the Exa server. README documents how consumers add it.
+- `research-web-wrapper` skill body checks `.workflow.yaml` for `mcp.research-web.server`; if present, routes to the MCP tool; else uses native WebSearch (graceful fallback).
+- Quality: configurable per consumer. Default = native.
+- Cost: MVP = zero dependency. v1.5+ = consumer choice.
+
+**Option D — Multi-server unified wrapper** (e.g., `mcp-omnisearch`, v2+).
+
+- Declare multiple alternatives (Exa, Tavily, Brave, Kagi); route by preference.
+- More complex config; more useful for advanced users.
+
+**Decision**: **Option A for MVP, Option C for v1.5+.**
+
+Rationale:
+
+1. **MVP = Option A**: zero dependency, works on any consumer install, matches our "bundle nothing" principle.
+2. **v1.5+ = Option C**: consumers who want higher-quality research pay the setup cost themselves; plugin gracefully falls back for consumers who don't opt in.
+3. **Option B rejected**: forcing a dependency contradicts Principle 2 (bundle nothing).
+4. **Option D deferred**: interesting for v2+ if Option C gains adoption.
+
+**Summary table** (updated):
+
+| Plumbing subagent            | Option  | Backing model           | MCP?                              |
+| :--------------------------- | :------ | :---------------------- | :-------------------------------- |
+| `explore-codebase-wrapper`   | C (Research #3) | native `Explore` (Haiku) | NO (Haiku quarantine)            |
+| `research-web-wrapper`       | C (Research #3 hybrid) → A (this track, MVP) → C (v1.5+ opt-in) | native `general-purpose` (Sonnet) | MVP: NO. v1.5+: opt-in via `.workflow.yaml` |
+| `adversarial-review-wrapper` | B (Research #3 custom) | Sonnet or Opus | MVP: NO. v1.5+: optional code-quality MCP if demand emerges |
+
+**Impact on `.workflow.yaml` schema**: add an optional `mcp` section for v1.5+ config. MVP schema does not need it — document as a v1.5+ extension in `spec/workflow-yaml.schema.json`.
+
+_Source: arbitrage synthesized from Research #1–#4 findings + step-02 Exa benchmark data._
