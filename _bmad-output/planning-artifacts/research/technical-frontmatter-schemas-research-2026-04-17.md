@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -759,3 +759,197 @@ Each spec file has:
 Automated check (CI): a script greps `spec/**/*.md` for `plugins/` references and fails on any match — enforces the separation rule structurally.
 
 _Source: [JSON Schema Store](https://www.schemastore.org/json/) — accessed 2026-04-17; domain research positioning refinement._
+
+---
+
+## Implementation Approaches and Technology Adoption
+
+> **Domain-adapted interpretation**: this section covers the practical side of *implementing* frontmatter schemas — the schema-authoring workflow, validation tooling, testing strategy, and risk management. Generic categories (team scaling, vendor selection, DevOps rollout) are adapted to the schema-layer reality.
+
+### Adoption Strategy (Schema First, Plugin Second)
+
+Per the domain-research positioning refinement, the spec is the primary distribution asset and the plugin is the proof-of-implementation. For schemas specifically, this inverts the usual order: **write the schemas before the skills that consume them**.
+
+- **Day 1 deliverable**: draft `schemas/memory-artifact.schema.json` (even if short), `schemas/skill.schema.json` (our extensions), `schemas/workflow-yaml.schema.json`. Commit alongside the plugin skeleton. No code depends on them yet, but they exist.
+- **Day 1 spec**: `spec/memory-convention.md v0.1.0` (1 page) references the schemas as the machine-readable source of truth.
+- **Schema-first development**: every skill is written *after* its input/output schemas are defined. If a skill needs a new field, the schema is bumped first; the skill follows.
+
+This is slower on Day 1 (author two artifacts instead of one) but **much faster on Day 3–7** — the `validate-artifact-frontmatter` skill, the CI linter, and the IDE config all read from the same schemas. Zero drift.
+
+### Development Workflows and Tooling
+
+**Schema authoring loop**:
+
+1. Edit `schemas/*.schema.json`.
+2. Update a fixture file per type in `examples/` (one example of a valid `adr.md`, one of `story.md`, etc.).
+3. Run `ajv validate -s schemas/memory-artifact.schema.json -d "examples/*.md"` (with a front-matter-extractor wrapper — `ajv` validates JSON; extract frontmatter as YAML, convert to JSON, validate).
+4. Update `spec/memory-convention.md` if the schema change affects the published contract.
+5. Bump `schema_version` if appropriate.
+
+**Tooling stack**:
+
+- **`ajv` (Node.js)** — primary schema validator. Fast, JSON Schema Draft 2020-12 compliant.
+- **`js-yaml` or Python `PyYAML`** — YAML parsing. Always use the `safe` variant.
+- **`gray-matter` (Node) / `python-frontmatter`** — frontmatter extraction from Markdown.
+- **`redhat.vscode-yaml` extension** — IDE validation.
+- **`claude plugin validate`** — canonical host-side validator.
+
+**Minimum glue script** (conceptual pseudocode for `validate-artifact-frontmatter` plumbing skill):
+
+```
+for each file in memory/**/*.md:
+  frontmatter = extract_frontmatter(file)
+  if frontmatter.BOM: error "UTF-8 BOM detected, strip it"
+  parsed = yaml_safe_load(frontmatter)
+  if parsed.size > 4096: error "Frontmatter exceeds 4 KB cap"
+  schema = schemas/memory-artifact.schema.v{parsed.schema_version}.json
+  if not schema.exists: error "Unknown schema_version"
+  validator = ajv.compile(schema)
+  if not validator(parsed): error validator.errors
+  if parsed.type == adr and parsed.status == superseded:
+    check(parsed.superseded_by resolves to existing file)
+  # ... type-specific transition checks
+```
+
+Ship this as a `scripts/validate.mjs` or `scripts/validate.py` invoked by both the plugin's own skill and the CI pre-commit hook. Single source of validation logic.
+
+### Testing and Quality Assurance
+
+**Tier 1 — Fixture-driven validation** (highest-value, lowest-effort):
+
+- `examples/{adr,convention,learning,glossary,overview,epic,story,plan,review,rule}.md` — one valid example per type. Checked into the repo. `ajv` validates each against its schema in CI.
+- `examples/invalid/*.md` — invalid examples that MUST fail validation. CI asserts each fails the expected way. Catches the "every example passes trivially" failure mode.
+
+**Tier 2 — Schema conformance tests** (per schema file):
+
+- For each `schemas/*.schema.json`, a Jest / pytest file that loads the schema and asserts:
+  - All required fields are listed.
+  - Enum values match `spec/memory-convention.md`.
+  - `additionalProperties: false` is set (MVP strict) OR a documented `x-*` allowance.
+  - `$schema` is set to the Draft 2020-12 URL.
+
+**Tier 3 — Round-trip tests**:
+
+- For each type, generate a minimal valid frontmatter programmatically, serialize to YAML, parse, re-validate. Catches serialization bugs (e.g., `status: on` being YAML-parsed as `true`).
+
+**Tier 4 — Property-based** (optional, v1.5+):
+
+- Fast-check (Node) or Hypothesis (Python) generators for frontmatter: required fields + random optional field selection. Assert that every generated artifact validates. Catches schemas that accidentally reject valid combinations.
+
+**Tier 5 — Integration dogfood** (part of the Day-7 plugin dogfood):
+
+- A full story cycle generates real artifacts. CI replays the dogfood artifacts through the validator. Catches drift between what the plugin writes and what the schema accepts.
+
+### Deployment and Operations Practices
+
+**Schema release process**:
+
+1. Bump `schema_version` in the affected schema file (e.g., `0.1.0 → 0.1.1` for additive change, `0.2.0` for deprecation cycle, `1.0.0` after deprecation complete).
+2. Update `spec/CHANGELOG.md` with the breaking-change entry if any.
+3. Update `examples/` with any new optional fields demonstrated.
+4. Run the full test suite (Tiers 1–3).
+5. Tag the spec: `git tag spec/v0.2.0 && git push --tags`. **Independent of plugin tag**.
+6. Bump plugin version if the plugin's schema-consuming skills are updated.
+
+**Migration tooling** (v1.5+):
+
+- `scripts/migrate-schema-v0.1-to-v0.2.mjs` — upgrades existing artifacts in place. Idempotent. Tested with a known-input / known-output fixture.
+- Documented in `spec/CHANGELOG.md` with a "Migration" subsection per breaking change.
+
+**JSON Schema Store PR** (v1.5+):
+
+- Submit PR to `schemastore/schemastore` adding entries for `memory-artifact.schema.json`, `skill.schema.json`, `workflow-yaml.schema.json` with filename-pattern mappings.
+- Benefit: every JSON-Schema-aware editor gets automatic validation for third parties without any config.
+
+### Team Organization and Skills
+
+**Phase 1 (solo, weeks 1–4)**: Cyril owns both spec and plugin. `CODEOWNERS` is trivial.
+
+**Phase 2 (community-open, month 2+)**:
+
+- `CODEOWNERS` requires maintainer approval on: `spec/`, `schemas/`, `plugins/*/.claude-plugin/plugin.json`.
+- PRs touching `spec/` must also update `schemas/` and `examples/`. Enforced via a CI check (`test -f spec/memory-convention.md && test -f schemas/memory-artifact.schema.json`).
+- Breaking schema changes require an ADR (written as the first artifact of the PR, stored in `aidd_docs/adr/` or equivalent).
+
+**Skill requirements for contributors**:
+
+- JSON Schema Draft 2020-12 fluency.
+- YAML 1.2 fluency, including the footguns (booleans, colons, BOM).
+- SemVer discipline for the spec.
+- Willingness to update `examples/`, `spec/`, `schemas/`, and the plugin in the same PR.
+
+### Cost Optimization and Resource Management
+
+**Cost axes at the schema layer**:
+
+| Cost            | Target                           | Enforcement                                                      |
+| :-------------- | :------------------------------- | :--------------------------------------------------------------- |
+| Frontmatter size | ≤ 4 KB per artifact              | Validator hard cap.                                              |
+| `INDEX.md` line | ≤ 120 chars per entry            | Template in state-manager.                                       |
+| Schema load     | one-time at plugin boot          | Single `schemas/` read; cached in memory by `validate-artifact-frontmatter`. |
+| Validation cost | < 1 ms / artifact (typical)      | `ajv` compiled validator; not a bottleneck.                      |
+| Total schema files | ≤ 5 MVP                        | Three live MVP (memory, skill, workflow-yaml); resist adding.    |
+
+**Token cost of frontmatter on Claude's context**:
+
+- Skill listing budget: 1 536 chars per skill, ~1% of context window total. Covered by step-03.
+- Memory artifact loaded by `memory_scope`: body only, not frontmatter. Frontmatter is metadata for INDEX, not Claude context. Parse it, expose the body.
+
+**Anti-pattern to avoid**: fields in frontmatter duplicating body content (e.g., `summary:`). Every duplicate field is tokens loaded twice when an artifact is fetched. Schema design keeps frontmatter minimal.
+
+### Risk Assessment and Mitigation
+
+**Risk 1 — Schema over-design.** Likelihood: high (always tempting to add fields "just in case"). Impact: lock-in, migration cost. Mitigation: fix MVP at 10 types, 4 statuses, 3 extension fields (`requires`, `produces`, `memory_scope`). Every addition requires an ADR. Every removal requires a deprecation cycle.
+
+**Risk 2 — Ecosystem fragmentation.** Likelihood: medium — community forks might add incompatible fields. Impact: Unix test fails. Mitigation: publish the spec widely, respond to issues quickly, reserve `x-*` prefix for vendor extensions.
+
+**Risk 3 — YAML footgun bug reaching production.** Likelihood: medium in author-written content (BOM, `on`/`off` as booleans, unquoted colons). Impact: silent failure. Mitigation: validator catches all four footguns; examples file demonstrates each case; CI gate.
+
+**Risk 4 — Schema drift from spec.** Likelihood: medium if schemas and spec prose are maintained separately without gates. Impact: third parties implement the wrong contract. Mitigation: CI gate that cross-references schema enum values against markdown tables in `spec/memory-convention.md` (automatable via a simple grep).
+
+**Risk 5 — Host rejecting unknown frontmatter fields.** Likelihood: low in next 12 months, unknown beyond. Impact: breaks our `requires`/`produces`/`memory_scope` extensions. Mitigation: prefix-namespacing (`x-requires`, etc.) available as a future fallback; document the risk in the spec.
+
+**Risk 6 — Tag vocabulary sprawl.** Likelihood: medium over 6+ months. Impact: `tags` loses retrieval value. Mitigation: worst-case `/consolidate-tags` script in v2+; accept the risk as a conscious MVP trade-off.
+
+**Risk 7 — `superseded_by` dangling pointers.** Likelihood: medium on refactors. Impact: broken navigation. Mitigation: `validate-artifact-frontmatter` checks pointer targets exist; CI catches this before merge.
+
+### Recommendations — Roadmap Adjusted for Schema-First
+
+**Day 1 (schema work integrated into plugin skeleton day)**:
+
+- Create `schemas/memory-artifact.schema.json v0.1.0`, `schemas/skill.schema.json v0.1.0`, `schemas/workflow-yaml.schema.json v0.1.0`. Minimal: required fields + 10-type enum + 4-status enum.
+- Create `examples/{adr,story,plan,...}.md` — one per type, valid.
+- Create `examples/invalid/` — 5 invalid examples per common failure mode.
+- Draft `spec/memory-convention.md v0.1.0` + `spec/skill-composition.md v0.1.0` + `spec/frontmatter-schema.md` (pointer doc).
+- Implement `validate-artifact-frontmatter` skill reading from `schemas/`.
+- CI: `ajv validate` + `claude plugin validate` as hard gates.
+
+**Day 2+**: schema becomes a stable contract. Skills written against it. No schema changes without an ADR.
+
+**Week 2–3 (v1.1)**: Unix test — hand-write a `learning.md` outside the plugin, demonstrate `/reflect` consumes it.
+
+**Month 2+ (v1.5)**: JSON Schema Store PR. Public spec promotion.
+
+**Month 3+ (v2)**: only if demanded by usage, introduce schema migration tooling and the second minor version.
+
+### Success Metrics and KPIs
+
+**Functional**:
+
+- Every artifact written by plugin passes `claude plugin validate` + `ajv` schema check (binary).
+- Every type enum value has at least one valid and one invalid example in `examples/` (binary).
+- Every schema change ships with a spec update (binary, CI-enforced).
+
+**Adoption**:
+
+- JSON Schema Store PR accepted by month 3 (goal, not guaranteed).
+- First third-party skill honoring our frontmatter schema (qualitative, month 2+).
+- Zero reported "my artifact doesn't work" bugs attributable to schema ambiguity (leading indicator).
+
+**Operational**:
+
+- Schema CI check runs in < 5 seconds.
+- `validate-artifact-frontmatter` runs in < 100 ms per artifact.
+- No release blocked on schema-drift detection false positives.
+
+_Source: targets derived from this research + brainstorming constraints + domain-research positioning._
