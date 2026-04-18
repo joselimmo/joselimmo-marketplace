@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2]
+stepsCompleted: [1, 2, 3]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -267,3 +267,238 @@ _Sources:_
 - **File-based artifact output is the more disciplined convention**, particularly for plan/research/review tasks where persistence matters.
 
 _Source: cross-reference of the sources cited in this section._
+
+---
+
+## Integration Patterns Analysis
+
+> **Domain-adapted interpretation**: for subagents, "integration patterns" covers (1) the dispatch protocols from parent to subagent, (2) the return contract (summary, verbatim, durable artifact), (3) parent↔subagent data exchange, (4) multi-subagent composition patterns, (5) integration of the subagent `memory` field with our plugin's two-tier memory, and (6) error/failure handling. Generic API patterns do not apply.
+
+### Dispatch Protocols (Parent → Subagent)
+
+Three concrete dispatch paths, each with different trust and determinism profiles.
+
+**Path 1 — `Task` tool (model-driven, Claude decides)**.
+
+```
+Task(subagent_type: "explore-codebase", prompt: "Find all authentication-related code and summarize the flow")
+```
+
+- Claude selects the subagent based on its `description`.
+- Prompt is the user's task translated by Claude — may omit context the subagent needs.
+- Non-deterministic: same user query may dispatch different subagents across sessions.
+- Use for: ad-hoc exploration, Claude-initiated research.
+
+**Path 2 — `context: fork` from a skill (deterministic)**.
+
+```yaml
+---
+name: deep-research
+description: Research a topic thoroughly
+context: fork
+agent: Explore
+---
+
+Research $ARGUMENTS thoroughly:
+
+1. Find relevant files via Glob and Grep
+2. Read and analyze
+3. Summarize with file-path references
+```
+
+- Skill body = subagent's system prompt.
+- `$ARGUMENTS` substituted from the user invocation.
+- The `agent:` field names the subagent type (`Explore`, `Plan`, `general-purpose`, or custom).
+- Deterministic: same skill invocation always spawns the same subagent type with the same prompt template.
+- Use for: every plumbing skill that needs context isolation. **This is our primary dispatch pattern.**
+
+**Path 3 — `/agents` UI (user-driven)**.
+
+User selects from the menu. Not part of automated workflow.
+
+**Implications for the plugin**:
+
+- Our plumbing skills (e.g., `explore-codebase-wrapper`, `research-web-wrapper`) use **Path 2** — `context: fork` with `agent: Explore` or `agent: research-web-agent`. This is the deterministic, testable, scriptable pattern.
+- `state-manager` does NOT use subagent dispatch — it reads local state and emits recommendations. No isolation needed.
+- `/reflect` may dispatch a `reviewer` subagent via Path 2 (Superpowers-validated pattern).
+
+_Source: [Skills — Run skills in a subagent section](https://code.claude.com/docs/en/skills) — accessed 2026-04-18._
+
+### Return Contract
+
+**Default behavior**: only the subagent's final message returns to the parent. Intermediate tool calls, file reads, search results stay inside the subagent's context window. Parent receives the final message verbatim as the `Task` tool result (or summarized in Claude's next response unless explicit preservation is requested).
+
+**Three output shapes** the plugin should adopt by task type:
+
+**Shape A — Summary string (default)**.
+
+- Use when: the parent needs a concise human-readable answer.
+- Example: `research-web` returning "Found 3 relevant libraries. X supports Y. Link: ...".
+- Cost: cheap (few hundred tokens return).
+
+**Shape B — Durable typed artifact (our preferred plumbing output)**.
+
+- Subagent writes to a file in `memory/backlog/epic-NNN/scratch/` with frontmatter matching our schema.
+- Subagent returns a one-line reference: "Wrote research-notes to `memory/backlog/epic-003/scratch/research-xyz.md`".
+- Parent skill reads the file when needed.
+- Use when: output is large, needs to persist across the story cycle, or feeds the next skill.
+- Enforcement: the subagent's system prompt ends with a non-negotiable instruction to write the artifact and return only the reference.
+
+**Shape C — Verbatim preservation (rare)**.
+
+- Force with explicit instruction in the subagent's prompt: "Return your full report verbatim; do not summarize."
+- Parent receives the full content — counts against the parent's token budget.
+- Use when: format/structure of the output matters and cannot be reconstructed from a summary.
+
+**Decision rule for our plumbing subagents**:
+
+| Plumbing subagent        | Shape | Rationale                                                                          |
+| :----------------------- | :---- | :--------------------------------------------------------------------------------- |
+| `explore-codebase-wrapper` | B   | Output is large (file lists, summaries, architecture notes); feeds `/plan-story`.  |
+| `research-web-wrapper`     | B   | Output is citation-heavy; feeds `/plan-story` ADRs.                                |
+| `adversarial-review-wrapper` | B | Output is list of findings; feeds `/reflect`.                                       |
+| (ad-hoc) `Explore` direct invocation | A | One-shot user question ("how does this work?"). No persistence needed.             |
+
+**Critical invariant**: plumbing subagents must produce durable artifacts (Shape B). If output stays in the parent's return message (Shape A), the isolation benefit is lost — the content contaminates the parent's context window.
+
+_Sources:_
+- [claude.com/blog/subagents-in-claude-code](https://claude.com/blog/subagents-in-claude-code) (fetch blocked; cited via secondary sources)
+- [Subagents in the SDK (Claude API Docs)](https://platform.claude.com/docs/en/agent-sdk/subagents) — accessed 2026-04-18
+
+### Parent↔Subagent Data Exchange
+
+The subagent context starts empty except for its system prompt + the parent-supplied prompt + optional preloaded skills + `MEMORY.md` top-200. **Anything else the subagent needs must be in the prompt**.
+
+**Pattern — prompt payload structure** (for `context: fork` dispatch):
+
+```
+## Task
+<one-line restatement from skill's body>
+
+## Inputs
+- Story: $1  (story ID)
+- Focus files: $2  (glob or paths)
+- Active ADRs: <inline from state-manager>
+
+## Constraints
+- Output: write to `memory/backlog/epic-<id>/scratch/<slug>.md` with frontmatter matching `schemas/memory-artifact.schema.json`, type: "scratch"
+- Do NOT dump raw file contents; summarize.
+- Return only the file path to the parent.
+
+## Ready-to-use file references
+- See @memory/project/overview/technical.md for architecture context
+- See @.workflow.yaml for domain map
+
+<skill body>
+```
+
+- `@path` file-include syntax (Claude Code native) loads the file into the subagent's context at startup — **this is how the parent hands off existing context** without dumping it verbatim into the prompt.
+- `$0`, `$1`, … shell-style positional args from the user invocation.
+- The subagent does not inherit the parent conversation; it inherits the prompt.
+
+**Context isolation invariant**: if the subagent needs to know that a prior subagent ran, the parent must say so in the prompt. Subagents do not discover each other.
+
+_Source: [Skills — dynamic context injection](https://code.claude.com/docs/en/skills), [Sub-agents — system prompt mechanics](https://code.claude.com/docs/en/sub-agents) — accessed 2026-04-18._
+
+### Composition Patterns (Multi-Subagent Workflows)
+
+Four composition patterns observed in the ecosystem, with fit assessment for our plugin.
+
+**Pattern 1 — Sequential chain** (parent → A → B → C).
+
+- Parent dispatches A, reads A's artifact, dispatches B with A's reference, etc.
+- Fit: YES — core pattern for `/discover` → `/plan-story` → `/implement`.
+- Risk: each hop adds return tokens; keep A's summary lean.
+
+**Pattern 2 — Split-and-merge** (parent → [A, B, C] in parallel → merge).
+
+- Multiple subagents dispatched concurrently; parent merges results.
+- Fit: USEFUL inside a story — e.g., `/plan-story` could split into `explore-codebase` + `research-web` running in parallel.
+- Requires: both subagents write to distinct artifacts with non-conflicting names; parent reads both.
+- Risk: coordination cost vs serial dispatch. Measure before committing.
+
+**Pattern 3 — Reviewer chain** (implementer → reviewer subagent → parent).
+
+- Superpowers-validated pattern: implementer runs; reviewer subagent gets **only the task spec and the output**, not the implementer's reasoning. Anti-bias by design.
+- Fit: YES for `/reflect` — a review subagent reads the story's plan + the implementer's diff, reports findings. Parent decides approve/iterate.
+- Risk: extra token cost per review cycle. Accept as cost of quality.
+
+**Pattern 4 — Persona dialogue** (agent A debates agent B).
+
+- BMAD anti-pattern.
+- Fit: **NO.** Explicitly rejected in brainstorming and domain research.
+
+**Composition pattern for our MVP**:
+
+- Sequential for the main workflow chain.
+- Split-and-merge optionally inside `/plan-story` (parallel exploration + web research) — evaluate after first dogfood.
+- Reviewer chain for `/reflect`.
+- Zero persona dialogue.
+
+_Sources:_
+- [Superpowers blog (fsck.com)](https://blog.fsck.com/2025/10/09/superpowers/) — accessed 2026-04-18
+- [5 Claude Code Workflow Patterns (MindStudio)](https://www.mindstudio.ai/blog/claude-code-5-workflow-patterns-explained) — referenced 2026-04-18
+
+### Memory Integration (Subagent Memory × Plugin Two-Tier Memory)
+
+The subagent `memory` field and our plugin's `memory/project/` + `memory/backlog/` directories are **orthogonal**. Clarify:
+
+| Location                              | Owned by        | Lifetime            | Purpose                                                           |
+| :------------------------------------ | :-------------- | :------------------ | :---------------------------------------------------------------- |
+| `memory/project/*`                    | Plugin / user   | Permanent           | Curated knowledge (glossary, ADRs, conventions, learnings)        |
+| `memory/backlog/*`                    | Plugin / user   | Epic-scoped         | Workflow artifacts (epics, stories, plans, reviews, scratch)      |
+| `~/.claude/agent-memory/<agent>/`     | Agent (via `memory: user`) | Cross-session, cross-project | Agent's accumulated knowledge — codebase patterns, recurring issues |
+| `.claude/agent-memory/<agent>/`       | Agent (via `memory: project`) | Cross-session, project-scoped | Same, project-scoped                                              |
+
+**Integration decision for our plugin**:
+
+- `memory/` stays the **user-facing memory** (project source of truth). Every workflow artifact writes here.
+- Agent `memory/` is **private to the agent** (opaque to the user and to other agents). Useful for the agent to remember "last time I analyzed this codebase, the auth flow went through X".
+- **Never** duplicate `memory/project/` content into `agent-memory/<agent>/`. That creates two sources of truth.
+- **Do** use agent memory for agent-specific heuristics that do not belong in user-facing memory (e.g., the reviewer subagent remembers "this codebase reliably has N+1 query issues — check carefully").
+
+**Recommendation**: the `explore-codebase-wrapper` and `adversarial-review-wrapper` plumbing agents declare `memory: project`. The `research-web-wrapper` does not declare memory (web research is mostly ephemeral).
+
+_Source: novel integration design based on Research #2 memory architecture + this track's memory-field findings._
+
+### Error and Failure Handling
+
+Five failure modes with distinct responses.
+
+**Failure 1 — Subagent timeout / `maxTurns` exhausted**.
+
+- Symptom: subagent returns without completing the task; final message indicates incomplete work.
+- Parent behavior: `Task` tool result shows the truncated final message. No automatic retry.
+- Plugin behavior: if the expected durable artifact is missing, `validate-artifact-frontmatter` fails the precondition for the next skill. User sees "Plan missing — `/plan-story` did not complete."
+- Mitigation: set sensible `maxTurns` per subagent type (exploration: 10; review: 5; research-web: 8). Document the limit in subagent body.
+
+**Failure 2 — Tool access denied**.
+
+- Symptom: subagent attempts a tool outside its `tools` allowlist; fails to execute.
+- Parent behavior: subagent returns error message.
+- Plugin behavior: plumbing subagents have narrow `tools` lists. Any legitimate need uncovered by this failure is a skill design issue, not an auth issue.
+- Mitigation: test subagents in dev-mode (`claude --plugin-dir`) before shipping.
+
+**Failure 3 — Missing durable artifact (Shape B contract violation)**.
+
+- Symptom: subagent returns a summary but did not write the file.
+- Parent behavior: `Task` tool result has text; no file exists.
+- Plugin behavior: `state-manager` / next skill's precondition check fails. User sees a precondition error.
+- Mitigation: subagent system prompt must have the artifact-write as a non-negotiable step; body ends with an explicit self-check ("Before returning, confirm the file exists and has valid frontmatter").
+
+**Failure 4 — Malformed frontmatter in subagent output**.
+
+- Symptom: subagent wrote the file but frontmatter fails validation.
+- Parent behavior: `PreToolUse(Write)` hook + `validate-artifact-frontmatter` block the write with a descriptive error.
+- Plugin behavior: the write never lands. Parent sees a clear schema error.
+- Mitigation: subagent prompt includes a concrete frontmatter template to copy.
+
+**Failure 5 — Known bug `isolation: "worktree"` silent fail**.
+
+- Symptom (Issue #39886): agent runs in main repo instead of isolated worktree.
+- Mitigation: verify on our Claude Code version at Day 3 before relying. Fallback: manual `git worktree add` in a `WorktreeCreate` hook.
+
+_Sources:_
+- [Plugins reference — debugging](https://code.claude.com/docs/en/plugins-reference) — accessed 2026-04-18
+- [anthropics/claude-code Issue #39886](https://github.com/anthropics/claude-code/issues/39886) — open, Apr 2026
+- Research #2 validation architecture (defense in depth)
