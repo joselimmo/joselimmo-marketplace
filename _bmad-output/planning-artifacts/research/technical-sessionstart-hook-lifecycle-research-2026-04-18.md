@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2]
+stepsCompleted: [1, 2, 3]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -323,3 +323,260 @@ _Source: [code.claude.com/docs/en/hooks — configuration section](https://code.
 - **`additionalContext` double-injection bug** is a live hazard — plugin authors should test with `claude --debug` to verify injection count.
 
 _Source: cross-reference of sources cited in this section._
+
+---
+
+## Integration Patterns Analysis
+
+> **Domain-adapted interpretation**: for hooks, "integration patterns" covers (1) how events bind to handlers via matchers and `if` conditions, (2) the input/output protocol between host and hook, (3) how hooks integrate into plugin vs skill vs agent vs settings scopes, (4) cross-event composition (SessionStart sets env → subsequent PreToolUse sees it), (5) `CLAUDE_ENV_FILE` as the stateful channel, and (6) the error/diagnostic surface.
+
+### Event → Handler Binding Protocol
+
+Three filter mechanisms combine to decide whether a given event instance fires a hook handler.
+
+**Filter 1 — Event name (primary)**.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [ ... ]
+  }
+}
+```
+
+Each hook handler lives inside an event-named array. An event's array may contain multiple matcher groups.
+
+**Filter 2 — Matcher (event-type-specific)**.
+
+Matchers scope an event to specific instances. Semantics depend on the event:
+
+| Event                                          | Matcher filters                                            | Example matchers                           |
+| :--------------------------------------------- | :--------------------------------------------------------- | :----------------------------------------- |
+| `PreToolUse` / `PostToolUse` / …               | Tool name (exact, `\|`-separated, or regex)                | `Bash`, `Edit\|Write`, `mcp__memory__.*`   |
+| `SessionStart`                                 | Source: `startup \| resume \| clear \| compact`            | `startup`, `resume`                        |
+| `SessionEnd`                                   | Reason: `clear \| resume \| logout \| prompt_input_exit`   | `logout`                                   |
+| `SubagentStart` / `SubagentStop`               | Agent type (built-in or custom name)                       | `Explore`, `adversarial-review-wrapper`    |
+| `PreCompact` / `PostCompact`                   | Trigger: `manual \| auto`                                  | `auto`                                     |
+| `ConfigChange`                                 | Source: `user_settings \| project_settings \| local_settings` | `project_settings`                         |
+| `FileChanged`                                  | Literal filenames, `\|`-separated                          | `.envrc\|.env`                             |
+| `InstructionsLoaded`                           | Load reason: `session_start \| nested_traversal \| path_glob_match` | `session_start`                          |
+| Events without matcher support                 | n/a — always fires                                         | `UserPromptSubmit`, `Stop`, `TaskCreated`, `CwdChanged`, `WorktreeCreate`, `WorktreeRemove` |
+
+Matcher evaluation:
+
+- `"*"`, `""`, or omitted → match all.
+- Only letters/digits/`_`/`|` → exact string or pipe-separated list.
+- Any other character → JavaScript regex.
+
+**Filter 3 — `if` condition (tool events only)**.
+
+```json
+{
+  "type": "command",
+  "if": "Bash(rm *)",
+  "command": "./block-rm.sh"
+}
+```
+
+Uses permission-rule syntax. Fires only if the tool input matches the pattern. Available on `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`.
+
+**Combined effect**: event name selects the array; matcher narrows to matching instances within the array; `if` further narrows to matching tool inputs.
+
+_Source: [code.claude.com/docs/en/hooks — matcher section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Input/Output Protocol
+
+**Input — stdin JSON (command hooks)** or **POST body (HTTP hooks)**. Common fields:
+
+- `session_id` — current session identifier.
+- `transcript_path` — absolute path to conversation JSONL file.
+- `cwd` — working directory when hook invoked.
+- `permission_mode` — `default | plan | acceptEdits | auto | dontAsk | bypassPermissions`.
+- `hook_event_name` — the firing event.
+
+**Event-specific fields** add on top (e.g., `source` on SessionStart, `tool_name` + `tool_input` + `tool_use_id` on PreToolUse).
+
+**Output — Two mechanisms**:
+
+1. **Exit code** (coarse): 0 success, 2 block, others non-blocking error. Documented in step-02.
+2. **JSON on stdout (exit 0 only)** — fine-grained control:
+
+```json
+{
+  "continue": true,
+  "stopReason": "...",
+  "suppressOutput": false,
+  "systemMessage": "...",
+  "decision": "block",
+  "reason": "...",
+  "hookSpecificOutput": { /* event-specific */ }
+}
+```
+
+**Universal fields** (`continue`, `stopReason`, `suppressOutput`, `systemMessage`) work on every event.
+
+**Decision control patterns by event**:
+
+- **Top-level `decision: "block"` + `reason`**: `UserPromptSubmit`, `PostToolUse`, `PostToolUseFailure`, `Stop`, `SubagentStop`, `ConfigChange`, `PreCompact`.
+- **`hookSpecificOutput` with rich control**: `PreToolUse` (permissionDecision allow/deny/ask/defer + `updatedInput`), `PermissionRequest` (decision.behavior), `PermissionDenied` (retry), `Elicitation`, `ElicitationResult`, `WorktreeCreate` (worktreePath), `SessionStart` (additionalContext).
+- **No decision control**: `Notification`, `SessionEnd`, `PostCompact`, `InstructionsLoaded`, `StopFailure`, `CwdChanged`, `FileChanged`, `WorktreeRemove`.
+
+**Rule**: pick exit-code semantics OR JSON output, not both. JSON is processed only on exit 0. Exit 2 ignores any JSON and uses stderr as the message.
+
+_Source: [code.claude.com/docs/en/hooks — JSON output section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Plugin Integration Protocol
+
+Our plugin declares hooks at three possible levels. Priority order from most- to least-preferred for our use cases:
+
+**Level 1 — Plugin-wide (`hooks/hooks.json`)** — for hooks that should fire whenever the plugin is enabled.
+
+```json
+{
+  "description": "Workflow plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "if": "Write(memory/**/*.md)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/validate-memory-artifact.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Level 2 — Skill frontmatter** — for hooks scoped to a skill's lifecycle.
+
+```yaml
+---
+name: reflect
+description: Review loop + deferred memory capture
+hooks:
+  PostToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "node ${CLAUDE_PLUGIN_ROOT}/hooks/track-write-for-capture.mjs"
+---
+```
+
+These hooks register in-memory, only while the skill is active, and clean up automatically when the skill ends. `once: true` fields in skill frontmatter run the hook once per session.
+
+**Level 3 — Agent frontmatter** — plugin-shipped agents **cannot** declare hooks (confirmed in Research #1 and Research #3). This level is non-plugin-only.
+
+**Our usage**:
+
+| Hook                                              | Level                | Purpose                                                                     |
+| :------------------------------------------------ | :------------------- | :-------------------------------------------------------------------------- |
+| `SessionStart` lean boot                          | Plugin-wide          | Inject ≤500-token advisor summary on every session start/resume.            |
+| `PreToolUse(Write)` with `if: Write(memory/**)`   | Plugin-wide          | `validate-artifact-frontmatter` enforcement on memory writes.               |
+| `PostToolUse(Write|Edit)` (v2+ for ambient capture) | Plugin-wide        | Opportunistic scratch-capture candidate flagging.                           |
+| `Stop` / `SessionEnd`                             | Plugin-wide          | Flush `ACTIVE.md`, refresh `INDEX.md` idempotently.                         |
+| `PreCompact` / `PostCompact`                      | Plugin-wide          | Ensure key architectural decisions survive compaction.                      |
+
+All our hooks are plugin-wide. No skill-frontmatter hooks in MVP (simpler; all wiring in one JSON file).
+
+_Source: [code.claude.com/docs/en/hooks — plugin integration](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Cross-Event Composition — `CLAUDE_ENV_FILE` Integration
+
+`CLAUDE_ENV_FILE` is the stateful channel between hooks and subsequent session operations. Available only on `SessionStart`, `CwdChanged`, `FileChanged`.
+
+**Mechanics**:
+
+- Environment variable set by Claude Code before the hook runs. Points to a file path.
+- Hook writes `export VAR=value` lines to the file via `>>` (append).
+- Every subsequent Bash tool call in the session sources the file before execution.
+
+**Use cases for our plugin**:
+
+- Expose `WORKFLOW_ACTIVE_EPIC=epic-003-auth` for Bash tool calls that want the active-epic context (e.g., a `/remember` skill that appends to `memory/backlog/epic-<id>/...`).
+- Expose `WORKFLOW_PLUGIN_DATA=${CLAUDE_PLUGIN_DATA}` so shell-invoked scripts can find persistent plugin data.
+- Expose `NODE_OPTIONS=--enable-source-maps` or similar if the plugin ships Node tooling.
+
+**Critical constraints**:
+
+- The file is appended, not replaced. Duplicate writes = duplicate `export` lines (harmless but wasteful).
+- Not a secure channel — do not write secrets here; use `userConfig` + keychain (Research #1) for those.
+- Only Bash tool calls honor it. PowerShell tool calls (on Windows) do NOT source `CLAUDE_ENV_FILE`. Workaround: a PowerShell-aware hook writes its own env file + a `PreToolUse(Bash)`-like hook sources it.
+
+**Our lean-boot hook pattern** (pseudocode):
+
+```
+// SessionStart hook — node .claude-plugin/hooks/session-start.mjs
+const input = JSON.parse(await readStdin());
+const { cwd, source } = input;
+
+// Read plugin state
+const active = readJSON(`${cwd}/memory/backlog/ACTIVE.md`);  // epic + story
+const indexLine = `Epic: ${active.epic} / Story: ${active.story}:${active.status} / Next: ${advisor.recommend(active)}`;
+
+// Write env var for downstream tools
+if (process.env.CLAUDE_ENV_FILE) {
+  appendFile(process.env.CLAUDE_ENV_FILE, `export WORKFLOW_ACTIVE_EPIC=${active.epic}\n`);
+}
+
+// Emit structured output (JSON-only, to avoid double-injection bug #14281)
+console.log(JSON.stringify({
+  hookSpecificOutput: {
+    hookEventName: "SessionStart",
+    additionalContext: indexLine  // single line, ~30 tokens, <<500 hard cap
+  }
+}));
+process.exit(0);
+```
+
+_Source: [code.claude.com/docs/en/hooks — CLAUDE_ENV_FILE section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Error and Diagnostic Protocol
+
+**Debug visibility**:
+
+- `claude --debug` logs every hook invocation with stdin input, exit code, stdout, stderr.
+- `/plugin` Errors tab shows per-plugin hook errors.
+- `/hooks` command lists every registered hook, source-labeled.
+- `/doctor` catches some hook misconfigurations.
+
+**Failure modes and responses**:
+
+| Failure                                       | Symptom                                           | Handling                                                                                        |
+| :-------------------------------------------- | :------------------------------------------------ | :---------------------------------------------------------------------------------------------- |
+| Hook binary missing (path typo)               | `hook error` notice in transcript                 | CI gate: smoke-test hooks with a fixture stdin input on every PR.                               |
+| Hook times out (> configured timeout)         | Cancelled; non-blocking error                     | Keep `SessionStart` < 1 second. Use asynchronous flavor (`async: true`) only for non-critical hooks. |
+| Hook stdin JSON parse fails in the script     | Script error; may block or continue depending on exit code | Defensive parsing: wrap `JSON.parse` in try/catch, exit 0 with empty output on parse failure.   |
+| Plugin hooks not loading on Windows (Issue #18610) | Hook silently not firing                          | Use Node.js runner (`node script.mjs`). Test on Windows explicitly.                             |
+| `additionalContext` double-injection (Issue #14281) | Duplicated content in Claude's context            | JSON-only output path; never print plain stdout alongside.                                       |
+| `PreToolUse` exit 2 stops Claude (Issue #24327) | Claude halts instead of receiving feedback         | Use JSON `permissionDecision: "deny"` with `permissionDecisionReason`, not exit 2.              |
+| Malformed `hooks/hooks.json`                  | **Plugin does not load at all** (Research #1)     | Hard CI gate: `claude plugin validate`.                                                         |
+| Hook prints to stdout on non-SessionStart/UserPromptSubmit event | Stdout goes to debug log only (expected, not injected) | No action needed; documented behavior.                                                   |
+
+**Disable switches**:
+
+- `disableAllHooks: true` in user/project/local settings disables hooks except managed ones.
+- To disable a single hook: edit settings JSON; no per-hook toggle.
+- Hot reload: `/reload-plugins` picks up hook changes without session restart.
+
+**Our CI discipline**:
+
+- Run `claude plugin validate` on every PR (hard gate).
+- Smoke-test every hook script: feed a fixture stdin, assert exit code and stdout JSON shape.
+- Platform matrix CI: run smoke tests on Linux, macOS, Windows (GitHub Actions supports all three).
+
+_Source: [code.claude.com/docs/en/hooks — debugging section](https://code.claude.com/docs/en/hooks), [Issue #14281](https://github.com/anthropics/claude-code/issues/14281), [Issue #18610](https://github.com/anthropics/claude-code/issues/18610), [Issue #24327](https://github.com/anthropics/claude-code/issues/24327) — accessed 2026-04-18._
