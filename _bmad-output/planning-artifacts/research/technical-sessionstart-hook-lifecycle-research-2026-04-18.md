@@ -1,5 +1,5 @@
 ---
-stepsCompleted: []
+stepsCompleted: [1, 2]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -55,3 +55,271 @@ Findings inform the Day-6 MVP deliverable (SessionStart lean boot + hook scaffol
 **Key findings at a glance** (detailed in the Research Synthesis at the end):
 
 - _(populated after step-06 synthesis)_
+
+---
+
+## Technical Research Scope Confirmation
+
+**Research Topic:** Claude Code Hook Lifecycle and SessionStart Mechanics for Cross-OS Lean Boot
+
+**Research Goals:** produce the factual basis required to finalize (1) the SessionStart hook honoring a ≤500-token hard output cap, (2) the cross-OS runtime contract (Linux/macOS/Windows/PowerShell), (3) the mechanics of the ~27 lifecycle events and which to wire into, (4) the four lean-boot modes from the brainstorming, and (5) hook authoring guidelines (stdin payload, stdout/stderr semantics, exit codes, timeouts).
+
+**Technical Research Scope:**
+
+- Architecture Analysis — complete lifecycle event inventory with trigger conditions and JSON input schemas
+- Implementation Approaches — SessionStart mechanics, output injection into session context, ≤500-token budget
+- Technology Stack — Bash (Linux/macOS), PowerShell (Windows), portable fallbacks (Node, Python), known compatibility issues
+- Integration Patterns — four lean-boot modes + implementation, scoping (global vs plugin vs skill-level)
+- Hook Authoring Guidelines — stdin JSON, stdout/stderr semantics, exit codes (0 = continue, 2 = block, others), timeouts, buffering
+
+**Explicit Exclusions (delegated to completed sibling research tracks):**
+
+- `plugin.json` / `marketplace.json` manifests → Research #1
+- Skill / agent / command frontmatter → Research #2
+- Subagent output contracts → Research #3
+- MCP server configuration → Research #4
+
+**Research Methodology:**
+
+- Current web data with rigorous source verification (official `code.claude.com/docs/en/hooks`, cross-OS samples, GitHub issues)
+- Multi-source validation for critical technical claims (observed vs documented behavior, known bugs)
+- Confidence level framework for cross-OS behaviors (most fragile axis)
+- Systematic citations
+
+**Scope Confirmed:** 2026-04-18
+
+---
+
+## Technology Stack Analysis
+
+> **Domain-adapted interpretation**: for hooks, the "technology stack" covers the event vocabulary (~27 lifecycle events), the hook types (command/http/prompt/agent), the runtime contract (stdin JSON, exit codes, stdout/stderr semantics), the SessionStart-specific output-injection behavior, and the cross-OS shell ecosystem (Bash / PowerShell / Node.js portable runner).
+
+### Lifecycle Event Inventory (Complete)
+
+Events group into five cadences:
+
+**Once per session**:
+
+- `SessionStart` — new session or resumed (matcher: `startup | resume | clear | compact`). **Command hook only.**
+- `SessionEnd` — session terminates.
+
+**Once per turn**:
+
+- `UserPromptSubmit` — user submits prompt, before Claude processes it (can block).
+- `Stop` — Claude finishes responding (can block to continue the turn).
+- `StopFailure` — turn ends due to API error (non-blocking).
+
+**Per tool call in agentic loop**:
+
+- `PreToolUse` — before a tool executes (can block via decision or exit 2).
+- `PermissionRequest` — permission dialog triggered (can allow/deny).
+- `PermissionDenied` — auto-classifier denied a tool call (can retry).
+- `PostToolUse` — tool succeeded (non-blocking).
+- `PostToolUseFailure` — tool failed (non-blocking).
+
+**Subagent and task**:
+
+- `SubagentStart` / `SubagentStop` — subagent lifecycle. `Stop` hook in a subagent frontmatter auto-converts to `SubagentStop`.
+- `TaskCreated` / `TaskCompleted` — TaskCreate tool events (both can block).
+- `TeammateIdle` — agent-team teammate going idle (can block).
+
+**Context and config**:
+
+- `InstructionsLoaded` — CLAUDE.md or `.claude/rules/*.md` loaded.
+- `ConfigChange` — settings file changes during session (can block).
+- `CwdChanged` — working directory changes (e.g., `cd` in Bash). **Also has `CLAUDE_ENV_FILE` access.**
+- `FileChanged` — watched file changes on disk (`matcher` selects filenames). **Also has `CLAUDE_ENV_FILE`.**
+
+**Compaction**:
+
+- `PreCompact` — before context compaction (can block).
+- `PostCompact` — after compaction completes.
+
+**Async / notification**:
+
+- `Notification` — Claude Code notification.
+- `WorktreeCreate` / `WorktreeRemove` — git worktree lifecycle.
+- `Elicitation` / `ElicitationResult` — MCP server input request lifecycle.
+
+**Total**: ~26 events. Our plugin uses a small subset (detailed in step-04). Most events are not actionable for a workflow-management plugin.
+
+_Source: [code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Hook Types — Four Execution Models
+
+| Type      | Runtime                                  | Timeout default | Best for                                       |
+| :-------- | :--------------------------------------- | :-------------- | :--------------------------------------------- |
+| `command` | Shell subprocess (bash or powershell)    | **600 s**       | Deterministic checks, CLI integrations.        |
+| `http`    | POST to URL, JSON body, Authorization header supported | configurable  | External validation services, observability.   |
+| `prompt`  | LLM evaluation, `$ARGUMENTS` substitution | **30 s**        | Fuzzy "does this violate rule X?" questions.   |
+| `agent`   | Subagent with Read/Grep/Glob             | **60 s**        | Evidence-based verification requiring file access. |
+
+**Command hook fields of note**:
+
+- `shell: "bash" | "powershell"` — explicit shell selection.
+- `async: true` — runs in background, does not block.
+- `asyncRewake: true` — runs async; can wake Claude later on exit code 2.
+- `timeout` (seconds, integer) — overrides default.
+
+**Matcher semantics per event type**:
+
+- `PreToolUse` / `PostToolUse`: matches tool name. Exact (`Bash`), `|`-separated (`Edit|Write`), or regex (`mcp__memory__.*`).
+- `SessionStart`: matcher value from `startup | resume | clear | compact`.
+- `SessionEnd`: `clear | resume | logout | prompt_input_exit`.
+- Many events (`UserPromptSubmit`, `Stop`, `TeammateIdle`, etc.) do not support matchers.
+
+_Source: [code.claude.com/docs/en/hooks — reference section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Runtime Contract — stdin / stdout / stderr / Exit Codes
+
+**Command hooks**:
+
+- **Input**: JSON on stdin. Common fields: `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`. Tool events add `tool_name`, `tool_input`, `tool_use_id`.
+- **Output**: JSON on stdout (only parsed if exit 0). Stdout of `SessionStart` and `UserPromptSubmit` is injected as context (special case); other events' stdout goes to debug log.
+- **Stderr**: text fed back to Claude on exit 2. Text fed back to user only on other non-zero exits.
+
+**Exit code semantics** (critical — often mis-documented):
+
+| Exit | Meaning                                                                                                         |
+| :--- | :-------------------------------------------------------------------------------------------------------------- |
+| `0`  | Success. Stdout parsed as JSON (if event supports structured output).                                           |
+| `2`  | **Blocking error**. Stdout/JSON ignored. Stderr fed to Claude as error. Effect depends on event.                 |
+| `1` or others | Non-blocking error. Transcript shows `<hook> hook error` notice; first stderr line surfaced; full stderr to debug log. **Exit 1 is NOT blocking** — critical gotcha. |
+
+**Exit-2 behavior matrix (selected events)**:
+
+| Event                  | Exit 2 = block? | What happens                                   |
+| :--------------------- | :-------------: | :--------------------------------------------- |
+| `PreToolUse`           | ✅              | Tool call blocked                               |
+| `UserPromptSubmit`     | ✅              | Prompt blocked + erased                         |
+| `Stop`                 | ✅              | Prevents stopping (continues turn)              |
+| `PreCompact`           | ✅              | Blocks compaction                               |
+| `PostToolUse`          | ❌              | Shows stderr to Claude (tool already ran)       |
+| `SessionStart`         | ❌              | Shows stderr to user only                       |
+| `SessionEnd`           | ❌              | Shows stderr to user only                       |
+| `InstructionsLoaded`   | ❌              | Ignored                                         |
+
+**Policy enforcement rule**: **use exit 2**, not exit 1. Exit 1 is a conventional Unix failure code but hooks treat it as non-blocking.
+
+**Known bug — Issue #24327**: "PreToolUse hook exit code 2 causes Claude to stop instead of acting on error feedback." Status: open as of Apr 2026. Workaround: use JSON output with `permissionDecision: "deny"` + `permissionDecisionReason` instead of exit 2 for `PreToolUse`.
+
+_Sources:_
+- [code.claude.com/docs/en/hooks — exit code section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18
+- [anthropics/claude-code Issue #24327](https://github.com/anthropics/claude-code/issues/24327) — open Apr 2026
+
+### SessionStart Mechanics
+
+**Trigger**: session begins or resumes. Matchers: `startup` (new session), `resume` (`--resume` / `--continue` / `/resume`), `clear` (`/clear`), `compact` (after auto/manual compaction).
+
+**Input schema (stdin JSON)**:
+
+```json
+{
+  "session_id": "abc123",
+  "transcript_path": "/Users/.../00893aaf-19fa-41d2-8238-13269b9b3ca0.jsonl",
+  "cwd": "/Users/...",
+  "hook_event_name": "SessionStart",
+  "source": "startup",
+  "model": "claude-sonnet-4-6"
+}
+```
+
+**Output injection — two paths**:
+
+1. **Plain stdout**: any text printed to stdout is added to Claude's context. Simplest.
+2. **Structured JSON**:
+   ```json
+   { "hookSpecificOutput": { "hookEventName": "SessionStart", "additionalContext": "<text>" } }
+   ```
+
+**Critical constraints**:
+
+- Only `type: "command"` hooks are supported on SessionStart. HTTP, prompt, agent not available here.
+- Hook runs **synchronously at startup** — keep under 1 second.
+- Access to `CLAUDE_ENV_FILE` environment variable — write `export VAR=value` lines to persist env vars for subsequent Bash tool calls in the session. Available on `SessionStart`, `CwdChanged`, `FileChanged` only.
+
+**Token budget enforcement** for our ≤500-token hard cap:
+
+- Tokenize the output before printing. A Node / Python wrapper can measure and truncate with an ellipsis or aggressive trimming.
+- Alternative: ship a fixed-template output whose maximum length is known at authoring time (the brainstorming's 3-line template: `Epic: <id> / Story: <id>:<status> / Next: <command>` caps at ~120 characters ≈ 30 tokens).
+
+**Known bugs**:
+
+- **Issue #14281**: "Hook additionalContext injected multiple times." `additional_context` field (Cursor compat) and `hookSpecificOutput.additionalContext` both read — full prompt injected twice. Workaround: emit only `hookSpecificOutput.additionalContext`, never plain stdout, to avoid double-injection on some Claude Code versions.
+- **Issue #23875**: feature request to view injected context. No command/flag currently exposes it — verify injection via `claude --debug` logs.
+- Superpowers Issue #648: "SessionStart hook injects superpowers context twice into Claude Code sessions." Same root cause.
+
+**Recommendation for our plugin**: use structured JSON output (`hookSpecificOutput.additionalContext`), never plain stdout, to avoid the double-injection footgun.
+
+_Sources:_
+- [code.claude.com/docs/en/hooks — SessionStart section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18
+- [claudefa.st Session Lifecycle Hooks](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) — accessed 2026-04-18
+- [anthropics/claude-code Issue #14281](https://github.com/anthropics/claude-code/issues/14281) — additionalContext multiple injections
+- [obra/superpowers Issue #648](https://github.com/obra/superpowers/issues/648) — same root cause
+
+### Cross-OS Runtime Contract
+
+**Bash (Linux/macOS default)**:
+
+- `shell: "bash"` (default when unspecified).
+- Typical on macOS, every Linux distro. Windows needs WSL, Git Bash, or MSYS2.
+- Startup ~10-50 ms.
+
+**PowerShell (Windows)**:
+
+- `shell: "powershell"` in the hook config runs PowerShell directly; does NOT require `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`.
+- Startup **300-500 ms** — significant when hooks stack.
+
+**Portable Node.js runner (recommended for cross-OS plugins)**:
+
+- Claude Code requires Node on every platform → always available.
+- `command: "node ${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"`.
+- Use `os.homedir()`, `os.tmpdir()`, `path.join()` for portability.
+- Single script file replaces three (`.sh` / `.ps1` / `.cmd`).
+- Startup overhead ~50-200 ms.
+
+**Known cross-OS issues**:
+
+- **Issue #18610**: "Plugin hooks cannot execute scripts on Windows — /bin/bash cannot resolve file paths." Workaround: use `node` runner instead of shell scripts on Windows.
+- **Line-endings footgun**: Git on Windows defaults to `core.autocrlf=true`. Converts LF to CRLF on checkout. Bash then fails to find binaries (literal CR in name). Fix: add a `.gitattributes` rule `*.sh text eol=lf` for all shell hook scripts.
+- **Path separators**: never hardcode `/` or `\`. Always `path.join()` in Node, `Join-Path` in PowerShell, or `"$(dirname "$0")/..."` in Bash.
+
+**Recommendation for our plugin**: **ship Node.js (`.mjs`) hooks**, not Bash or PowerShell. One codebase, every platform, fewer footguns.
+
+_Sources:_
+- [claudefa.st — Cross-Platform Hooks 2026](https://claudefa.st/blog/tools/hooks/cross-platform-hooks) — accessed 2026-04-18
+- [anthropics/claude-code Issue #18610](https://github.com/anthropics/claude-code/issues/18610) — Windows plugin hook execution
+- [nicoforclaude/claude-windows-shell](https://github.com/nicoforclaude/claude-windows-shell) — Windows shell utilities reference
+
+### Configuration Scope Hierarchy
+
+Settings merge across six levels (priority: managed > user > project > local > plugin > component-frontmatter):
+
+| Location                                    | Scope                              | Shareable                        |
+| :------------------------------------------ | :--------------------------------- | :------------------------------- |
+| Managed policy settings                     | Organization-wide                  | Admin-controlled                 |
+| `~/.claude/settings.json`                   | All user projects                  | No (personal)                    |
+| `.claude/settings.json` (project)           | This repo                          | ✅ commit to VCS                 |
+| `.claude/settings.local.json`               | This repo, this machine            | No (gitignored)                  |
+| Plugin `hooks/hooks.json` or inline in `plugin.json` | When plugin enabled            | ✅ bundled with plugin          |
+| Skill / agent frontmatter `hooks:`          | While component active             | ✅ in component file             |
+
+**Precedence rules**:
+
+- Managed settings override everything; `disableAllHooks: true` at user/project/local cannot disable managed hooks.
+- `disableAllHooks: true` at managed settings disables all hooks.
+- Plugin hooks merge with user and project hooks when the plugin is enabled.
+
+**`/hooks` command**: type `/hooks` to open a read-only browser listing every hook configured in the session, grouped by source label (`[User]`, `[Project]`, `[Local]`, `[Plugin]`, `[Session]`, `[Built-in]`).
+
+_Source: [code.claude.com/docs/en/hooks — configuration section](https://code.claude.com/docs/en/hooks) — accessed 2026-04-18._
+
+### Technology Adoption Trends
+
+- **Event vocabulary has grown significantly through 2025-2026** — from a handful of events at Claude Code launch to ~26 in 2026. Expect further additions; design should tolerate unknown events gracefully (hook subscribes to named events only).
+- **Prompt hooks and agent hooks are novel** — emerging alternative to brittle shell scripts. Useful for fuzzy policy checks.
+- **Node.js as universal hook runner is the pragmatic converging pattern** for cross-OS plugins. Shell-specific hooks (`.sh` / `.ps1`) are increasingly confined to single-platform consumer projects.
+- **Exit 2 vs JSON output** — community knowledge has converged on "use JSON output for PreToolUse" to avoid Issue #24327.
+- **`additionalContext` double-injection bug** is a live hazard — plugin authors should test with `claude --debug` to verify injection count.
+
+_Source: cross-reference of sources cited in this section._
