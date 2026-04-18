@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3]
+stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -580,3 +580,190 @@ _Source: [code.claude.com/docs/en/hooks — CLAUDE_ENV_FILE section](https://cod
 - Platform matrix CI: run smoke tests on Linux, macOS, Windows (GitHub Actions supports all three).
 
 _Source: [code.claude.com/docs/en/hooks — debugging section](https://code.claude.com/docs/en/hooks), [Issue #14281](https://github.com/anthropics/claude-code/issues/14281), [Issue #18610](https://github.com/anthropics/claude-code/issues/18610), [Issue #24327](https://github.com/anthropics/claude-code/issues/24327) — accessed 2026-04-18._
+
+---
+
+## Architectural Patterns and Design
+
+> **Domain-adapted interpretation**: for hooks, "architectural patterns" covers the lean-boot invariant, the 4 lean-boot modes promised in the brainstorming, hook design principles (size, idempotence, speed, portability), composition with our Advisor + Reactive Porcelain model, security and data architecture, and the final decision table for hook wiring.
+
+### System-Level Patterns
+
+**Pattern 1 — Lean Boot as Architectural Invariant** (brainstorming, reaffirmed).
+
+Every session starts with a ≤500-token injection from `SessionStart` that tells the user and Claude "where we are." Not a welcome screen, not a tutorial — a single, dense line: `Epic: <id> / Story: <id>:<status> / Next: <command>`. Everything else is lazy-loaded when a skill is invoked. This is Progressive Disclosure (from Research #1/#2) applied at the session boundary.
+
+**Pattern 2 — JSON-Only Output Channel** (mitigation for Issue #14281).
+
+Our hooks never write to plain stdout on `SessionStart` or `UserPromptSubmit`. Always emit structured JSON (`hookSpecificOutput.additionalContext`). Prevents the documented double-injection bug. This is a defensive operational pattern, not an optimization.
+
+**Pattern 3 — Node.js as Portable Hook Runtime** (cross-OS discipline).
+
+All our hook scripts ship as `.mjs` files invoked via `node ${CLAUDE_PLUGIN_ROOT}/hooks/<name>.mjs`. Bash and PowerShell are rejected at the plugin level. Every hook script uses `os.homedir()` / `os.tmpdir()` / `path.join()` — no hardcoded separators, no platform-specific env vars.
+
+**Pattern 4 — Idempotent Writes** (hooks may fire repeatedly).
+
+A hook that refreshes `INDEX.md` must produce the same file content from the same memory state regardless of how many times it runs. No timestamps in content, no counters, no "this is write #N." Idempotence is non-negotiable because `SessionStart` fires on every resume, and a session can resume many times per day.
+
+**Pattern 5 — Fail-Soft Hooks, Fail-Closed Validators** (asymmetric error policy).
+
+- **`SessionStart`, `Stop`, `SessionEnd`, ambient capture**: fail-soft. An error in the hook logs a warning; the session continues with degraded context but remains usable.
+- **`PreToolUse(Write memory/**)` schema validation**: fail-closed. A violation blocks the write. User sees a clear error.
+
+The asymmetry matches the blast radius: a broken SessionStart hook should not break the session; a broken artifact write should not land.
+
+_Source: synthesized from step-02/03 + brainstorming principles._
+
+### The Four Lean-Boot Modes
+
+From the brainstorming (`.workflow.yaml` setting):
+
+| Mode                  | Behavior                                                                       | Implementation                                                                                           |
+| :-------------------- | :----------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `always`              | Inject lean-boot context on every session start AND every resume.              | `SessionStart` hook with no matcher restriction → fires on `startup | resume | clear | compact`.         |
+| `new-session-only`    | Inject on `startup` only; `resume` / `clear` / `compact` get nothing.          | `SessionStart` hook with `"matcher": "startup"`.                                                         |
+| `manual`              | Never inject automatically; user types `/backlog` (or equivalent) to see state. | No `SessionStart` hook wired to lean boot.                                                               |
+| `interactive`         | Inject only if a condition is met (e.g., active story exists) OR prompt user.  | `SessionStart` hook reads state and either emits JSON (state present) or emits nothing (no state).       |
+
+**Configuration in `.workflow.yaml`** (from brainstorming, schema fixed here):
+
+```yaml
+lean-boot:
+  mode: always | new-session-only | manual | interactive
+  include-env-vars: true   # whether to write CLAUDE_ENV_FILE exports
+```
+
+**Implementation strategy**:
+
+- The hook script reads `lean-boot.mode` from `.workflow.yaml` at invocation time.
+- `manual` mode: script exits 0 with empty output, no injection.
+- `always` / `new-session-only`: the matcher in `hooks/hooks.json` enforces the `startup | resume | …` scope; the script emits the lean line unconditionally when invoked.
+- `interactive`: script checks `ACTIVE.md`; if an active story exists, inject; else emit nothing.
+
+**Default**: `always` — most users want to see where they are every time. The brainstorming user (Cyril) is the primary user; advanced users adjust `.workflow.yaml`.
+
+_Source: brainstorming Phase 2 Lens 1 (Substitute) decision + step-02 matcher semantics._
+
+### Design Principles for Hook Authoring
+
+**Principle 1 — Small Output**. SessionStart ≤500 tokens hard cap, typically <50. A single template line handles 99% of cases. Tokenize before emitting if approaching the cap.
+
+**Principle 2 — Fast Execution**. SessionStart < 1 second. Hooks block session start. A Node.js hook that reads two JSON files + emits JSON completes in ~100 ms comfortably.
+
+**Principle 3 — No Side Effects Beyond Declared Path**. A lean-boot hook reads `ACTIVE.md` + `INDEX.md`. It does NOT: refresh `INDEX.md`, compact memory, prompt user, send telemetry. That is `state-manager`'s job, invoked explicitly by the user.
+
+**Principle 4 — Defensive Input Parsing**. The hook receives JSON on stdin from Claude Code. Wrap parsing in try/catch; exit 0 with empty output on parse failure; log to stderr for user visibility.
+
+**Principle 5 — Environment Variables Are Cheap**. `CLAUDE_ENV_FILE` exports cost almost nothing. Writing `WORKFLOW_ACTIVE_EPIC=<id>` enables every Bash tool call to know the active epic without re-reading state.
+
+**Principle 6 — Document the Hook Contract**. Every hook script's `.mjs` file has a top-of-file comment: what event triggers it, what it reads, what it writes, expected exit codes, expected output shape. Essential when contributors touch the plugin.
+
+### Scalability and Cost Patterns
+
+**Pattern 1 — Token-Budget Enforcement at Hook Layer**.
+
+| Operation                                 | Token budget                          | Enforcement                                                      |
+| :---------------------------------------- | :------------------------------------ | :--------------------------------------------------------------- |
+| `SessionStart` lean-boot output           | ≤500 tokens (hard cap from brainstorming) | Template-based (~30 tokens actual); tokenize-and-trim safety net |
+| `PostToolUse(Write|Edit)` v2+ scratch-capture flag | Trivial (side-effect only, no context injection) | N/A                                                |
+| `Stop` / `SessionEnd` state flush         | No context injection                  | Writes to `memory/backlog/ACTIVE.md` only                        |
+| `PreCompact` protection of ADRs           | Small additional-context injection (≤500 tokens if used) | Whitelist architectural ADRs to preserve; cap length             |
+
+**Pattern 2 — Compaction-Aware State**.
+
+`PreCompact` can emit `additionalContext` with the current `ACTIVE.md` + `INDEX.md` summary. This ensures architectural context survives compaction (Research #1 principle). The cost is ~500 tokens added once per compaction event — acceptable given the benefit.
+
+**Pattern 3 — Deferred Writes**.
+
+Hooks that modify plugin state (e.g., `Stop` flushing `ACTIVE.md`) write synchronously but only if the state changed since the last flush. A cheap file-hash comparison avoids unnecessary writes.
+
+### Composition — Hooks in Our Advisor Model
+
+Hooks are the **reactive edge** of our Advisor + Reactive Porcelain × Delegated Plumbing model. They do not dispatch subagents, do not execute workflow commands — they react to host events and update or inject state.
+
+```
+                   ┌──────────────┐
+                   │  state-manager│  ← reads Claude-invoked
+                   └──────────────┘
+
+       host events flow                user invocations flow
+              ↓                              ↓
+  ┌───────────────────────┐    ┌──────────────┐
+  │  Plugin hooks         │    │  /<command>  │  (porcelain)
+  │  (reactive edge)      │    └──────────────┘
+  └───────────────────────┘
+
+  Hooks trigger on:       Porcelain dispatches:
+  - SessionStart            - Plumbing skills
+  - PreToolUse(Write memory/) - Subagents (via context: fork)
+  - PostToolUse (v2+)
+  - Stop / SessionEnd
+  - PreCompact / PostCompact
+```
+
+**Boundary rule**: hooks never invoke skills or subagents. Hooks read state, validate inputs, inject context. They are side-effect-constrained by design.
+
+**Why this separation**:
+
+- Hooks run synchronously at event boundaries — they must be fast and predictable.
+- Skills and subagents are arbitrary workloads — they cannot be wrapped in hook timing.
+- Keeping the reactive edge thin means Claude Code can invoke hooks confidently on every event without performance concern.
+
+_Source: composition synthesis across Research #1–#5._
+
+### Security Architecture (Hook-Specific)
+
+**Principle 1 — Hooks Run at User Privileges** (Research #1 confirmed).
+
+Same trust boundary as the plugin itself. No additional isolation. An unsandboxed shell command per hook invocation.
+
+**Principle 2 — No Secrets in Hook Scripts**.
+
+Hook scripts live in the plugin cache (read-only after install). Any secret written into the script is leaked via the repo. Use `userConfig` with `sensitive: true` + `${user_config.KEY}` substitution, exactly as for MCP servers (Research #4).
+
+**Principle 3 — Minimal Tool Surface for `agent` Hooks**.
+
+If we ever use `type: "agent"` hooks (v2+), the agent has Read/Grep/Glob access by default. Don't grant Write unless specifically needed. Follow Research #3's minimum-tool-allowlist principle.
+
+**Principle 4 — `PreToolUse` Validation is Not Security**.
+
+A `PreToolUse(Write memory/**)` hook that validates frontmatter is a **quality gate**, not a security control. A malicious caller can write to `memory/` via a shell command that bypasses the Write tool. The validator catches mistakes; it does not defend against adversaries.
+
+**Principle 5 — Injection Safety**.
+
+The lean-boot hook's output becomes Claude's context. Treat any user-controllable content (e.g., story titles from `ACTIVE.md`) as data when injecting — don't construct Claude instructions from user data. Practically: keep injection to the fixed template; never template-insert free-form user prose.
+
+_Source: Research #1 security + hook-specific analysis this track._
+
+### Data Architecture — Which Files Hooks Touch
+
+| Hook                              | Reads                                                                 | Writes                                                   |
+| :-------------------------------- | :-------------------------------------------------------------------- | :------------------------------------------------------- |
+| `SessionStart` lean boot          | `memory/backlog/ACTIVE.md`, `.workflow.yaml`                           | `CLAUDE_ENV_FILE` (env exports only)                     |
+| `PreToolUse(Write memory/)`       | the frontmatter of the write being validated, `schemas/*.json`        | none                                                     |
+| `PostToolUse(Write|Edit)` (v2+)   | the write payload (tool_input)                                        | Append to `memory/backlog/epic-NNN/scratch/candidates.md` (write-only append log)  |
+| `Stop` / `SessionEnd`             | `ACTIVE.md`, current session transcript (via `transcript_path`)        | `memory/backlog/ACTIVE.md` (only if state changed)       |
+| `PreCompact` / `PostCompact`      | key ADRs (whitelist), current story                                    | none (emits via stdout JSON)                             |
+
+**Invariant**: hooks NEVER modify `memory/project/*` files (that is an ambient-capture ritual via `/reflect` or `/remember`). Hooks only touch `memory/backlog/*` and the `CLAUDE_ENV_FILE`.
+
+_Source: Research #2 data architecture + this track's hook wiring decisions._
+
+### The Decision: Hook Wiring Table for MVP
+
+Final wiring (subject to Day-6 implementation validation):
+
+| Event                            | Matcher / `if`                  | Handler type | Script (Node.js)                                                        | Mode/purpose                                                     |
+| :------------------------------- | :------------------------------ | :----------- | :---------------------------------------------------------------------- | :--------------------------------------------------------------- |
+| `SessionStart`                   | (depends on `lean-boot.mode`)   | command      | `hooks/session-start.mjs`                                              | Lean boot injection (≤500 tokens) + env var exports              |
+| `PreToolUse`                     | `"Write"` + `if: Write(memory/**)`  | command      | `hooks/validate-memory-artifact.mjs`                                    | Schema validation of memory artifact frontmatter; block on fail  |
+| `Stop`                           | (no matcher)                    | command      | `hooks/flush-state.mjs`                                                 | Idempotent flush of `ACTIVE.md` if state changed                 |
+| `SessionEnd`                     | (no matcher)                    | command      | `hooks/flush-state.mjs` (same script)                                   | Same as `Stop` — idempotent final flush                          |
+| `PreCompact` (optional v1)       | `"auto"`                        | command      | `hooks/preserve-adrs.mjs`                                               | Inject critical ADR summaries into pre-compaction context        |
+| `PostToolUse` (v2+)              | `"Write\|Edit"` + `if: Edit(src/**)` | command      | `hooks/flag-capture-candidate.mjs`                                      | Ambient capture channel (third of three, per brainstorming)       |
+
+**All scripts**: Node.js `.mjs`, JSON-only output for SessionStart/PreToolUse, idempotent, defensive stdin parsing, top-of-file contract comment, <1 second runtime.
+
+**Platform matrix**: each script tested on Linux, macOS, Windows via GitHub Actions platform matrix. Line-endings enforced via `.gitattributes`.
+
+_Source: synthesized from Research #1–#5 findings + brainstorming 4-mode spec._
