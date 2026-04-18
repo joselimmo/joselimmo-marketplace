@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -696,3 +696,165 @@ Rationale:
 **Impact on `.workflow.yaml` schema**: add an optional `mcp` section for v1.5+ config. MVP schema does not need it — document as a v1.5+ extension in `spec/workflow-yaml.schema.json`.
 
 _Source: arbitrage synthesized from Research #1–#4 findings + step-02 Exa benchmark data._
+
+---
+
+## Implementation Approaches and Technology Adoption
+
+> **Domain-adapted interpretation**: this section covers the practical side — what to write in MVP (almost nothing), what to document (the opt-in path), what to test (graceful fallback), and what risks to monitor. Generic categories adapted to a "bundle-nothing" stance.
+
+### Adoption Strategy
+
+**MVP (Day 1–7)**:
+
+- Zero MCP servers bundled.
+- `research-web-wrapper` uses native `WebSearch`/`WebFetch` (Option A, Research #3 pin reaffirmed).
+- No `.workflow.yaml` MCP section in MVP schema.
+- README includes a brief "MCP integrations (advanced)" section documenting how consumers add Exa, GitHub, or other servers to their own `.mcp.json`.
+
+**v1.5+**:
+
+- Add optional `mcp` section to `.workflow.yaml` schema (`schema_version` bump `0.1.x → 0.2.x`).
+- Update `research-web-wrapper` to check `.workflow.yaml` for opt-in MCP server; graceful fallback to native.
+- Document the opt-in pattern in `spec/workflow-yaml.schema.md`.
+
+**v2+**:
+
+- Evaluate `mcp-omnisearch` or multi-server router pattern (Option D).
+- Consider a `/init-workflow-mcp` command that scaffolds `.mcp.json` with recommended entries.
+
+### Development Workflows
+
+**For MVP**: no MCP-specific workflow. The plugin does not touch `.mcp.json`, does not ship servers, does not run their subprocesses.
+
+**For v1.5+ opt-in implementation**:
+
+1. Update `schemas/workflow-yaml.schema.json` with the optional `mcp` section. Bump `schema_version`.
+2. In `research-web-wrapper` skill body, add a preprocessing check: `` !`cat .workflow.yaml | yq '.mcp.research-web.server // ""'` ``. Result becomes a substitution in the prompt.
+3. Subagent prompt branches on the result: "If MCP server `X` is configured, use `mcp__X__search`; else use native `WebSearch`."
+4. Example `.mcp.json` snippets included in `examples/mcp/` for Exa, Brave, mcp-omnisearch.
+
+**Testing locally**:
+
+- Consumer workflow: `claude plugin marketplace add ./`, `claude plugin install workflow-<name>@local`, plus the user's own `.mcp.json` with their preferred server, plus their own API key env var. Test end-to-end.
+
+### Testing and Quality Assurance
+
+**Tier 1 — Static validation** (MVP + v1.5+):
+
+- `claude plugin validate` ensures no unexpected `mcpServers` in our `plugin.json`. A non-empty `mcpServers` is a PR-blocker for MVP.
+
+**Tier 2 — Fallback contract** (v1.5+):
+
+- Run `research-web-wrapper` with no `.workflow.yaml` → must use native WebSearch, produce Shape B artifact.
+- Run with `.workflow.yaml` declaring `mcp.research-web.server: exa` + valid Exa key → must route to MCP, produce Shape B artifact.
+- Run with `.workflow.yaml` declaring Exa but missing API key → must log warning and fall back to native (graceful).
+- Each case produces a valid memory artifact; parent budget unchanged.
+
+**Tier 3 — Server catalogue integration** (v1.5+):
+
+- Exa, Brave, Tavily documented in README with per-server notes on auth, cost, quality trade-offs.
+- Each recommended server has a copy-paste `.mcp.json` fixture in `examples/mcp/<server>.mcp.json`.
+
+**Tier 4 — Haiku isolation check** (MVP):
+
+- Lint rule / CI check: any skill that dispatches to a Haiku subagent (`agent: Explore` or custom Haiku-backed) must not declare `mcp__*` in `allowed-tools`. Violation = hard fail.
+
+### Deployment and Operations
+
+**Release process**:
+
+- Same as plugin release (Research #1). No MCP-specific steps for MVP.
+- v1.5+ adds a schema-version bump + spec update when the `mcp` section lands.
+
+**Monitoring**:
+
+- Community feedback: track whether consumers actually opt in to MCP. Low adoption → feature is overbuilt, consider simplifying. High adoption → justify Option D (multi-server) in v2+.
+- `claude --debug` logs + `~/.claude/mcp-debug.log` remain the consumer-side debugging path.
+
+**Documentation delivery**:
+
+- README "MCP integrations" section in MVP (3-4 paragraphs, recommended servers).
+- `spec/workflow-yaml.schema.md` section in v1.5+ with full `mcp` config reference.
+
+### Team Organization and Skills
+
+**MVP**: zero MCP knowledge required of the author beyond "don't attach MCP to Haiku."
+
+**v1.5+**:
+
+- Author must understand MCP configuration (`.mcp.json` schema, auth patterns).
+- `CODEOWNERS`: add `spec/workflow-yaml.schema.*` to the spec-protected paths. Schema changes need author approval.
+- Contributor guidelines: new MCP integration recommendations require a test fixture in `examples/mcp/` + README update.
+
+### Cost Optimization and Resource Management
+
+**MVP**:
+
+| Axis                                    | Cost                                    |
+| :-------------------------------------- | :-------------------------------------- |
+| MCP bundled servers                     | 0                                       |
+| MCP-related code in plugin              | 0 lines                                 |
+| MCP-related tokens in session           | Whatever the consumer's own `.mcp.json` costs (not our concern) |
+
+**v1.5+**:
+
+| Axis                                    | Cost                                    |
+| :-------------------------------------- | :-------------------------------------- |
+| MCP opt-in dispatch check               | ~50 tokens per `research-web-wrapper` invocation (one yq read) |
+| MCP servers consumer opts into (e.g., Exa) | Under Tool Search: 100-300 tokens to register tool names; on-demand descriptions |
+
+Tool Search makes per-server cost a rounding error for consumers. Our plugin's contribution is minimal.
+
+### Risk Assessment and Mitigation
+
+Priority-ranked:
+
+**Risk 1 — Haiku + MCP token explosion** (high if consumers misconfigure; medium-impact if they do).
+
+Mitigation: README bold-flag "Do NOT attach MCP servers to skills dispatching to Haiku subagents." CI lint if we detect this in plugin-internal code.
+
+**Risk 2 — Tool Search query miss** (medium; impact: user sees "Claude didn't use the tool I expected").
+
+Mitigation: not a plugin-layer problem. Surface the issue upstream to the specific MCP server author when seen.
+
+**Risk 3 — API key leakage in fixtures** (medium; impact: credential theft).
+
+Mitigation: `examples/mcp/` fixtures use `${API_KEY}` placeholders. CI lint: grep for API key patterns in committed files, hard fail if matched.
+
+**Risk 4 — Server name collision across plugins** (low; impact: last-loaded-wins silent bug).
+
+Mitigation: v1.5+ when we ship example fixtures, prefix server names (`workflow-<name>-exa`). Document the collision risk in the README.
+
+**Risk 5 — Consumer adopts many servers, disables Tool Search** (low; impact: own-goal).
+
+Mitigation: README section "If you disable Tool Search" with per-server cost table. Let consumers make informed choices.
+
+**Risk 6 — MCP spec version drift** (low; impact: our documented patterns break).
+
+Mitigation: annual (or per-release) spec review; update README.
+
+### Recommendations — Roadmap
+
+**Day 1–7 (MVP)**: nothing MCP-related in the plugin code. README "MCP integrations" section with 3-4 recommended servers. Linter rule against MCP on Haiku subagents.
+
+**Week 2–3 (v1.1)**: collect community feedback on whether MCP opt-in is desired. Decide v1.5 scope.
+
+**Month 2+ (v1.5)**: opt-in `mcp` section in `.workflow.yaml`, `research-web-wrapper` fallback logic, documented recommended servers.
+
+**Month 3+ (v2)**: evaluate multi-server router (Option D), `/init-workflow-mcp` scaffolder if adoption warrants.
+
+### Success Metrics and KPIs
+
+**MVP**:
+
+- Zero MCP-related CI failures (binary).
+- Zero reported "plugin doesn't work because I don't have an API key" issues (the bundle-nothing stance makes this structural).
+
+**v1.5+ (if shipped)**:
+
+- ≥ 3 recommended server fixtures in `examples/mcp/` with matching docs.
+- Tier 2 fallback tests passing on every release.
+- At least one consumer report of opt-in success (qualitative signal).
+
+_Source: synthesized across Research #1–#4 findings + Tool Search analysis._
