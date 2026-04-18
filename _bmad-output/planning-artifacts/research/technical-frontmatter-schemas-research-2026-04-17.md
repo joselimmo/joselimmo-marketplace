@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowCompleted: true
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -52,7 +53,14 @@ Findings inform the Day-1 `validate-artifact-frontmatter` skill + the Day-1 `spe
 
 **Key findings at a glance** (detailed in the Research Synthesis at the end):
 
-- _(populated after step-06 synthesis)_
+- The YAML frontmatter convention is universal across surveyed frameworks; TOML/JSON have not penetrated this niche.
+- **Claude Code supports ≥11 skill frontmatter fields** — a documented bug in `obra/superpowers` writing-skills claims only 2 are supported (Issues #195, #882). Our spec must list the full set.
+- **AGENTS.md is NOT a frontmatter schema** — it is plain Markdown with conventional section headings, stewarded by the Agentic AI Foundation. Complementary, not competing. Generate it via `/init-project`.
+- **`requires` / `produces` / `memory_scope` are novel** — no surveyed framework has them. Confirmed differentiator. Must be published in the spec, not assumed.
+- **UTF-8 without BOM is an unwritten rule** — violations silently fail elsewhere (OpenAI Codex Issue #13918). Our validator must enforce it.
+- **Schema-first development inverts the usual order** — write `schemas/` + `spec/` on Day 1 before skills that consume them. Slower Day 1, much faster Day 3–7.
+
+Pointer to the full synthesis: the [Research Synthesis and Conclusion](#research-synthesis-and-conclusion) section consolidates cross-sectional insights, strategic impact, and next-step recommendations in a single place.
 
 ---
 
@@ -953,3 +961,187 @@ Ship this as a `scripts/validate.mjs` or `scripts/validate.py` invoked by both t
 - No release blocked on schema-drift detection false positives.
 
 _Source: targets derived from this research + brainstorming constraints + domain-research positioning._
+
+---
+
+## Executive Summary
+
+The frontmatter-schema layer is **structurally simple but strategically decisive**. YAML frontmatter is universal across surveyed agentic frameworks; validation tooling exists (`claude plugin validate`, `ajv`, JSON Schema ecosystem); IDE integration is solved (`redhat-developer/vscode-yaml`). The host-native skill frontmatter supports at least 11 documented fields — substantially more than the Superpowers writing-skills skill claims (a known doc bug at Issues #195 / #882). The path to a correct schema is clear.
+
+What elevates this layer from substrate to strategy is the **three novel declarative fields** the brainstorming introduced — `requires`, `produces`, `memory_scope` — **none of which exist in any surveyed framework**. These fields are what makes the plugin's Advisor + Reactive Porcelain model work, and they are the interop contract third-party skills must honor to participate in the Unix-pipeline composition. Publishing these fields as part of a standalone spec (`spec/memory-convention.md`, `spec/skill-composition.md`, `schemas/*.schema.json`) on Day 1 is the defensible positioning asset.
+
+The report confirms that schema-first development — write schemas + examples + spec on Day 1, skills follow — is faster over a 7-day horizon than skill-first development, because every downstream artifact (CI linter, IDE config, runtime validator, spec doc) reads from the same JSON Schema files. Zero drift. Supporting findings: UTF-8 without BOM is an unwritten rule whose violation causes silent failures (Codex Issue #13918); AGENTS.md is not a frontmatter schema but a complementary plain-Markdown convention (Linux Foundation stewarded) that our `/init-project` should emit; and the 10-value type enum is deliberately closed — an open taxonomy forks into dialects within weeks.
+
+**Key Technical Findings:**
+
+- **11+ frontmatter fields supported by Claude Code.** Full list in step-02; spec must document all of them against the known Superpowers doc-bug regression.
+- **`requires` / `produces` / `memory_scope` are unique to this plugin.** Industry-level differentiator but also adoption risk — must be published before any third-party is expected to honor them.
+- **AGENTS.md is complementary, not alternative.** Plain markdown, no frontmatter. Linux Foundation stewarded. Generate via `/init-project`, target ≤150 lines.
+- **`claude plugin validate` is canonical; JSON Schema is publishable; Zod/Pydantic are implementation detail.** The publishable schema artifact is always JSON Schema.
+- **Schema evolution follows BACKWARD_TRANSITIVE compatibility.** `schema_version` in every artifact; validators accept current + all prior minors.
+- **Defense-in-depth across 4 validation layers (IDE, CI, runtime, install).** Matrix of error coverage in step-04.
+- **Three novel fields require cautious deployment.** Current Claude Code silently accepts unknown fields; fallback plan is `x-*` namespacing if host behavior changes.
+
+**Strategic Technical Recommendations (top 5):**
+
+1. **Ship `schemas/`, `examples/`, and `spec/` on Day 1** alongside the plugin skeleton. Schema-first avoids downstream rework.
+2. **Publish a JSON Schema at a stable URL** (`raw.githubusercontent.com/.../schemas/memory-artifact.schema.json`). Submit to JSON Schema Store in v1.5+ — zero-config support for every editor.
+3. **Enforce schema validation as a hard CI gate** via `claude plugin validate` + a custom `ajv`-based memory-artifact linter. No merge without green.
+4. **Implement defense in depth**: IDE (VSCode YAML Language Server), CI (ajv + claude plugin validate), runtime (`validate-artifact-frontmatter` + PreToolUse(Write) hook), install (claude plugin validate). Each layer catches a distinct failure class.
+5. **Reserve `x-*` prefix for future extensions** and document the fallback in the spec — protection if Claude Code ever rejects unknown frontmatter fields.
+
+---
+
+## Table of Contents
+
+1. [Research Overview](#research-overview) — scope, inputs, key findings at a glance
+2. [Technical Research Scope Confirmation](#technical-research-scope-confirmation)
+3. [Technology Stack Analysis](#technology-stack-analysis)
+   - Serialization Language (YAML Frontmatter)
+   - Frontmatter Fields by Component Type
+   - Schema Languages and Validators
+   - IDE / Editor Integration
+   - Cross-Framework Landscape
+   - Technology Adoption Trends
+4. [Integration Patterns Analysis](#integration-patterns-analysis)
+   - Discovery and Loading Protocol
+   - Auto-Activation Protocol (description → model invocation)
+   - Precondition-Driven Composition Protocol
+   - Schema Evolution Protocol
+   - Third-Party Interop Contract (Unix Test)
+   - Error and Diagnostic Protocol
+5. [Architectural Patterns and Design](#architectural-patterns-and-design)
+   - Schema Design Patterns
+   - Validation Architecture (Defense in Depth)
+   - Progressive Disclosure Applied to Frontmatter Itself
+   - Schema Hierarchy and Relationships
+   - Security Architecture
+   - Distribution / Publishing Architecture
+6. [Implementation Approaches and Technology Adoption](#implementation-approaches-and-technology-adoption)
+   - Adoption Strategy (Schema First, Plugin Second)
+   - Development Workflows and Tooling
+   - Testing and Quality Assurance
+   - Deployment and Operations Practices
+   - Team Organization and Skills
+   - Cost Optimization and Resource Management
+   - Risk Assessment and Mitigation
+   - Recommendations — Roadmap Adjusted for Schema-First
+   - Success Metrics and KPIs
+7. [Research Synthesis and Conclusion](#research-synthesis-and-conclusion)
+   - Cross-Sectional Insights
+   - Strategic Impact Assessment
+   - Next Steps
+   - Research Limitations
+   - Research Completion Metadata
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+Five insights emerge only when the five research axes of Track 2 are considered together.
+
+1. **The schema layer is the leverage point, not a substrate detail.** Every architectural principle from the brainstorming lands in frontmatter. Precondition-driven orchestration is `requires`/`produces`. Progressive disclosure is `memory_scope`. Artifact-as-contract is the frontmatter schema itself. Type-safe composition is the MVP type enum. Getting the frontmatter right is getting half the plugin right.
+
+2. **The difference between standard and ours is three fields.** `requires`, `produces`, `memory_scope` — that is the entire delta between "our skills" and "any Claude Code skill." Three fields, one JSON Schema, one spec document. The minimalism is the point.
+
+3. **Fail-soft vs fail-closed has to be chosen per surface.** YAML parse errors on skills are fail-soft at the host (file loads with no metadata, warning shown). `hooks/hooks.json` errors are fail-closed at the host (plugin disappears). Our memory artifact schema violations should be fail-closed at the plugin runtime (write blocked) but fail-soft at the validator tooling (warn on migration). Each surface wants a different default; the matrix is explicit in step-03.
+
+4. **The spec is a distribution asset precisely because schemas are plain files.** A JSON Schema on GitHub is consumable by every editor, every CI tool, every third-party skill author, in every language. No SDK, no wrapper, no import. This is what makes "spec-first" structurally cheap on Claude Code — the host adds no opinion at the schema layer.
+
+5. **The ecosystem already agrees on the hard parts and disagrees on the soft parts.** YAML format: converged. Required fields (`name`, `description`): converged. "Use when…" convention: converging. What disagrees: the full optional field set (see Superpowers doc-bug), schema evolution conventions, status vocabularies. Our spec can lead on the soft parts without fighting the hard ones — the best possible position for a new convention.
+
+### Strategic Impact Assessment
+
+**On the 7-day MVP plan:** Day 1 absorbs schema-first work without breaking cadence. `validate-artifact-frontmatter` is now specified precisely (step-02 validation stack + step-04 validation architecture + step-05 implementation). The Day-7 dogfood acceptance test gains a schema dimension — every artifact the plugin generates validates against its own schema.
+
+**On the 9 architectural principles:** principle #6 (Selective Memory Loading) gains a concrete implementation — `memory_scope` enum in frontmatter — that is now fully specified. Principle #2 (Artifact = Typed File) gains its type system (the 10-value enum, the state machine per type, the supersession chain pattern).
+
+**On the open decisions from the brainstorming (updated):**
+
+- Decision #1 (type taxonomy): **locked**. 10 values, closed, extensible via minor spec bump.
+- Decision #2 (naming): **locked**. Kebab-case; `NNN-` prefix on ADRs (ordered); no date prefix on regular files.
+- Decision #3 (epic/story IDs): **locked**. `epic-NNN` + `story-NNN-kebab-slug`.
+- Decision #4 (`memory_scope` vocabulary): **locked**. Fixed MVP enum: `glossary | overviews | adr-summaries | adrs-by-tag | conventions | learnings-by-tag`.
+- Decision #7 (subagent output contract): **typed artifact file** (reconfirmed). Will be refined in Research #3.
+
+**On the positioning refinement:** fully compatible. Schemas + spec at the repo root are independent of the plugin. The JSON Schema Store PR (v1.5+) is a tangible credential of external adoption.
+
+**On host-absorption risk** (from Research #1 risk catalog): Anthropic may one day ship a native memory schema. This research makes that a non-threat: our schema is a convention, our validator is a skill. If the host ships a native memory layer, the convention stays relevant (host absorbs storage; convention still describes meaning). Mirrors the Research #1 conclusion at the schema level.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Lock the type enum, status vocabulary, and `memory_scope` enum as published decisions. Add them to the spec skeleton.
+2. Draft `schemas/memory-artifact.schema.json v0.1.0` (minimal: required fields + enums). 1 KB or less.
+3. Draft `schemas/skill.schema.json v0.1.0` — Claude Code skill fields + our three extensions (`requires`, `produces`, `memory_scope`, `schema_version`).
+4. Draft 10 fixture files in `examples/` — one valid per type.
+5. Draft 5 invalid fixtures in `examples/invalid/` covering the top failure modes (missing field, invalid enum, BOM, bad superseded_by, forbidden extra field).
+6. Run Research #3 (Subagents) before writing `state-manager` — confirms the subagent output contract.
+
+**Short term (Days 1–7):**
+
+7. Implement `validate-artifact-frontmatter` reading from `schemas/`. Hook it into `PreToolUse(Write)` for `memory/**/*.md`.
+8. Wire up the CI gate: `claude plugin validate` + `ajv` against examples.
+9. Configure VSCode `yaml.schemas` mappings; ship the config in the repo.
+
+**Medium term (weeks 2–6):**
+
+10. v1.1: Unix test — hand-written `learning.md` outside the plugin consumed by `/reflect`.
+11. v1.5: JSON Schema Store PR. Public spec promotion.
+12. Open a GitHub Discussion on `obra/superpowers` Issues #195 / #882 — our research correctly documents the host-supported fields; publishing our findings helps the broader ecosystem.
+
+**Ongoing:**
+
+13. Monitor Claude Code docs for frontmatter field additions. Update schemas within one release cycle.
+14. Observe whether any third-party skill adopts `requires` / `produces` / `memory_scope`. First external adopter is a strong signal.
+15. Quarterly audit: does any community framework (Superpowers, Spec-kit, Agent OS) converge on declarative preconditions? If so, align.
+
+### Research Limitations
+
+- **`agentskills.io/specification` WebFetch returned 403.** Unable to read the open-standard spec directly; relied on secondary sources (Medium articles, OpenCode docs, Claude Code extensions of the standard). A re-fetch in a different environment would be useful if adopting the open standard as a normative reference.
+- **`agents.md` spec site WebFetch returned 403.** Relied on secondary sources (GitHub blog, agentsmd.net, factory.ai docs) for the claim that AGENTS.md is NOT frontmatter. High confidence given three converging sources, but unable to verify the primary site directly.
+- **Field coverage of Superpowers / Agent OS / AIDD is lower confidence.** These frameworks are less documented than Claude Code host docs. The "11+ supported fields" claim rests on Claude Code docs + community guides; Superpowers' own count is internally contradictory (Issues #195 / #882).
+- **No primary performance measurements.** "Validation < 1 ms per artifact" is a reasonable `ajv` expectation, not a measured value from our own benchmark. Will measure during dogfood.
+- **Claude Code's treatment of unknown frontmatter fields** is documented as "currently permissive" — the risk of future rejection is speculative. Monitored through the Recommendations' Ongoing point #13.
+- **JSON Schema Store acceptance criteria** are not public. v1.5+ PR timing is a goal, not a commitment.
+
+### Research Completion Metadata
+
+- **Research Topic:** Frontmatter Schemas and Validation Patterns for Typed Artifacts in Agentic Frameworks
+- **Research Type:** Technical (track 2 of 5)
+- **Author:** Cyril
+- **Completion Date:** 2026-04-18
+- **Source Verification:** All factual claims cited against Claude Code official documentation, AGENTS.md stewardship sources, Superpowers repo issues, Spec-kit templates, schema-evolution industry references, and the prior Research #1. Critical claims multi-source validated.
+- **Confidence Level:** High on Claude Code host frontmatter fields and validation tooling; medium on cross-framework field coverage (Superpowers / Agent OS / AIDD); medium on schema-evolution applicability (industry best practices imported, not natively tested for frontmatter); low-medium on AGENTS.md and agentskills.io spec (primary sites returned 403).
+- **Primary Sources:**
+  - [code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) — SKILL.md schema
+  - [code.claude.com/docs/en/sub-agents](https://code.claude.com/docs/en/sub-agents) — agent frontmatter
+  - [code.claude.com/docs/en/plugins-reference](https://code.claude.com/docs/en/plugins-reference) — validation + plugin-scoped agent field restrictions
+  - [code.claude.com/docs/en/plugins](https://code.claude.com/docs/en/plugins) — skill authoring
+  - [platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) — skill authoring best practices
+- **Secondary Sources:**
+  - [agents.md](https://agents.md/) — AGENTS.md convention (plain markdown, Linux Foundation)
+  - [github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md](https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/) — AGENTS.md best practices
+  - [github.com/obra/superpowers — Issues #195, #882](https://github.com/obra/superpowers/issues/195) — known doc bug on supported fields
+  - [github.com/openai/codex — Issue #13918](https://github.com/openai/codex/issues/13918) — UTF-8 BOM bug class
+  - [github.com/hesreallyhim/claude-code-json-schema](https://github.com/hesreallyhim/claude-code-json-schema) — unofficial JSON schemas
+  - [github.com/github/spec-kit](https://github.com/github/spec-kit) — constitution.md + SYNC IMPACT REPORT pattern
+  - [docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html](https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html) — BACKWARD / BACKWARD_TRANSITIVE compatibility
+  - [redhat-developer/vscode-yaml](https://github.com/redhat-developer/vscode-yaml) — YAML Language Server
+  - [schemastore.org/json](https://www.schemastore.org/json/) — JSON Schema Store registry
+  - [abvijaykumar.medium.com/deep-dive-skill-md-part-1-2-09fc9a536996](https://abvijaykumar.medium.com/deep-dive-skill-md-part-1-2-09fc9a536996) — SKILL.md deep dive
+  - [bibek-poudel.medium.com/the-skill-md-pattern-how-to-write-ai-agent-skills-that-actually-work-72a3169dd7ee](https://bibek-poudel.medium.com/the-skill-md-pattern-how-to-write-ai-agent-skills-that-actually-work-72a3169dd7ee) — SKILL.md pattern
+  - [dev.to/oluwawunmiadesewa/claude-code-skills-not-triggering-2-fixes-for-100-activation-3b57](https://dev.to/oluwawunmiadesewa/claude-code-skills-not-triggering-2-fixes-for-100-activation-3b57) — auto-activation fixes
+- **Inputs from prior work:**
+  - Research #1 — `technical-plugin-architecture-distribution-research-2026-04-17.md`
+  - Brainstorming session — `brainstorming-session-2026-04-17-1545.md`
+  - Domain research — `domain-agentic-workflows-ecosystem-research-2026-04-17.md`
+- **Sibling research tracks** (not yet run):
+  - Research #3 — Subagents as Context-Isolation Primitives
+  - Research #4 — MCP for Tool Integration
+  - Research #5 — SessionStart Hook & Hook Lifecycle
+
+_This technical research document serves as the Track-2 deliverable of a five-track sequential technical research on the custom Claude Code plugin. It consolidates the factual substrate required for Day-1 schema-first implementation decisions and will be cross-referenced by the three remaining sibling tracks. Ship-ready as of 2026-04-18._
