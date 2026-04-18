@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowCompleted: true
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -52,7 +53,15 @@ Findings inform the Day-3 brownfield bootstrap step of the 7-day MVP (where `/in
 
 **Key findings at a glance** (detailed in the Research Synthesis at the end):
 
-- _(populated after step-06 synthesis)_
+- **Three native subagents available out of the box**: `Explore` (Haiku, ~5K tokens/invocation), `Plan`, `general-purpose` (Sonnet, ~30-50K tokens).
+- **The `memory` field (v2.1.33, Feb 2026) is under-adopted** — persistent per-subagent knowledge directory, early-mover advantage.
+- **`isolation: "worktree"` has an open silent-fail bug** (Issue #39886) — defer to v1.5+ pending verification.
+- **Plugin-shipped agents cannot declare hooks, mcpServers, or permissionMode** (confirmed from Research #1) — design plumbing subagents around this.
+- **Shape B (durable artifact output) is non-negotiable for plumbing subagents** — summary-only output defeats the isolation benefit; subagents become off-budget for the parent.
+- **Decision resolved — Hybrid (Option C) for explore-codebase and research-web; Custom (Option B) for adversarial-review.** Native `Explore` + `general-purpose` backing via `context: fork` for the first two; bespoke system prompt + `memory: project` for the third.
+- **Type enum extends to 11 values** — add `scratch` for ephemeral subagent outputs in `memory/backlog/epic-NNN/scratch/`.
+
+Pointer to the full synthesis: the [Research Synthesis and Conclusion](#research-synthesis-and-conclusion) section consolidates cross-sectional insights, strategic impact, and next-step recommendations in a single place.
 
 ---
 
@@ -1009,3 +1018,195 @@ Mitigation: README explains token profile per subagent. `/costs` command (v2+) c
 - No `PreToolUse(Write)` hook rejection traceable to subagent output.
 
 _Source: synthesized from step-02/03/04 findings + brainstorming budgets + Research #1 roadmap._
+
+---
+
+## Executive Summary
+
+Claude Code's subagent system is **more mature and better-documented than expected**, with three built-in types (`Explore`, `Plan`, `general-purpose`), measured per-invocation token costs published across multiple sources, a v2.1.33 (February 2026) `memory` field for persistent agent knowledge, and a controversial `isolation: "worktree"` feature with an open silent-fail bug (#39886). Research #3 resolves the core arbitrage from the Track-1 roadmap: **use hybrid skills (Option C) over native subagents for exploration and web research, custom subagent (Option B) for adversarial review**. The hybrid approach composes with the host, reuses Anthropic's maintained `Explore` (Haiku, ~5K tokens) and `general-purpose` (Sonnet, ~30-50K tokens), and encodes our durable-artifact (Shape B) contract at the skill layer. The custom adversarial reviewer justifies its own file because of Superpowers-validated anti-bias prompt engineering and `memory: project` for codebase-recurring patterns.
+
+The operational keystone is Shape B — durable typed artifact output — enforced at every plumbing subagent. Without it, subagent dispatch becomes expensive summarization instead of context isolation. With it, subagents can burn 30-50K tokens in their own context while the parent absorbs only a ~200-token path reference. This is how a story-cycle budget of 25K stays under cap while exploration, research, and review each get their full runway in isolation. The plugin's Advisor + Reactive Porcelain model extends with a Delegated Plumbing layer: state-manager advises, porcelain dispatches, plumbing composes subagents, subagents produce artifacts.
+
+Two risks bound the near-term: the `isolation: "worktree"` Issue #39886 (low-impact because we defer the feature) and the hidden token cost of subagent dispatch (medium-impact, mitigated by README documentation and Tier 3 eval). One schema change is introduced: `scratch` becomes the 11th value in the MVP type enum — ephemeral subagent outputs live in a `memory/backlog/epic-NNN/scratch/` subtree, cleaned up when the epic closes.
+
+**Key Technical Findings:**
+
+- **Native subagents cover 80% of plumbing needs.** `Explore` + `general-purpose` are competent, Haiku-backed, and maintained by Anthropic.
+- **Shape B is the non-negotiable operational rule.** Every plumbing subagent writes a typed file and returns a path. No exceptions.
+- **The `memory` field is valuable but narrow.** Good for `adversarial-review-wrapper` accumulating codebase patterns; neutral for one-shot tasks.
+- **Cost model is predictable.** Haiku ≈ 5K, Sonnet ≈ 30-50K, Opus ≈ 5x Haiku cost per token. Match model to task complexity.
+- **Plugin-shipped agents have 3 forbidden frontmatter fields.** `hooks`, `mcpServers`, `permissionMode` — by design, for security.
+- **Superpowers' reviewer-separation pattern is validated and adopted.** Anti-bias via isolated reviewer context.
+
+**Strategic Technical Recommendations (top 5):**
+
+1. **Ship `skills/explore-codebase-wrapper` and `skills/research-web-wrapper` as Option-C hybrids**; ship `agents/adversarial-review-wrapper` as an Option-B custom subagent.
+2. **Add `scratch` to the type enum**; seed `memory/backlog/epic-NNN/scratch/` subtree; extend `spec/memory-convention.md`.
+3. **Enforce Shape B at the system-prompt level** of every plumbing subagent; ship a self-check instruction at the end of each prompt.
+4. **Defer `isolation: "worktree"` to v1.5+**; verify Issue #39886 resolution status at Day 3 and again when re-evaluating.
+5. **Wire in the Superpowers reviewer-separation pattern for `/reflect`**: `adversarial-review-wrapper` sees only the story spec + the diff, never the implementer's reasoning.
+
+---
+
+## Table of Contents
+
+1. [Research Overview](#research-overview) — scope, inputs, key findings at a glance
+2. [Technical Research Scope Confirmation](#technical-research-scope-confirmation)
+3. [Technology Stack Analysis](#technology-stack-analysis)
+   - Built-in Subagents (Native, First-Class)
+   - Custom Subagent Definition (Plugin / Project / User Scoped)
+   - Persistence Layer — the `memory` Field
+   - Isolation Mechanism — `isolation: "worktree"`
+   - Invocation & Routing Patterns
+   - Technology Adoption Trends
+4. [Integration Patterns Analysis](#integration-patterns-analysis)
+   - Dispatch Protocols (Parent → Subagent)
+   - Return Contract
+   - Parent↔Subagent Data Exchange
+   - Composition Patterns (Multi-Subagent Workflows)
+   - Memory Integration (Subagent Memory × Plugin Two-Tier Memory)
+   - Error and Failure Handling
+5. [Architectural Patterns and Design](#architectural-patterns-and-design)
+   - System-Level Patterns
+   - Design Principles for Subagent Authoring
+   - Scalability and Cost Patterns
+   - Composition & Orchestration — Advisor + Reactive Porcelain × Delegated Plumbing
+   - Security Architecture (Subagent-Specific)
+   - Data Architecture (Subagent Outputs)
+   - The Decision: Native `Explore` vs Custom `explore-codebase-wrapper`
+6. [Implementation Approaches and Technology Adoption](#implementation-approaches-and-technology-adoption)
+   - Adoption Strategy
+   - Development Workflows
+   - Testing and Quality Assurance
+   - Deployment and Operations
+   - Team Organization and Skills
+   - Cost Optimization and Resource Management
+   - Risk Assessment and Mitigation
+   - Recommendations — Roadmap Adjusted
+   - Success Metrics and KPIs
+7. [Research Synthesis and Conclusion](#research-synthesis-and-conclusion)
+   - Cross-Sectional Insights
+   - Strategic Impact Assessment
+   - Next Steps
+   - Research Limitations
+   - Research Completion Metadata
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+Five insights emerge only when the five axes of Track 3 are considered together.
+
+1. **Context isolation is the product, not the mechanism.** Subagents look like an API feature on the surface; they are actually the plugin's primary mechanism for keeping the user's story-cycle budget under 25k while exploration, research, and review each cost 10–50k on their own. Every other decision in this track (Shape B, hybrid vs custom, `memory: project`) serves this one outcome.
+
+2. **The Shape B contract is the entire delta between "expensive summarizer" and "context isolation."** A subagent that returns prose to the parent is indistinguishable from the parent reading the same files inline — same tokens land in the parent context. A subagent that writes to a file and returns a path preserves the isolation benefit. This is the single most-important operational rule this track surfaces.
+
+3. **Native subagents cover more of our needs than expected.** When the Track-1 roadmap said "prefer native `Explore` vs shipping a custom subagent," the research validates the recommendation. Native `Explore` handles brownfield exploration competently at Haiku cost. Native `general-purpose` handles web research competently at Sonnet cost. Only the adversarial reviewer justifies a custom subagent because of its anti-bias prompt engineering requirement and its benefit from `memory: project`.
+
+4. **The decision to ship an agent is not the decision to ship a subagent.** Our plugin ships skills (porcelain + plumbing). Those skills dispatch subagents — either native (via `context: fork` + `agent:`) or custom (via `Task` tool or `context: fork` + `agent: <custom-name>`). Authoring a custom subagent (`agents/<name>.md`) is an Option-B decision that trades host-reuse for prompt-engineering control. We take this trade only when the prompt engineering matters enough (adversarial review).
+
+5. **The `memory` field is an early-mover advantage waiting to be taken.** Introduced Feb 2026, under-adopted in the published subagent ecosystem (wshobson, Superpowers, etc. predate it). Our `adversarial-review-wrapper` declaring `memory: project` is a concrete differentiation. Recurring codebase patterns compound over invocations — exactly what a reviewer needs.
+
+### Strategic Impact Assessment
+
+**On the 7-day MVP plan:**
+
+- Day 1 absorbs the `scratch` type enum addition. `schemas/memory-artifact.schema.json` updates from 10 to 11 values. `spec/memory-convention.md` extended. `examples/scratch.md` added. All additive.
+- Day 3 resolves `isolation: "worktree"` uncertainty by verification. Result documented. No dependency on the feature in MVP.
+- Day 3 ships `explore-codebase-wrapper` (hybrid skill). Day 4 ships `research-web-wrapper`. Day 5 ships `adversarial-review-wrapper` (custom subagent). All three contribute to the full-cycle test on Day 7.
+
+**On the 9 architectural principles:**
+
+- Principle #7 (Ambient Capture via `/reflect`) gains a concrete implementation using the Superpowers reviewer-separation pattern. The capture happens in a dedicated subagent context, the review happens in another. Both feed the parent cleanly.
+- Principle #8 (Epic-Level Isolation) extends to `scratch/` artifacts — they live under the epic folder, share its lifecycle.
+
+**On the 8 open decisions from the brainstorming:**
+
+- Decision #7 (subagent output contract) — **fully locked** at Shape B (durable typed artifact, not conversational return). Per-subagent decisions documented in step-04 composition table.
+- Decision #1 (type enum) — **updated** to 11 values with `scratch` addition.
+
+**On the positioning refinement (spec-first + reference implementation):**
+
+- The subagent layer does not add spec surface beyond what Research #2 already covered (frontmatter schemas, scratch type). No additional spec decisions here.
+- The plugin composes-with-host for 2 of 3 plumbing subagents — exactly the positioning principle articulated in Research #1.
+
+**On host-absorption risk:**
+
+- If Anthropic ships native changes to `Explore` or `general-purpose`, our hybrid subagents may need re-tuning. Tier 3 eval catches this. Escalation: upgrade to Option B custom.
+- If Anthropic ships native memory-compaction improvements, the `memory: project` pattern only benefits.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Lock the `scratch` type enum addition. Update `schemas/memory-artifact.schema.json v0.1.1` and `spec/memory-convention.md`.
+2. Draft `skills/explore-codebase-wrapper/SKILL.md` with `context: fork` + `agent: Explore` + Shape B contract.
+3. Draft `skills/research-web-wrapper/SKILL.md` with `context: fork` + `agent: general-purpose` + Shape B contract.
+4. Draft `agents/adversarial-review-wrapper.md` with custom system prompt + `memory: project` + Superpowers-style reviewer framing.
+5. Run Research #4 (MCP) before fleshing out `research-web-wrapper` — MCP-based web search may replace native WebSearch for some use cases.
+
+**Short term (Days 1–7):**
+
+6. Day 3: verify `isolation: "worktree"` bug #39886 status. Document result.
+7. Day 3: ship `explore-codebase-wrapper` and invoke from `/init-project`.
+8. Day 4: ship `research-web-wrapper` and wire into `/plan-story`.
+9. Day 5: ship `adversarial-review-wrapper` and wire into `/reflect`.
+10. Day 7: dogfood. Count subagent dispatches per story cycle. Verify Shape B compliance rate ≥ 4/5. Verify parent budget ≤ 25k.
+
+**Medium term (weeks 2–6):**
+
+11. v1.1: ship Tier 5 anti-regression suite. Track Shape B compliance rate per release in `_bmad-output/metrics/`.
+12. v1.5: evaluate Option B upgrade for `explore-codebase-wrapper` if accumulated codebase knowledge becomes valuable.
+13. v1.5: revisit `isolation: "worktree"` if bug #39886 closed.
+
+**Ongoing:**
+
+14. Monitor Anthropic's changes to native `Explore`, `Plan`, `general-purpose` — behavior shifts break our hybrid subagents.
+15. Review `memory: project` content of `adversarial-review-wrapper` quarterly; prune stale patterns.
+16. Watch for emerging subagent patterns in Superpowers / wshobson / Agent OS — convergence opportunity.
+
+### Research Limitations
+
+- **Token cost figures are published aggregates, not our own measurements.** "Explore ≈ 5K tokens" and "general-purpose ≈ 30-50K" come from 2026 community sources (morphllm, Medium articles). Our dogfood will measure the actuals and may adjust.
+- **`claude.com/blog/subagents-in-claude-code` returned 403.** Anthropic's official blog post on subagents was fetch-blocked; relied on Claude Code docs and secondary sources. High confidence given documentation alignment, but unable to quote primary-source guidance directly.
+- **`isolation: "worktree"` bug #39886 status not re-verified live.** Referenced as open based on search results; a direct GitHub check at Day 3 is the correct next step.
+- **`Plan` subagent backing model not confirmed.** Sources vary between "Sonnet" and "research-specialized" depending on effort level. Clarify at Day 3 if we ever dispatch `Plan` directly.
+- **`memory` field introduced in v2.1.33 (Feb 2026)** — this is recent; production patterns may still be emerging. Early community sources may contain inaccuracies we have not caught.
+- **No primary interviews or benchmarks conducted.** Desk research only.
+- **Third-party framework patterns (Superpowers, wshobson, Agent OS) are cited via secondary analysis.** DeepWiki-generated summaries and blog posts filled the gaps where primary docs were sparse.
+
+### Research Completion Metadata
+
+- **Research Topic:** Claude Code Subagents as Context-Isolation Primitives
+- **Research Type:** Technical (track 3 of 5)
+- **Author:** Cyril
+- **Completion Date:** 2026-04-18
+- **Source Verification:** All factual claims cited against Claude Code official documentation, Anthropic blog (via secondary sources where primary blocked), community benchmarks, and the prior Research #1/#2. Token cost figures published multi-source; output contract mechanics confirmed via two independent framework implementations (Superpowers, wshobson-agents).
+- **Confidence Level:** High on native-subagent behavior and frontmatter contract; medium on token cost exactness (published aggregates, not our measurements); medium on `isolation: "worktree"` fitness (open bug); medium on v2.1.33+ `memory` field patterns (recent).
+- **Primary Sources:**
+  - [code.claude.com/docs/en/sub-agents](https://code.claude.com/docs/en/sub-agents) — subagent definition and mechanics
+  - [code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) — `context: fork` integration
+  - [code.claude.com/docs/en/plugins-reference](https://code.claude.com/docs/en/plugins-reference) — plugin-shipped agent restrictions
+  - [code.claude.com/docs/en/costs](https://code.claude.com/docs/en/costs) — cost management
+  - [platform.claude.com/docs/en/agent-sdk/subagents](https://platform.claude.com/docs/en/agent-sdk/subagents) — SDK-level subagent semantics
+- **Secondary Sources:**
+  - [morphllm.com/claude-subagents](https://www.morphllm.com/claude-subagents) — 2026 cost benchmarks
+  - [blog.fsck.com/2025/10/09/superpowers](https://blog.fsck.com/2025/10/09/superpowers/) — Superpowers reviewer-separation pattern
+  - [medium.com/@sathishkraju/claude-code-subagents-the-complete-guide-to-ai-agent-delegation](https://medium.com/@sathishkraju/claude-code-subagents-the-complete-guide-to-ai-agent-delegation-d0a9aba419d0) — 2026 subagent guide
+  - [claudedirectory.org/blog/claude-code-auto-memory-guide](https://www.claudedirectory.org/blog/claude-code-auto-memory-guide) — memory field details
+  - [claudefa.st/blog/guide/development/worktree-guide](https://claudefa.st/blog/guide/development/worktree-guide) — worktree guide
+  - [github.com/anthropics/claude-code/issues/39886](https://github.com/anthropics/claude-code/issues/39886) — worktree silent-fail bug
+  - [github.com/wshobson/agents](https://github.com/wshobson/agents) — 83-subagent production reference
+  - [pubnub.com/blog/best-practices-for-claude-code-sub-agents](https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/) — best practices
+- **Inputs from prior work:**
+  - Research #1 — `technical-plugin-architecture-distribution-research-2026-04-17.md`
+  - Research #2 — `technical-frontmatter-schemas-research-2026-04-17.md`
+  - Brainstorming session — `brainstorming-session-2026-04-17-1545.md`
+  - Domain research — `domain-agentic-workflows-ecosystem-research-2026-04-17.md`
+- **Sibling research tracks** (not yet run):
+  - Research #4 — MCP for Tool Integration
+  - Research #5 — SessionStart Hook & Hook Lifecycle
+
+_This technical research document serves as the Track-3 deliverable of a five-track sequential technical research. Resolves the native-vs-custom arbitrage and finalizes the subagent output contract. Ship-ready as of 2026-04-18._
