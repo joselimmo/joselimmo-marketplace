@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1, 2, 3, 4]
+stepsCompleted: [1, 2, 3, 4, 5]
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -767,3 +767,264 @@ Final wiring (subject to Day-6 implementation validation):
 **Platform matrix**: each script tested on Linux, macOS, Windows via GitHub Actions platform matrix. Line-endings enforced via `.gitattributes`.
 
 _Source: synthesized from Research #1–#5 findings + brainstorming 4-mode spec._
+
+---
+
+## Implementation Approaches and Technology Adoption
+
+> **Domain-adapted interpretation**: this section covers the practical side of *implementing* hooks — authoring workflow in Node.js, cross-OS testing discipline, risk catalog with known-bug workarounds, and the adjusted Day-6 roadmap. Generic categories adapted.
+
+### Adoption Strategy
+
+**Day 6 (MVP)**:
+
+- Ship `hooks/hooks.json` with 4 wired events: `SessionStart`, `PreToolUse(Write memory/)`, `Stop`, `SessionEnd`.
+- Optional `PreCompact` wired if time permits.
+- All scripts are Node.js `.mjs`, tested on Linux + macOS + Windows.
+- `.workflow.yaml` schema bumped to include `lean-boot.mode` (default `always`) and `lean-boot.include-env-vars`.
+
+**v1.1 (week 2-3)**:
+
+- Cross-platform CI matrix turns green on every PR.
+- Tighten token budgets if dogfood surfaces overruns.
+
+**v2+**:
+
+- `PostToolUse(Write|Edit)` hook for ambient capture candidates (third of three channels per brainstorming).
+- Evaluate `type: "prompt"` or `type: "agent"` hooks for adaptive validation (e.g., "is this artifact really meaningful to capture, or noise?").
+
+### Development Workflows
+
+**Authoring loop** (per hook script):
+
+1. Write `plugins/<name>/hooks/<event>.mjs`.
+2. Top-of-file contract comment: event, inputs, outputs, exit codes.
+3. Register in `plugins/<name>/hooks/hooks.json`.
+4. Test locally: `echo '<fixture stdin JSON>' | node plugins/<name>/hooks/<event>.mjs ; echo "exit=$?"`.
+5. Install plugin via `claude --plugin-dir ./`, trigger the event, inspect behavior via `claude --debug`.
+6. `/reload-plugins` for iteration.
+
+**Minimal Node.js hook template**:
+
+```javascript
+#!/usr/bin/env node
+// SessionStart hook — injects lean-boot context if lean-boot.mode ≠ manual
+// Input: stdin JSON with session_id, cwd, source, model
+// Output: stdout JSON { hookSpecificOutput: { hookEventName, additionalContext } }
+// Exit: 0 always (fail-soft)
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { readFileSync } from 'node:fs';
+
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+try {
+  const input = JSON.parse(await readStdin());
+  const { cwd } = input;
+  // ... read ACTIVE.md, .workflow.yaml, compute advisor line ...
+  const line = `Epic: ${epic} / Story: ${story}:${status} / Next: ${next}`;
+  console.log(JSON.stringify({
+    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: line }
+  }));
+  if (process.env.CLAUDE_ENV_FILE) {
+    fs.appendFileSync(process.env.CLAUDE_ENV_FILE, `export WORKFLOW_ACTIVE_EPIC=${epic}\n`);
+  }
+  process.exit(0);
+} catch (err) {
+  process.stderr.write(`session-start hook warning: ${err.message}\n`);
+  process.exit(0);   // fail-soft
+}
+```
+
+**Tooling conventions**:
+
+- Node 20+ (matches Claude Code's own Node requirement).
+- Zero npm dependencies in MVP scripts (pure Node). Keeps `${CLAUDE_PLUGIN_DATA}` / `node_modules` footprint at zero.
+- If a hook grows to need `js-yaml` or `ajv` (e.g., `validate-memory-artifact.mjs`), wire the manifest-diff pattern from Research #1 to install `node_modules` on first run into `${CLAUDE_PLUGIN_DATA}`.
+
+### Testing and Quality Assurance
+
+**Tier 1 — Static validation**:
+
+- `claude plugin validate .` on every commit (catches malformed `hooks/hooks.json` which would block plugin load per Research #1).
+- ESLint / TypeScript-check on `.mjs` files (optional but recommended).
+
+**Tier 2 — Unit tests per hook**:
+
+- For each `hooks/<event>.mjs`, a fixture-driven test: feed known stdin JSON, assert exit code + stdout JSON shape.
+- Use Node's built-in `node:test` runner (zero dependencies).
+- Run in CI on every PR.
+
+**Tier 3 — Platform matrix**:
+
+- GitHub Actions matrix: `{ os: [ubuntu-latest, macos-latest, windows-latest] }` × `{ node: [20, 22] }`.
+- Each matrix cell runs Tier 1 + Tier 2.
+- Catches Windows-specific bugs (Issue #18610 class) before release.
+
+**Tier 4 — Integration test in a real session**:
+
+- `claude --plugin-dir ./ ./fixtures/test-project` starts a session in a fixture project.
+- Headless mode `-p "what is my active story?"` asserts lean-boot output contains the expected template.
+- Runs on platform matrix.
+
+**Tier 5 — Dogfood (Day 7)**:
+
+- Real session on Cyril's side project. Verify:
+  - Lean-boot fires within 1 second.
+  - Output ≤500 tokens (measure via `claude --debug` logs).
+  - `ACTIVE.md` flushes correctly on `Stop` / `SessionEnd`.
+  - No double-injection (Issue #14281 mitigated).
+
+### Deployment and Operations
+
+**Release process**:
+
+- Hooks ship as part of the plugin. No separate release artifact.
+- Changelog notes hook changes explicitly when they land.
+
+**Operations**:
+
+- `claude --debug` reveals hook invocations with stdin/stdout/exit code.
+- `/hooks` menu lets user see every registered hook with source label (`[Plugin]`).
+- `/doctor` surfaces hook configuration issues.
+
+**User-facing documentation**:
+
+- README section "Lean boot and hooks" explains:
+  - What the lean-boot line means.
+  - The four modes (`always | new-session-only | manual | interactive`) and how to set `lean-boot.mode` in `.workflow.yaml`.
+  - How to disable (user-level or project-level `disableAllHooks`, or mode `manual`).
+  - What `WORKFLOW_ACTIVE_EPIC` env var contains.
+
+### Team Organization and Skills
+
+**Solo (MVP)**: Cyril owns every hook script.
+
+**Community-open (month 2+)**:
+
+- `CODEOWNERS` on `hooks/*.mjs` + `hooks/hooks.json` — require maintainer approval.
+- CONTRIBUTING.md documents the hook authoring standards (Node.js, JSON-only output, idempotence, ≤500 tokens for `SessionStart`).
+- PR template asks: "Does this hook change pass the platform matrix CI?"
+
+**Author skill requirements**:
+
+- Node.js 20+ fluency.
+- JSON schema fluency (for stdin parsing, stdout emitting).
+- Cross-OS awareness (paths, line endings, process env differences).
+- Familiarity with the ~26 hook events + exit-code gotchas (Issue #24327 / Issue #14281 / Issue #18610).
+
+### Cost Optimization and Resource Management
+
+Per-hook budgets recap (from step-04):
+
+| Operation                           | Runtime cost   | Token cost       |
+| :---------------------------------- | :------------- | :---------------- |
+| `SessionStart` lean boot            | ~100-200 ms Node | ≤500 tokens (template ~30) |
+| `PreToolUse(Write memory/)` validation | ~50-100 ms     | 0 (no injection)  |
+| `Stop` / `SessionEnd` flush         | ~20-50 ms (no-op if no change) | 0                 |
+| `PreCompact` ADR injection (optional) | ~50 ms          | ≤500 tokens (summaries) |
+| v2+ `PostToolUse` capture flagging  | ~20 ms         | 0                 |
+
+**Cold startup**: Node.js process startup ~50-200 ms on first hook; subsequent hooks on same session can reuse Node via process reuse if host supports (Claude Code does not as of 2026 — each hook spawns a fresh Node).
+
+**Memory allocation**: Node.js idle footprint ~40 MB RSS per hook invocation. Acceptable; not a meaningful cost.
+
+### Risk Assessment and Mitigation
+
+Priority-ranked:
+
+**Risk 1 — Double-injection on `SessionStart`** (high likelihood if script emits both stdout and JSON).
+
+Mitigation: template enforces **JSON-only**. Code-review discipline. Lint rule: no plain `console.log` in hook scripts except `console.log(JSON.stringify(...))`.
+
+**Risk 2 — `PreToolUse` exit 2 causing session halt (Issue #24327)**.
+
+Mitigation: every `PreToolUse` hook uses JSON `permissionDecision: "deny"` path. Never exit 2 from `PreToolUse`. Linter rule.
+
+**Risk 3 — Windows cross-platform breakage (Issue #18610 class)**.
+
+Mitigation: Node.js runner, `.gitattributes` for line endings, platform matrix CI.
+
+**Risk 4 — `SessionStart` > 1 second** (high likelihood in early dev).
+
+Mitigation: performance budget gate in Tier 2 tests; measure wall-clock time; fail on > 500 ms.
+
+**Risk 5 — Hook reads stale `ACTIVE.md`** (medium; affects correctness of lean boot).
+
+Mitigation: `state-manager` (skill) writes `ACTIVE.md` atomically (temp file + rename). Hook reads once per invocation.
+
+**Risk 6 — `CLAUDE_ENV_FILE` append collisions** if multiple hooks of the same event write the same var.
+
+Mitigation: each hook uses a unique var name prefix. Review multi-hook configurations for collisions.
+
+**Risk 7 — Malformed `hooks/hooks.json` blocks plugin** (Research #1 confirmed).
+
+Mitigation: hard CI gate on `claude plugin validate`. Never merge with a failing validate.
+
+**Risk 8 — User disables Tool Search on Haiku**, MCP overhead cascades into hook timing budget.
+
+Mitigation: we ship no MCP in MVP. If v1.5+ adds opt-in MCP, document the interaction with Haiku.
+
+### Recommendations — Day-6 Adjusted Roadmap
+
+**Day 6 morning**:
+
+- Scaffold `plugins/<name>/hooks/` directory.
+- Write `hooks/hooks.json` with 4 events wired (SessionStart, PreToolUse, Stop, SessionEnd).
+- Write `hooks/session-start.mjs` implementing the lean-boot template.
+- Write `hooks/validate-memory-artifact.mjs` invoking the `schemas/memory-artifact.schema.json` via `ajv` (already part of Research #2 plan).
+- Write `hooks/flush-state.mjs` implementing idempotent `ACTIVE.md` flush.
+
+**Day 6 afternoon**:
+
+- Write Tier 1 + Tier 2 tests for each script.
+- Configure GitHub Actions matrix for Linux + macOS + Windows.
+- Smoke test: `claude --plugin-dir ./ ./fixtures/test-project` with `-p "status?"` — verify lean boot appears.
+
+**Day 6 end-of-day**:
+
+- `.workflow.yaml` schema bumped to include `lean-boot.mode` + `lean-boot.include-env-vars`.
+- `spec/workflow-yaml.schema.md` updated.
+- README `Lean boot and hooks` section drafted.
+
+**Day 7 (dogfood)**:
+
+- Full-cycle run; verify lean boot on actual project.
+- Measure: SessionStart duration < 1 s, output ≤500 tokens, no double-injection.
+
+**v1.1**:
+
+- Tier 4 integration tests on platform matrix.
+- Tier 5 anti-regression — run dogfood-derived tests per release.
+
+**v2+**:
+
+- `PostToolUse(Write|Edit)` ambient capture.
+- `PreCompact` ADR-preservation hook.
+
+### Success Metrics and KPIs
+
+**Functional (MVP acceptance)**:
+
+- `claude plugin validate` passes on every commit (binary).
+- Tier 1 + Tier 2 + Tier 3 CI green on every PR (binary).
+- `SessionStart` output ≤500 tokens verified via `claude --debug` on dogfood (binary).
+- `SessionStart` runtime < 1 second measured on all three platforms (binary).
+
+**Operational (ongoing)**:
+
+- Zero user reports of hook-related errors in the first month post-v1.
+- Zero reports of double-injection (Issue #14281 mitigated).
+- Zero reports of Windows-specific hook failures (Issue #18610 class).
+
+**Adoption (qualitative)**:
+
+- User feedback on lean-boot line usefulness.
+- Mode distribution: what percentage of users keep `always` vs `manual`?
+
+_Source: synthesized across Research #1–#5 + brainstorming 7-day roadmap._
