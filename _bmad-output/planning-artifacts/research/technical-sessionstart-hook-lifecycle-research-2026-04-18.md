@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowCompleted: true
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -54,7 +55,14 @@ Findings inform the Day-6 MVP deliverable (SessionStart lean boot + hook scaffol
 
 **Key findings at a glance** (detailed in the Research Synthesis at the end):
 
-- _(populated after step-06 synthesis)_
+- **~26 lifecycle events inventoried** across 5 cadences (session, turn, tool call, subagent/task, async). Our plugin wires **4 in MVP** (SessionStart, PreToolUse(Write memory/), Stop, SessionEnd) + 2 optional (`PreCompact`, v2+ `PostToolUse`).
+- **Three critical open bugs mitigated by design**: Issue #14281 (additionalContext double-injection) → JSON-only output; Issue #24327 (PreToolUse exit 2 halts Claude) → JSON `permissionDecision: "deny"`; Issue #18610 (Windows /bin/bash plugin hooks broken) → Node.js runner.
+- **Node.js `.mjs` is the recommended universal hook runtime** — one codebase, all three platforms, 50-200 ms startup (vs 300-500 ms PowerShell).
+- **`CLAUDE_ENV_FILE` is the stateful channel** for SessionStart → subsequent Bash tools. Available only on SessionStart/CwdChanged/FileChanged.
+- **Four lean-boot modes implementable via matcher + script-level config**: `always | new-session-only | manual | interactive`. Default `always`.
+- **Exit 1 is NOT blocking** (counter-intuitive but critical). Use **exit 2** for policy enforcement; prefer JSON output with `decision: "block"` or `permissionDecision: "deny"` for clarity.
+
+Pointer to the full synthesis: the [Research Synthesis and Conclusion](#research-synthesis-and-conclusion) section consolidates cross-sectional insights, strategic impact, and next-step recommendations in a single place.
 
 ---
 
@@ -1028,3 +1036,195 @@ Mitigation: we ship no MCP in MVP. If v1.5+ adds opt-in MCP, document the intera
 - Mode distribution: what percentage of users keep `always` vs `manual`?
 
 _Source: synthesized across Research #1–#5 + brainstorming 7-day roadmap._
+
+---
+
+## Executive Summary
+
+Claude Code's hook system is broad, well-documented, and carries a handful of live traps that shape how our plugin wires it. The inventory covers ~26 lifecycle events across 5 cadences; the host gives plugins three declaration levels (plugin-wide `hooks/hooks.json`, skill frontmatter, agent frontmatter — the last forbidden for plugin-shipped agents per Research #1). Four hook types are available: `command`, `http`, `prompt`, `agent`. The interaction between SessionStart and the rest of the session is unique — stdout is injected as Claude's context, and `CLAUDE_ENV_FILE` persists env vars across subsequent Bash tool calls.
+
+Three open bugs required architectural responses. **Issue #14281** — additionalContext injected twice on SessionStart — forces a **JSON-only output** discipline (never plain stdout alongside structured output). **Issue #24327** — PreToolUse exit code 2 halts Claude instead of feeding back the error — forces our `validate-memory-artifact.mjs` to use JSON `permissionDecision: "deny"` instead of exit 2. **Issue #18610** — plugin hooks cannot execute Bash scripts on Windows — forces **Node.js `.mjs` as the universal hook runner**. The Node-everywhere stance has the additional benefit of halving startup latency vs PowerShell (50-200 ms vs 300-500 ms) and eliminating the multi-script-per-platform maintenance burden.
+
+The four lean-boot modes promised in the brainstorming (`always | new-session-only | manual | interactive`) are fully implementable via a combination of `SessionStart` matcher scoping (e.g., `"matcher": "startup"` for new-session-only) plus script-level `.workflow.yaml`-driven branching (for `manual` and `interactive`). Default mode is `always`. The lean-boot output is a single-line template (`Epic: <id> / Story: <id>:<status> / Next: <command>`) well under the ≤500-token hard cap — typical injection is ~30 tokens. `CLAUDE_ENV_FILE` exports (`WORKFLOW_ACTIVE_EPIC=<id>`) make the active story available to any Bash tool call downstream without re-reading state.
+
+**Key Technical Findings:**
+
+- **4 hooks in MVP** (SessionStart, PreToolUse(Write memory/), Stop, SessionEnd), 1 optional (`PreCompact`), 1 v2+ (`PostToolUse` ambient capture).
+- **Exit 1 is non-blocking** — a top gotcha. Use exit 2 or JSON output for policy enforcement.
+- **JSON-only output** on SessionStart dodges the double-injection bug (`additionalContext`).
+- **Node.js runner universal** — one `.mjs` file runs identically on Linux/macOS/Windows.
+- **`CLAUDE_ENV_FILE` is the stateful channel** — available only on SessionStart / CwdChanged / FileChanged.
+- **Hooks never invoke skills or subagents** — they are the reactive edge, not part of orchestration.
+- **Platform matrix CI mandatory** — catch Windows bugs before release.
+
+**Strategic Technical Recommendations (top 5):**
+
+1. **Ship 4 Node.js `.mjs` hook scripts on Day 6**, each under 100 lines, with top-of-file contract comments and defensive stdin parsing.
+2. **Enforce JSON-only output** on `SessionStart` (and any event that supports structured output) via a linter rule. No plain `console.log` except `console.log(JSON.stringify(...))`.
+3. **Run CI on a platform matrix** (Linux + macOS + Windows × Node 20 + 22) on every PR. Catches Issue #18610-class failures pre-release.
+4. **Implement the four lean-boot modes** via `.workflow.yaml` + matcher combinations. Document each mode in the README with a one-sentence pitch.
+5. **Use JSON `permissionDecision: "deny"`** (not exit 2) on `PreToolUse(Write memory/)` to sidestep Issue #24327 and get better user feedback.
+
+---
+
+## Table of Contents
+
+1. [Research Overview](#research-overview) — scope, inputs, key findings at a glance
+2. [Technical Research Scope Confirmation](#technical-research-scope-confirmation)
+3. [Technology Stack Analysis](#technology-stack-analysis)
+   - Lifecycle Event Inventory (Complete)
+   - Hook Types — Four Execution Models
+   - Runtime Contract — stdin / stdout / stderr / Exit Codes
+   - SessionStart Mechanics
+   - Cross-OS Runtime Contract
+   - Configuration Scope Hierarchy
+   - Technology Adoption Trends
+4. [Integration Patterns Analysis](#integration-patterns-analysis)
+   - Event → Handler Binding Protocol
+   - Input/Output Protocol
+   - Plugin Integration Protocol
+   - Cross-Event Composition — `CLAUDE_ENV_FILE` Integration
+   - Error and Diagnostic Protocol
+5. [Architectural Patterns and Design](#architectural-patterns-and-design)
+   - System-Level Patterns
+   - The Four Lean-Boot Modes
+   - Design Principles for Hook Authoring
+   - Scalability and Cost Patterns
+   - Composition — Hooks in Our Advisor Model
+   - Security Architecture (Hook-Specific)
+   - Data Architecture — Which Files Hooks Touch
+   - The Decision: Hook Wiring Table for MVP
+6. [Implementation Approaches and Technology Adoption](#implementation-approaches-and-technology-adoption)
+   - Adoption Strategy
+   - Development Workflows
+   - Testing and Quality Assurance
+   - Deployment and Operations
+   - Team Organization and Skills
+   - Cost Optimization and Resource Management
+   - Risk Assessment and Mitigation
+   - Recommendations — Day-6 Adjusted Roadmap
+   - Success Metrics and KPIs
+7. [Research Synthesis and Conclusion](#research-synthesis-and-conclusion)
+   - Cross-Sectional Insights
+   - Strategic Impact Assessment
+   - Next Steps
+   - Research Limitations
+   - Research Completion Metadata
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+Five insights emerge only when the five axes of Track 5 are considered together.
+
+1. **Hooks are the reactive edge; they do not belong in the orchestration model.** The temptation is to wire every workflow event through hooks. Resist it. `state-manager` is the advisor. Porcelain commands are the user's request surface. Skills and subagents are the execution layer. Hooks only react — read state, validate writes, inject context, flush. This separation is what keeps hooks fast and predictable.
+
+2. **The three open bugs constrain the design as strongly as the documented features.** #14281 forces JSON-only output; #24327 forces JSON `permissionDecision` instead of exit 2; #18610 forces Node.js runner. A plugin that ignores these bugs ships broken on Windows, halts Claude on schema violations, and duplicates context at every session start. The research-to-implementation bridge here is operational, not architectural.
+
+3. **Node.js as universal hook runtime is an under-appreciated lever.** It costs us nothing (Claude Code requires Node anyway), saves us three parallel script implementations, reduces startup latency vs PowerShell, and gives us one language for hook tests. The apparent restriction (no Bash) is actually a simplification.
+
+4. **`CLAUDE_ENV_FILE` is a small feature with large leverage.** Exposing `WORKFLOW_ACTIVE_EPIC` to every Bash tool call in the session replaces dozens of re-reads of `ACTIVE.md`. The cost is 1 line in SessionStart. The benefit compounds over every tool call. This is the kind of host feature that rewards careful reading of the docs.
+
+5. **The four lean-boot modes are a feature of the plugin, not of the host.** Claude Code gives us `matcher` values (`startup | resume | clear | compact`) and a hook script — everything else (the `always/new-session-only/manual/interactive` distinction) lives in our `.workflow.yaml` config plus the script's branching logic. The host's mechanisms are flexible enough to express the full mode space without requiring host changes.
+
+### Strategic Impact Assessment
+
+**On the 7-day MVP plan:**
+
+- Day 6 absorbs all hook work, consistent with the brainstorming schedule. Morning scaffolds the `hooks/` directory, afternoon writes tests, end-of-day updates `.workflow.yaml` schema.
+- Day 7 dogfood gains four concrete measurements: SessionStart duration, SessionStart output size, lean-boot line readability, no double-injection.
+- The 7-day plan ships v1 with the hook layer functional on Linux/macOS/Windows.
+
+**On the 9 architectural principles:**
+
+- Principle #3 (Integration is the primitive) extends: hooks are the integration surface to Claude Code's event lifecycle, orthogonal to the workflow primitives.
+- Principle #7 (Ambient capture, no dedicated docs phase) gains its concrete v2+ implementation: `PostToolUse(Write|Edit)` flags capture candidates passively.
+
+**On the 8 open decisions from the brainstorming:**
+
+- Decision #5 (lean-boot template) — **fully locked**: `Epic: <id> / Story: <id>:<status> / Next: <command>` single line, ≤120 chars.
+- Decision #6 (`.workflow.yaml` content) — **extended**: now includes `lean-boot.mode` and `lean-boot.include-env-vars`. Schema bump `v0.1.x → v0.2.x`.
+
+**On the positioning refinement (spec-first + reference implementation):**
+
+- Hooks are orthogonal to the spec. The spec describes memory and composition; hooks are implementation detail of how our reference plugin wires the spec to host events. Third-party implementations could use different hook strategies (or none, if they use a non-Claude-Code host).
+
+**On host-absorption risk:**
+
+- Anthropic may ship smarter defaults (e.g., a native `SessionStart` advisor). If it does, our plugin benefits (more users see the lean-boot idea) or adjusts (our mode becomes a richer version of the default). Positive-sum either way.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Lock the 4-hook MVP table (SessionStart, PreToolUse, Stop, SessionEnd). Decide whether `PreCompact` ships in v1 or defers to v1.1.
+2. Draft the Node.js hook script template with the exact stdin parsing pattern, JSON-only output convention, and idempotence guarantee.
+3. Extend `schemas/workflow-yaml.schema.json` with the `lean-boot` section. Update `spec/memory-convention.md` or create `spec/workflow-yaml.schema.md` with the final schema.
+
+**Short term (Day 6):**
+
+4. Scaffold `plugins/<name>/hooks/`, implement the four scripts, wire `hooks/hooks.json`.
+5. Write Tier 2 tests (node:test) for each script.
+6. Configure GitHub Actions platform matrix.
+7. Smoke test via `claude --plugin-dir ./ -p "status?"` asserting lean-boot output.
+
+**Day 7 (dogfood):**
+
+8. Real-session test. Verify SessionStart duration, output size, double-injection absence. Document in `_bmad-output/metrics/`.
+
+**Medium term (weeks 2-6):**
+
+9. v1.1: platform matrix CI hard gate on every PR.
+10. v1.5: `PreCompact` ADR-preservation hook (if deferred from v1).
+11. v2: `PostToolUse(Write|Edit)` ambient capture. Evaluate `type: "prompt"` or `type: "agent"` for adaptive validation.
+
+**Ongoing:**
+
+12. Monitor Claude Code release notes for new lifecycle events. Subscribe skill changes requires only script updates, not architecture revisions.
+13. Watch for resolution of Issues #14281, #24327, #18610 — when any closes, simplify our mitigations.
+14. Track community contributions to the `/hooks` documentation — pattern convergence may enable newer best-practice updates.
+
+### Research Limitations
+
+- **Issues #14281, #24327, #18610 status not independently re-verified in Apr 2026.** Referenced as open based on 2026-dated search results and the GitHub issue list. Day 6 implementation should re-check before relying on the mitigations described.
+- **Platform matrix cost not measured in this research.** GitHub Actions runs on 3 platforms × 2 Node versions = 6 cells per PR; typical cost is 2-5 min each. Acceptable, but not zero.
+- **Node.js 20 vs 22 compatibility not deeply tested in the wild.** Our scripts should be compatible with both, but anti-regression testing will catch any discrepancy.
+- **Cross-OS startup timing** (50-200 ms Node) is a 2026 community figure; our dogfood will measure actuals on representative hardware.
+- **`CLAUDE_ENV_FILE` behavior on PowerShell tool calls is not documented or tested.** We assume PowerShell does NOT source it; our `WORKFLOW_*` env vars thus only flow into Bash tool calls. If this assumption is wrong, some workflow integrations may surprise us. Dogfood will catch this if it matters.
+- **Subagent hooks (`SubagentStart`, `SubagentStop`, `Stop`-in-subagent-becomes-`SubagentStop`) were not deeply exercised in this research**, as our MVP plugin does not use skill-scoped hooks. When we add them (v2+), re-verify the conversion rule.
+- **No first-hand hook-performance benchmarks.** All timing figures are from community sources or estimates.
+
+### Research Completion Metadata
+
+- **Research Topic:** Claude Code Hook Lifecycle and SessionStart Mechanics for Cross-OS Lean Boot
+- **Research Type:** Technical (track 5 of 5 — final)
+- **Author:** Cyril
+- **Completion Date:** 2026-04-18
+- **Source Verification:** All factual claims cited against Claude Code official docs, named GitHub issues, community platform-specific guides, and the prior Research #1-#4. Critical claims (exit code behaviors, SessionStart double-injection bug, Windows plugin hook execution, PowerShell startup timing) multi-source validated.
+- **Confidence Level:** High on documented event inventory and configuration schema; medium on open-bug status (subject to change); medium on cross-OS timing (community figures not our measurements); medium on `CLAUDE_ENV_FILE` behavior with PowerShell.
+- **Primary Sources:**
+  - [code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks) — complete hooks reference
+  - [code.claude.com/docs/en/plugins-reference](https://code.claude.com/docs/en/plugins-reference) — plugin hook integration
+  - [code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills) — hooks in skills/agents
+- **Secondary Sources:**
+  - [claudefa.st — Cross-Platform Hooks 2026](https://claudefa.st/blog/tools/hooks/cross-platform-hooks) — Node.js universal runner recommendation
+  - [claudefa.st — Session Lifecycle Hooks](https://claudefa.st/blog/tools/hooks/session-lifecycle-hooks) — SessionStart guidance
+  - [claudefa.st — Complete Guide to 12 Lifecycle Events](https://claudefa.st/blog/tools/hooks/hooks-guide) — events reference
+  - [stevekinney.com — Claude Code Hook Control Flow](https://stevekinney.com/courses/ai-development/claude-code-hook-control-flow) — exit code semantics
+  - [anthropics/claude-code Issue #14281](https://github.com/anthropics/claude-code/issues/14281) — additionalContext double-injection
+  - [anthropics/claude-code Issue #24327](https://github.com/anthropics/claude-code/issues/24327) — PreToolUse exit 2 halt bug
+  - [anthropics/claude-code Issue #18610](https://github.com/anthropics/claude-code/issues/18610) — Windows plugin hooks broken
+  - [obra/superpowers Issue #648](https://github.com/obra/superpowers/issues/648) — same double-injection class
+  - [nicoforclaude/claude-windows-shell](https://github.com/nicoforclaude/claude-windows-shell) — Windows shell utilities reference
+- **Inputs from prior work:**
+  - Research #1 — `technical-plugin-architecture-distribution-research-2026-04-17.md`
+  - Research #2 — `technical-frontmatter-schemas-research-2026-04-17.md`
+  - Research #3 — `technical-subagents-context-isolation-research-2026-04-18.md`
+  - Research #4 — `technical-mcp-tool-integration-research-2026-04-18.md`
+  - Brainstorming session — `brainstorming-session-2026-04-17-1545.md`
+  - Domain research — `domain-agentic-workflows-ecosystem-research-2026-04-17.md`
+- **Sibling research tracks**: none remaining. This closes the 5-track sequential technical research.
+
+_This technical research document serves as the Track-5 (final) deliverable of a five-track sequential technical research. Resolves the SessionStart lean-boot implementation, cross-OS runtime choice (Node.js), four lean-boot modes, and hook wiring table for MVP. Ship-ready as of 2026-04-18. **The 5-track sequential technical research is now complete.**_
