@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5]
+stepsCompleted: [1, 2, 3, 4, 5, 6]
+workflowCompleted: true
 inputDocuments:
   - _bmad-output/brainstorming/brainstorming-session-2026-04-17-1545.md
   - _bmad-output/planning-artifacts/research/domain-agentic-workflows-ecosystem-research-2026-04-17.md
@@ -53,7 +54,14 @@ Findings inform the v1.5+ MCP integration milestone from the Track-1 roadmap and
 
 **Key findings at a glance** (detailed in the Research Synthesis at the end):
 
-- _(populated after step-06 synthesis)_
+- **MCP is the converged cross-host standard** since the Linux Foundation donation (Dec 2025). 17,468 servers indexed; 97M monthly SDK downloads.
+- **MCP Tool Search (default enabled, early 2026) is a game-changer** — 85% context reduction on tool listings. Makes the pre-2026 "20k MCP budget ceiling" obsolete. **BUT Haiku models do not support it.**
+- **Our plugin bundles zero MCP servers in MVP.** Host-native marketplace already ships the most-common integrations (GitHub, Slack, etc.) as first-party plugins — re-bundling duplicates.
+- **`research-web-wrapper` uses native `WebSearch`/`WebFetch` in MVP** (Option A); opt-in MCP via `.workflow.yaml` in v1.5+ with graceful fallback.
+- **Haiku quarantine rule**: our Haiku-backed `explore-codebase-wrapper` must never have MCP servers attached (full-load explosion).
+- **MCP sits under the subagent layer** in our composition model; never above it, never used for skill↔skill composition.
+
+Pointer to the full synthesis: the [Research Synthesis and Conclusion](#research-synthesis-and-conclusion) section consolidates cross-sectional insights, strategic impact, and next-step recommendations in a single place.
 
 ---
 
@@ -858,3 +866,185 @@ Mitigation: annual (or per-release) spec review; update README.
 - At least one consumer report of opt-in success (qualitative signal).
 
 _Source: synthesized across Research #1–#4 findings + Tool Search analysis._
+
+---
+
+## Executive Summary
+
+MCP's trajectory through 2025-2026 is one of the clearer convergence stories in agent tooling. Donated to the Linux Foundation's Agentic AI Foundation in December 2025 with co-backing from Anthropic, Block, OpenAI, Google, Microsoft, AWS, Cloudflare, and Bloomberg; 17,468 servers indexed in Q1 2026; 97 million monthly SDK downloads by March 2026; cross-host adoption across every major AI dev tool. MCP is the substrate, not the competition.
+
+This research found that two developments reshape the plugin-layer calculus. First, **MCP Tool Search** (default-enabled in early 2026) deferred tool definitions until Claude needs them — 85% context reduction on typical 50-tool setups, rendering obsolete the pre-2026 "20k MCP budget ceiling" captured in the prior domain research. Second, **Tool Search does not support Haiku**; Sonnet 4+ or Opus 4+ is required. This asymmetry constrains how our plumbing subagents can use MCP: `research-web-wrapper` (Sonnet) and `adversarial-review-wrapper` (Sonnet/Opus) can attach MCP freely; `explore-codebase-wrapper` (Haiku via native `Explore`) must be MCP-free.
+
+The resolved design stance is **bundle nothing, opt-in everything**. Our MVP ships zero MCP servers — Claude Code's official marketplace already distributes the common ones (GitHub, Slack, Atlassian, etc.) as first-party plugins, and our workflow plugin stays orthogonal to domain-specific integrations. `research-web-wrapper` uses native `WebSearch`/`WebFetch` in MVP; an optional `mcp` section in `.workflow.yaml` lands in v1.5+ to let consumers opt into Exa or Tavily for higher-quality research while the plugin gracefully falls back to native when not configured.
+
+**Key Technical Findings:**
+
+- **MCP Tool Search (default 2026)** ≈ 85% context reduction on Sonnet/Opus; no effect on Haiku.
+- **17,468 servers** in the ecosystem, but we bundle zero. Consumers opt in per project.
+- **Exa leads web-search quality** (81% WebWalker vs 71% Tavily); relevant v1.5+ recommendation.
+- **MCP does not replace** our two-tier memory (Research #2) or our subagent `memory:` field (Research #3). Official Memory MCP is redundant.
+- **Plugin-shipped agents cannot declare `mcpServers` in their own frontmatter** — servers must be at plugin root. Security feature, not bug.
+- **Cross-plugin server-name collisions** are silent; future bundling uses `workflow-<name>-<server>` prefix.
+
+**Strategic Technical Recommendations (top 5):**
+
+1. **Do not bundle MCP servers in MVP.** Ship a "MCP integrations (advanced)" README section instead.
+2. **Enforce Haiku quarantine as a CI lint**: skills dispatching to Haiku subagents must not declare MCP tools in `allowed-tools`.
+3. **Rely on Tool Search default behavior**; document the fallback behavior for consumers on proxies or Haiku setups.
+4. **For v1.5+**: add `mcp` section to `.workflow.yaml` with graceful fallback. First target server: Exa.
+5. **Trust the host for common integrations**. GitHub, Slack, Atlassian, Linear, Sentry are first-party plugins — do not duplicate. Point users to them.
+
+---
+
+## Table of Contents
+
+1. [Research Overview](#research-overview)
+2. [Technical Research Scope Confirmation](#technical-research-scope-confirmation)
+3. [Technology Stack Analysis](#technology-stack-analysis)
+   - MCP Standard Status (April 2026)
+   - MCP Configuration in Claude Code (`.mcp.json` Schema)
+   - Token Cost Profile and Tool Search (The 2026 Game-Changer)
+   - MCP Server Catalog (April 2026, Production-Ready)
+   - Technology Adoption Trends
+4. [Integration Patterns Analysis](#integration-patterns-analysis)
+   - Lifecycle Protocol (Server Start / Stop)
+   - Tool-Invocation Protocol
+   - Tool Search Discovery Flow
+   - Authentication Patterns
+   - Cross-Plugin Interaction and Server Collision
+   - Error Handling
+5. [Architectural Patterns and Design](#architectural-patterns-and-design)
+   - System-Level Patterns
+   - Design Principles for MCP Usage in the Plugin
+   - Scalability and Cost Patterns
+   - Composition & Orchestration — MCP's Place in Our Model
+   - Security Architecture (MCP-Specific)
+   - Data Architecture
+   - The Decision: `research-web-wrapper` Native vs MCP
+6. [Implementation Approaches and Technology Adoption](#implementation-approaches-and-technology-adoption)
+   - Adoption Strategy
+   - Development Workflows
+   - Testing and Quality Assurance
+   - Deployment and Operations
+   - Team Organization and Skills
+   - Cost Optimization and Resource Management
+   - Risk Assessment and Mitigation
+   - Recommendations — Roadmap
+   - Success Metrics and KPIs
+7. [Research Synthesis and Conclusion](#research-synthesis-and-conclusion)
+   - Cross-Sectional Insights
+   - Strategic Impact Assessment
+   - Next Steps
+   - Research Limitations
+   - Research Completion Metadata
+
+---
+
+## Research Synthesis and Conclusion
+
+### Cross-Sectional Insights
+
+1. **The 2026 MCP reality invalidates the 2025 conventional wisdom.** "20k MCP tokens cripples Claude" — documented in our prior domain research — is pre-Tool-Search. Today, the same 50-tool setup that would have consumed 50k+ tokens now consumes ~8.7k. The cost critique is obsolete for Sonnet/Opus. The critique survives for Haiku, which is why our architecture treats Haiku subagents as a quarantine zone.
+
+2. **The bundle-nothing stance is less conservative than it looks.** It sounds like we are ducking complexity, but in practice it is the most-capable choice: our plugin works on any consumer install, with no external API keys, no rate limits, no quota surprises. Meanwhile, consumers who want heavier-weight research can enable MCP themselves in their own `.mcp.json`. We get both worlds.
+
+3. **The official Claude Code marketplace is the right home for common MCP integrations.** GitHub, Slack, Atlassian, Linear, Sentry — all already available as first-party plugins. Duplicating them in our plugin would be a disservice to users. Point them to the official plugins and focus our workflow plugin on orthogonal concerns.
+
+4. **`research-web-wrapper` is the only real decision this track resolved.** Everything else (Haiku quarantine, bundle-nothing, name prefixing, layer placement) is either defensive or confirmatory. The live choice was Option A vs C vs B vs D; Option A in MVP, C in v1.5+ as graceful opt-in.
+
+5. **Tool Search is a free win we didn't have to design for.** It is a host feature that benefits Sonnet/Opus subagents automatically. Our plugin inherits the benefit without any code. This is the kind of host-capability-absorption the domain research warned about — except it favors us: we do not compete on tool-listing efficiency; we ride on the host's improvements.
+
+### Strategic Impact Assessment
+
+**On the 7-day MVP plan:**
+
+- Day 1 gains a README "MCP integrations (advanced)" section (~3-4 paragraphs, 1 hour of writing). No schema impact.
+- Day 3-5 carries a CI lint preventing MCP on Haiku subagents (trivial grep-based rule).
+- Day 7 dogfood unaffected — zero MCP in the plugin, zero MCP code paths to test beyond the absence.
+
+**On the 9 architectural principles:**
+
+- Principle #3 (Integration is the primitive, not the Git flow) extends to MCP: the plugin is agnostic about MCP adoption. Consumers decide.
+- No new principle introduced; all existing principles hold.
+
+**On the 8 open decisions from the brainstorming:**
+
+- Decision #6 (`.workflow.yaml` keys): v1.5+ adds an `mcp` section. MVP schema already has `domain-map`, `skip-heuristics`, `lean-boot-mode` — these remain unchanged.
+
+**On the positioning refinement (spec-first + reference implementation):**
+
+- MCP is orthogonal. Our spec does not prescribe MCP server choices; it describes an optional integration mechanism (v1.5+). Third-party adopters of our spec do not need to understand MCP to implement it.
+
+**On host-absorption risk:**
+
+- Positive absorption: Tool Search is a host feature we benefit from. Anthropic could further reduce MCP overhead — every such improvement helps our plugin without requiring our work.
+- Negative absorption: Anthropic could ship a native alternative to our optional MCP integration (e.g., a built-in high-quality web search). This would simplify our v1.5+ design; not a threat.
+
+### Next Steps
+
+**Immediate (before writing any code):**
+
+1. Draft the README "MCP integrations (advanced)" section (3-4 paragraphs). Include: Exa for research, Brave for privacy-first, GitHub/Slack pointing to official plugins, copy-paste fixtures.
+2. Add the CI lint rule: grep for `mcp__*` in `allowed-tools` of skills whose `agent:` is `Explore` or a custom Haiku-backed agent. Hard fail on match.
+3. Confirm no MVP plugin file declares `mcpServers`. Document this as an invariant in `spec/memory-convention.md` or a new `spec/plugin-invariants.md`.
+
+**Short term (Days 1–7):**
+
+4. Execute the brainstorming roadmap; the MCP track adds only documentation work.
+5. Day 7 dogfood: verify the plugin runs on a consumer install with no MCP at all.
+
+**Medium term (weeks 2–6):**
+
+6. Collect community feedback on whether v1.5+ MCP opt-in is desired. Track the request count.
+7. If demand exists: design the `.workflow.yaml` `mcp` section, ship v1.5+, document in `spec/workflow-yaml.schema.md`, add Tier 2 fallback tests.
+8. Prefer Exa as the first documented server (benchmark data supports it).
+
+**Ongoing:**
+
+9. Quarterly: review MCP spec revisions (new transports, new registry features).
+10. Monitor Claude Code host updates for new MCP-adjacent features (e.g., server auto-discovery, improved search heuristics).
+11. Watch whether competing frameworks (Superpowers, Agent OS) bundle MCP. If they ship common servers and gain users, reconsider our bundle-nothing stance.
+
+### Research Limitations
+
+- **Quality benchmarks for Claude native `WebSearch` are not published.** Exa's 81% WebWalker and Tavily's 71% are MCP-server-side figures. We have no direct comparison of native Claude `WebSearch` quality to either. Decision to stay on native for MVP rests on the bundle-nothing principle, not on quality parity.
+- **Tool Search performance may vary by model version.** Figures (85% reduction) come from 2026 community benchmarks. Actual reductions depend on the mix of tools and the search query quality. Dogfood will measure.
+- **Haiku Tool Search non-support is current behavior.** Anthropic could add support in a future Haiku release. Monitor `ENABLE_TOOL_SEARCH` compatibility docs per release.
+- **MCP registry stats (17,468 servers)** are from a Q1 2026 independent census (Nerq). Registry quality is uneven; raw count overstates the production-ready server population (estimated 500+ per ChatForest).
+- **No first-hand measurement of per-server token cost.** Cost figures (Exa ~50-75% reduction via highlights, Gmail 2,640 tokens, Playwright 3,500 tokens) are from community sources.
+- **`claude.com/blog/subagents-in-claude-code` and `agents.md` and `agentskills.io` returned 403** in this session. Primary-site verification of some claims was not feasible; relied on multiple converging secondary sources.
+
+### Research Completion Metadata
+
+- **Research Topic:** MCP Integration Patterns for a Claude Code Workflow Plugin
+- **Research Type:** Technical (track 4 of 5)
+- **Author:** Cyril
+- **Completion Date:** 2026-04-18
+- **Source Verification:** All factual claims cited against Claude Code official docs, MCP spec site, Anthropic news, Linux Foundation/AAIF materials, and multiple community sources. Critical claims (Tool Search mechanics, MCP cost profile, Haiku non-support) multi-source validated.
+- **Confidence Level:** High on MCP standard status and Claude Code MCP configuration; medium on token cost numbers (community benchmarks, not our measurements); medium on v1.5+ demand projection.
+- **Primary Sources:**
+  - [anthropic.com/news/donating-the-model-context-protocol](https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation) — Linux Foundation donation
+  - [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp) — Claude Code MCP integration
+  - [modelcontextprotocol.io/specification/2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) — spec
+  - [platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool) — Tool Search
+  - [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers) — official servers
+- **Secondary Sources:**
+  - [mcpmanager.ai/blog/mcp-adoption-statistics](https://mcpmanager.ai/blog/mcp-adoption-statistics/) — 2026 adoption
+  - [github.blog — MCP joins the Linux Foundation](https://github.blog/open-source/maintainers/mcp-joins-the-linux-foundation-what-this-means-for-developers-building-the-next-era-of-ai-tools-and-agents/) — donation context
+  - [claudefa.st/blog/tools/mcp-extensions/mcp-tool-search](https://claudefa.st/blog/tools/mcp-extensions/mcp-tool-search) — Tool Search benchmarks
+  - [mindstudio.ai/blog/claude-code-mcp-server-token-overhead](https://www.mindstudio.ai/blog/claude-code-mcp-server-token-overhead) — cost breakdown
+  - [jdhodges.com/blog/claude-code-mcp-server-token-costs](https://www.jdhodges.com/blog/claude-code-mcp-server-token-costs/) — cost analysis
+  - [taskade.com/blog/mcp-servers](https://www.taskade.com/blog/mcp-servers) — 2026 server catalog
+  - [chatforest.com/guides/best-search-mcp-servers](https://chatforest.com/guides/best-search-mcp-servers/) — search server comparison
+  - [gofastmcp.com/integrations/mcp-json-configuration](https://gofastmcp.com/integrations/mcp-json-configuration) — config reference
+  - [spences10/mcp-omnisearch](https://github.com/spences10/mcp-omnisearch) — unified search reference
+- **Inputs from prior work:**
+  - Research #1 — `technical-plugin-architecture-distribution-research-2026-04-17.md`
+  - Research #2 — `technical-frontmatter-schemas-research-2026-04-17.md`
+  - Research #3 — `technical-subagents-context-isolation-research-2026-04-18.md`
+  - Brainstorming session — `brainstorming-session-2026-04-17-1545.md`
+  - Domain research — `domain-agentic-workflows-ecosystem-research-2026-04-17.md`
+- **Sibling research tracks** (not yet run):
+  - Research #5 — SessionStart Hook & Hook Lifecycle
+
+_This technical research document serves as the Track-4 deliverable of a five-track sequential technical research. Resolves the MCP bundling policy and the `research-web-wrapper` MCP-vs-native decision. Ship-ready as of 2026-04-18._
