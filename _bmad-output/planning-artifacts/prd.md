@@ -7,6 +7,7 @@ stepsCompleted:
   - step-03-success
   - step-04-journeys
   - step-05-domain (skipped; low-complexity domain — technical constraints deferred to step-10 NFR)
+  - step-06-innovation
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -249,3 +250,52 @@ skills/plan-feature/SKILL.md:7 — unknown field "requrires"
 - **External-harness journey** (non-Casper orchestrator using `caspian` CLI outside Claude Code). Matters, but proving spec portability is a post-v1.1 success criterion — covered in the Vision section, not a journey the v1.0 release measures against.
 - **Unix Interop Test journey** (non-Casper skill producing an artifact Casper consumes, and vice versa). Deliverable of v1.1.
 - **Regulated-domain audit-trail journey** (team using `requires` / `produces` lineage as free provenance). Emerges naturally from the contract but does not drive any v1.0 requirement beyond what the journeys above already cover.
+
+## Innovation & Novel Patterns
+
+### Detected Innovation Areas
+
+- **Declarative pre/post-conditions at the agent-skill authoring layer.** `requires` and `produces` are absent from every surveyed frontmatter schema (Agent Skills, Superpowers, Spec Kit, Agent OS, BMad, AIDD). Prior art exists in workflow-graph tooling (Dagger, Nix derivations, Bazel, Airflow) but has never been applied to the skill-authoring layer. Caspian crosses that line — the delta is narrow and defensible, not "nothing like this exists."
+- **Extensible namespace-based artifact-type registry.** Most specs fail either by decree (closed enum that can never absorb author innovation) or by absence (free-for-all frontmatter that degenerates into xkcd 927). Caspian takes the middle path: a canonical `core:*` vocabulary plus first-class vendor/author namespaces (`bmad:*`, `maya:*`), with validator warnings (never rejections) on unregistered types. The effective registry for a project emerges from the union of installed skills, not from central approval.
+- **Overlay with a pre-committed sunset protocol.** A spec that plans its own obsolescence. If `agentskills.io` ships equivalent fields, Caspian commits to aliasing and deprecating its own within two minor releases. Proactive upstreaming of `requires` / `produces` proposals to Anthropic begins before v1.0. Convergent absorption is the preferred outcome, not the failure mode. This discipline — publishing the exit before the launch — is unusual in spec design.
+
+### Market Context & Competitive Landscape
+
+**Complementary standards (not competitors)**
+
+- **Anthropic Agent Skills (`agentskills.io`, Dec 2025)** — official open standard. Cross-vendor adoption in under three months (OpenAI, Microsoft, Cursor, GitHub, Atlassian, Figma). Covers SKILL.md frontmatter only (`name`, `description`, `disable-model-invocation`, `model`, `version`). Caspian fills the gap above: agents, commands, memory documents, composition semantics. Overlay-compatible by construction — every Agent Skills field remains valid inside a Caspian-conformant artifact.
+- **MCP (Model Context Protocol, Linux Foundation)** — 10 000+ servers, 97M monthly SDK downloads. Solves agent↔tool discovery and invocation. Orthogonal to Caspian's skill↔skill artifact contract. The 2026 roadmap adds `.well-known` MCP Server Cards for static capability discovery — complementary to Caspian's static artifact typing, not competitive.
+
+**Incumbent spec-driven frameworks (Caspian positions as substrate, not competitor)**
+
+- BMad-Method (~37k⭐), GitHub Spec Kit (~71k⭐), Superpowers (~57k⭐), Agent OS, AIDD. Each defines its own proprietary frontmatter shape. None compose with any other. Framework maintainer adoption of Caspian Core (Journey 4) is the v1.1+ unlock.
+
+**Plugin collections (surface for adoption compounding)**
+
+- ComposioHQ/awesome-claude-plugins (176+ plugins), wshobson/agents (72+ agents, 31k⭐), claude-code-templates (davila7, 135+ agents / 176+ plugins), rohitg00/awesome-claude-code-toolkit (101 plugins in the official marketplace). All ship ad-hoc, author-defined frontmatter. Each is a potential adoption surface.
+
+**Memory runtimes (orthogonal — Memory Profile territory, out of v1.0 scope)**
+
+- Mem0, Letta/MemGPT, Zep, LangMem. Converging on episodic/semantic/procedural scope vocabulary at runtime but with zero interop on file format. The Memory Profile overlay (scoped to the v1.1 PRD) is the greenfield slot.
+
+**Market-timing signals**
+
+- Gartner forecast: 40% of today's agents will not survive to 2027 — pre-consolidation window.
+- Developer trust in AI output: 29% in 2025, down from ~70% in 2023 — tailwind for typed-artifact and precondition approaches.
+- Snyk audit: prompt injection present in 36% of published skills; no package-signing standard in the ecosystem. Caspian's structural defenses (closed enums in Profile, validated pointers, size caps, BOM rejection, safe YAML loading) help but cannot solve supply-chain trust alone.
+
+### Validation Approach
+
+- **Implementation proof (v1.0).** casper-core demonstrates the full `requires → produces` chain end-to-end. Clean execution on a greenfield project is the primary evidence that the contract is implementable.
+- **Vendor-neutrality proof (v1.0).** The `caspian` CLI runs on a machine with no Claude Code installed — a physical demonstration, not a declaration.
+- **Adoption evidence (12 months post-v1.0).** ≥2 external adopters (third-party skills or plugins declaring `requires` / `produces`) — a real-world implementability check. ≥1 external RFC merged (Journey 5) — a governance pressure-test.
+- **Portability evidence (v1.1).** Unix Interop Test scripted and reproducible — a non-Casper skill produces an artifact Casper consumes cleanly, and vice versa. This is the portability gold standard.
+- **Long-term portability evidence (post-v1.1).** ≥2 independent reference implementations — proves the spec is not tied to Casper.
+
+### Risk Mitigation
+
+- **Risk — Anthropic absorbs `requires` / `produces` into Agent Skills.** *Mitigation:* sunset protocol pre-committed and published in the spec; proactive upstreaming to `agentskills.io` begins before v1.0; convergence is the preferred path, not the failure mode. Absorption risk is converted from existential to planned.
+- **Risk — description-based orchestration inference proves "good enough", making declarative preconditions redundant.** *Mitigation:* flagged as a residual risk; no benchmark is a committed v1.0 deliverable (explicit anti-goal); revisit only if field evidence emerges.
+- **Risk — namespace sprawl fragments the registry (`bmad:persona` vs `superpowers:persona` with incompatible semantics).** *Mitigation:* validator warns (never rejects) on unregistered types; published design rationale per `core:*` type to prevent bikeshedding; conformance badge levels (v1.1) provide a quality signal; RFC process for `core:*` additions.
+- **Risk — validator stack drift across four layers (IDE, CI, runtime, install).** *Mitigation:* single JSON Schema source of truth that all layers reference. v1.0 ships only two of four layers (CLI + install-time), reducing drift surface; the full stack is deferred to v1.1.
+- **Risk — BDFL bus factor stalls the project.** *Mitigation:* RFC process (every decision is traceable, a successor can resume); early outreach to external contributors (Journey 5); documented conflict-resolution procedure published even under BDFL governance.
