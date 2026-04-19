@@ -9,6 +9,7 @@ stepsCompleted:
   - step-05-domain (skipped; low-complexity domain — technical constraints deferred to step-10 NFR)
   - step-06-innovation
   - step-07-project-type
+  - step-08-scoping
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -406,3 +407,64 @@ Not applicable — Caspian v1.0 is the initial release. A migration guide will b
 - **Node-only in v1.0.** Python or Go implementations of the CLI are explicitly post-v1.1 — only if external-harness adoption (Vision) demands it.
 - **Publishing pipeline.** Spec, website, and CLI release together (same semver). casper-core follows its own semver but declares the Caspian `schema_version` it targets in its plugin manifest.
 - **Defensive naming.** `caspian` and `casper` are reserved on GitHub, npm, PyPI, and crates.io even where no package ships. Primary domain `caspian.dev`; defensive registration of `caspian.io` / `caspian.ai` if budget allows.
+
+## Project Scoping & Phased Development
+
+**Cross-reference.** The feature-level scope (MVP / Growth / Vision / Anti-goals) is defined in the *Product Scope* section above and is not duplicated here. This section covers strategic scoping only: MVP philosophy, resources, and risk-based scope decisions.
+
+### MVP Strategy & Philosophy
+
+Caspian v1.0 is simultaneously a **problem-solving MVP** and a **platform MVP** — both framings apply:
+
+- **As a problem-solving MVP** — it proves that declarative pre/post-conditions are implementable and composable at the agent-skill authoring layer. The end-to-end `/init-project` → `/discover` → `/plan-story` chain in casper-core is the problem-solving evidence: the contract does not require a heroic runtime to be honored.
+- **As a platform MVP** — it establishes the minimum surface that other authors can build on. The four-field contract, the `core:*` vocabulary, and the namespace extensibility rule are platform primitives. Other plugin authors are the platform users.
+
+**Not a revenue MVP, not an experience MVP.** No monetization surface; end-user experience (Casper UX polish) is deferred to casper-full in the v1.1 PRD.
+
+**Fastest path to validated learning.** Ship Caspian Core spec + `caspian` CLI + casper-core plugin + `caspian.dev` landing page as a coordinated release. Run one external-adopter experiment within three months (concrete prompt: a Maya-style author adds Caspian frontmatter to a real published plugin). That is the v1.0 validation signal beyond implementation correctness.
+
+### Resource Requirements
+
+**Team — solo founding author (BDFL) with Claude Code assist for v1.0.** RFC process opens the door to external contributors (Journey 5), but none is a prerequisite for v1.0. Implementation is AI-assisted via Claude Code; the binding constraint on the timeline is BDFL decision bandwidth — spec design choices, canonical vocabulary rationale, and review cycles — not raw code production.
+
+**Calendar — days, not weeks.** Realistic range: **3–7 calendar days of focused work** for a public-release-safe v1.0 (not internal-only), spread over 1–2 calendar weeks depending on available daily time. Indicative distribution:
+
+- **Day 1–2 — spec prose + JSON Schemas + canonical fixture set.** Human-intensive: design decisions and per-`core:*`-type rationale. AI-assisted for prose drafting and schema authoring. This is the longest phase because every decision here is locked in by BACKWARD_TRANSITIVE.
+- **Day 3 — `caspian` CLI implementation, tests, diagnostics.** AI-implemented, human-reviewed on fixture-set correctness, diagnostic quality, and the vendor-neutrality release gate (runs on a Claude-Code-free container).
+- **Day 4 — casper-core plugin (3 porcelain commands), plugin README, override-pattern documentation.** AI-implemented, human-reviewed via dogfooding on a real greenfield project.
+- **Day 5 — `caspian.dev` site + per-type vocabulary docs + launch prep (awesome-list PRs, upstream `agentskills.io` proposal draft).**
+- **Days 6–7 (buffer).** Iteration on dogfooding findings; one external-adopter experiment (a Maya-style author adds Caspian frontmatter to their own plugin); fix friction before public release.
+
+**BDFL oversight domains (solo-covered).** Spec and schema design discipline (every decision is a BACKWARD_TRANSITIVE commitment); code and test review (fixture-set zero-false-positives gate); dogfooding discipline (real project, not a synthetic one); launch discipline (awesome-list outreach, `agentskills.io` upstreaming, community engagement).
+
+**Budget — marginal.** Domain registration (`caspian.dev`, plus defensive `caspian.io` / `caspian.ai` optional), GitHub Pages (free), npm (free), marketplace submission (free), Claude Code subscription (existing input cost). Target: under €100 for the first year excluding subscriptions already in place.
+
+### Risk-Based Scoping
+
+Scope-adjacent risks not already captured in the Innovation / Risk Mitigation section.
+
+**Technical risks**
+
+- *Scope risk: `caspian` CLI performance regressions on large codebases.* Mitigation — `caspian validate` is I/O-bound and per-file; shipping a profile benchmark in v1.0 on a 1 000-file synthetic repo sets a baseline. Not a v1.0 release gate unless a real user reports an issue during internal dogfooding.
+- *Scope risk: cross-platform CLI packaging (Windows, Mac, Linux).* Mitigation — ship as a Node package (`npm install -g caspian`). Cross-platform is Node's problem, not ours. A `pkg`-style bundled binary is deferred to post-v1.0 if zero-Node-install usage emerges as a demand.
+
+**Market risks**
+
+- *Scope risk: zero traction in the 0–3 month window.* Mitigation — the launch includes a concrete adopter experiment (one real plugin adds Caspian frontmatter). If that fails to complete cleanly, a positioning review is triggered before investing in v1.1 (already captured in Success Criteria).
+- *Scope risk: premature competition from an analogous spec by another actor in the same window.* Mitigation — the sunset protocol explicitly allows absorption; the overlay-compatibility stance means even a competing spec's rise does not invalidate Caspian-compatible artifacts.
+
+**Resource risks**
+
+- *Scope risk: BDFL unavailability (illness, life event) mid-release.* Mitigation — the spec is written such that the JSON Schemas alone are useful without the CLI; the CLI is useful without casper-core; casper-core is useful without the website. Any subset is a partial but usable v1.0. Stage releases whenever possible instead of a single atomic drop.
+- *Scope risk: solo author underestimates one of the day-deliverables.* Mitigation — explicit priority order if time compresses: spec prose and schemas → CLI → casper-core → website. The spec can ship without the plugin; the plugin cannot ship without the spec. Cut casper-core scope (two commands instead of three) before cutting spec scope.
+- *Scope risk: a v1.0 decision is reversed post-release, costing BACKWARD_TRANSITIVE goodwill.* Mitigation — the decision to exclude `status` is the concrete example (BDFL decision in step-07). Each v1.0 scope decision is paired with an explicit reversibility note in this PRD. Additive restoration is cheap; removal is expensive — favor under-shipping over over-committing.
+
+### Phased Development Roadmap
+
+Mapped to the Product Scope sections above.
+
+- **Phase 1 — MVP (this PRD, v1.0)** — see *Product Scope → MVP* above.
+- **Phase 2 — Growth (separate PRD, v1.1)** — see *Product Scope → Growth Features* above. Memory Profile + casper-full + defense-in-depth validator stack + JSON Schema Store submission + GitHub Action + conformance badges.
+- **Phase 3 — Expansion (Vision, post-v1.1)** — see *Product Scope → Vision* above. ≥2 independent reference implementations; framework-maintainer adoption; `agentskills.io` upstream convergence.
+
+No new content; Phase 1/2/3 exist to connect the strategic framing here to the feature lists already documented.
