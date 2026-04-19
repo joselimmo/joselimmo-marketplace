@@ -8,6 +8,7 @@ stepsCompleted:
   - step-04-journeys
   - step-05-domain (skipped; low-complexity domain — technical constraints deferred to step-10 NFR)
   - step-06-innovation
+  - step-07-project-type
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -38,7 +39,7 @@ date: 2026-04-19
 
 The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, and slash commands in under a year. Every author defines their own frontmatter conventions. A developer who installs BMad for brainstorming, Superpowers for planning, an Anthropic frontend plugin, and a custom design skill has no way to know which skill fires when, in what order, or what each expects and produces. The workflow becomes something to memorize rather than discover. The root cause is not model capability, and not the plugin format — it is **the absence of a declarative contract** between components. No skill declares "I need an active epic and a plan"; none declares "I produce an ADR." The runtime and the LLM have to guess.
 
-**Caspian** — *Composable Agent Skill Protocol / Interoperable Artifacts Network* — is an open specification that closes this gap with a minimal frontmatter contract: `schema_version`, `type`, `status`, `requires`, `produces`. These fields turn any agent, skill, command, or memory document into a typed, composable unit. The contract is Agent-Skills-compatible by construction: every Anthropic-standard field remains valid.
+**Caspian** — *Composable Agent Skill Protocol / Interoperable Artifacts Network* — is an open specification that closes this gap with a minimal frontmatter contract: `schema_version`, `type`, `requires`, `produces`. These four fields turn any agent, skill, command, or memory document into a typed, composable unit. The contract is Agent-Skills-compatible by construction: every Anthropic-standard field remains valid.
 
 **Casper** — *Composable Agent Skill Protocol Example Reference* — is the Claude Code reference plugin that proves the contract end-to-end. Claude-Code-specific surface is isolated in a subdirectory; schemas, validator, and vocabulary live at the repo root and remain vendor-neutral so any other harness can honor the spec.
 
@@ -89,7 +90,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 
 ### Technical Success
 
-- **Contract stability** — schema evolution is BACKWARD_TRANSITIVE between v1.0 and v1.1: additive-only, no breaking changes to `schema_version`, `type`, `status`, `requires`, `produces`.
+- **Contract stability** — schema evolution is BACKWARD_TRANSITIVE between v1.0 and v1.1: additive-only, no breaking changes to `schema_version`, `type`, `requires`, `produces`.
 - **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, enum strictness, unknown-field handling, path-traversal rejection in pointers). Zero false positives on the canonical fixture set shipped with v1.0.
 - **Reference plugin end-to-end** — casper-core's `/init-project` → `/discover` → `/plan-story` chain demonstrably produces artifacts that pass `caspian` CLI validation on a clean run.
 - **Vendor neutrality verified** — the `caspian` CLI runs on a machine without Claude Code installed. This is the physical evidence behind the "vendor-neutral" positioning.
@@ -152,11 +153,11 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 
 **Opening scene.** Maya sees a PR notification on `awesome-claude-code`: a new entry for Caspian appears, tagged *interop spec*. She opens the spec, reads for ten minutes, grasps the contract (four fields, overlay-compatible, zero methodology tax).
 
-**Rising action.** She picks one of her skills, adds five lines of frontmatter: `schema_version: "0.1"`, `type: maya:lint-rule`, `requires: [{type: core:plan}]`, `produces: {type: core:review}`. Runs `caspian validate ./skills/` locally. Gets a clean pass.
+**Rising action.** She picks one of her skills, adds four lines of frontmatter: `schema_version: "0.1"`, `type: maya:lint-rule`, `requires: [{type: core:plan}]`, `produces: {type: core:review}`. Runs `caspian validate ./skills/` locally. Gets a clean pass.
 
 **Climax.** She ships a minor version. A week later a Casper user opens an issue: *"your skill now surfaces automatically after `/plan-story` — I didn't have to memorize the trigger."*
 
-**Resolution.** Maya adds Caspian frontmatter to her four other skills over the weekend. Adoption cost: roughly five lines per artifact. Payoff: her plugins stop being isolated islands.
+**Resolution.** Maya adds Caspian frontmatter to her four other skills over the weekend. Adoption cost: roughly four lines per artifact. Payoff: her plugins stop being isolated islands.
 
 **Requirements revealed** — spec docs readable in under ten minutes; canonical `core:*` vocabulary unambiguous; `caspian` CLI ergonomic (`validate <path>`); namespace convention (`<vendor>:<type>`) documented; strict-but-friendly error output; overlay-compatibility (host ignoring the fields still loads the skill).
 
@@ -166,13 +167,13 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 
 **Opening scene.** Tomás runs `/plugin install casper-core@anthropic-marketplace` from Claude Code. Reads the README: three commands, isolated Claude-Code surface, overlay spec underneath.
 
-**Rising action.** He runs `/init-project` on a fresh repo. Casper seeds a minimal project overview artifact (`type: core:overview`) — not a full memory scaffold, just enough to demonstrate the chain. Runs `/discover` to articulate a small feature; an epic + story artifact are written (`type: core:epic`, `type: core:story`, `status: active`). Runs `/plan-story`; the command's frontmatter declares `requires: [{type: core:story, status: active, count: 1}]`, which Casper satisfies from the active story. He gets a `core:plan` artifact back, cleanly typed.
+**Rising action.** He runs `/init-project` on a fresh repo. Casper seeds a minimal project overview artifact (`type: core:overview`) — not a full memory scaffold, just enough to demonstrate the chain. Runs `/discover` to articulate a small feature; an epic + story artifact are written (`type: core:epic`, `type: core:story`). Runs `/plan-story`; the command's frontmatter declares `requires: [{type: core:story, count: 1}]`, which Casper satisfies from the single active story (casper-core v1.0 operates under a single-active-story workspace convention — type-based matching is therefore deterministic). He gets a `core:plan` artifact back, cleanly typed.
 
 **Climax.** He implements the story manually using his usual tools, validates his edits with `caspian validate` against the produced plan, commits.
 
 **Resolution.** "Nothing magic — just things in the right order. And I can see each artifact." He keeps Casper for his side projects.
 
-**Requirements revealed** — `/init-project`, `/discover`, `/plan-story` porcelain behavior; minimal artifact seeding in v1.0 (no full Memory Profile yet); `requires` resolution semantics ("active story, count 1"); typed artifact files on disk; human-readable diagnostics.
+**Requirements revealed** — `/init-project`, `/discover`, `/plan-story` porcelain behavior; minimal artifact seeding in v1.0 (no full Memory Profile yet); `requires` resolution semantics (type-based matching under the single-active-story workspace convention, count 1); typed artifact files on disk; human-readable diagnostics.
 
 ### Journey 3 — Tomás overrides `/plan-story` locally *(Secondary user — developer, edge case: turn-key-but-modifiable)*
 
@@ -299,3 +300,109 @@ skills/plan-feature/SKILL.md:7 — unknown field "requrires"
 - **Risk — namespace sprawl fragments the registry (`bmad:persona` vs `superpowers:persona` with incompatible semantics).** *Mitigation:* validator warns (never rejects) on unregistered types; published design rationale per `core:*` type to prevent bikeshedding; conformance badge levels (v1.1) provide a quality signal; RFC process for `core:*` additions.
 - **Risk — validator stack drift across four layers (IDE, CI, runtime, install).** *Mitigation:* single JSON Schema source of truth that all layers reference. v1.0 ships only two of four layers (CLI + install-time), reducing drift surface; the full stack is deferred to v1.1.
 - **Risk — BDFL bus factor stalls the project.** *Mitigation:* RFC process (every decision is traceable, a successor can resume); early outreach to external contributors (Journey 5); documented conflict-resolution procedure published even under BDFL governance.
+
+## Developer Tool Specific Requirements
+
+### Project-Type Overview
+
+Caspian / Casper ships three distinct developer-tool artifacts, each with its own distribution channel and language profile:
+
+1. **Caspian spec (v1.0)** — spec prose + JSON Schemas + canonical vocabulary + single-page static site at `caspian.dev`. Language-agnostic deliverable. Distributed as a GitHub repository (prose, schemas, fixtures) and, in v1.1, as a JSON Schema Store entry (schemas only).
+2. **`caspian` CLI validator (v1.0)** — vendor-neutral, no Claude Code dependency. Validates YAML frontmatter against the spec's JSON Schemas. Distributed via npm.
+3. **casper-core Claude Code plugin (v1.0)** — reference implementation demonstrating the `requires → produces` chain. Distributed via the official Anthropic plugin marketplace.
+
+Sections `visual_design` and `store_compliance` are skipped per CSV (not applicable to a spec + CLI + plugin).
+
+### Language Matrix
+
+| Component | Language / Runtime | Rationale |
+|---|---|---|
+| Caspian spec (prose, vocabulary) | Markdown, YAML | Language-agnostic by design |
+| Caspian JSON Schemas | JSON Schema (Draft 2020-12) | Canonical; consumed by any JSON-Schema-aware validator |
+| `caspian.dev` website | Static HTML (GitHub Pages) | Minimal; single landing page with stable doc anchors |
+| `caspian` CLI validator (v1.0) | **Node.js / TypeScript** | Minimizes validator stack-drift risk: the v1.1 CI layer and runtime skill both target Node (`ajv`). A Python v1.0 CLI would introduce a second JSON Schema implementation whose verdicts must byte-agree with `ajv` — a concrete source of divergence (`ajv` and Python `jsonschema` differ on several Draft 2020-12 conformance cases). One Node implementation across v1.0 CLI + v1.1 CI + v1.1 runtime skill = zero drift. |
+| casper-core plugin | Markdown (SKILL.md, command frontmatter) + Claude Code plugin manifest | Constrained by the Claude Code plugin format |
+| Client libraries (future) | Optional — `caspian-py`, `caspian-go` (post-v1.1, Vision) | Only if external-harness adoption demands it |
+
+**Out of scope for v1.0** — non-Node implementations of the CLI. Defensive package-name registration on PyPI and crates.io is maintained to pre-empt future collisions, but no second runtime is shipped.
+
+### Installation Methods
+
+- **Spec consumption** — browse `caspian.dev` for the human-readable entry point; clone the GitHub repo for full normative sources (prose, schemas, fixtures); reference the JSON Schemas by URL in v1.1 once the JSON Schema Store PR lands.
+- **CLI validator**
+  - `npm install -g caspian` — global install for interactive use.
+  - `npx caspian validate <path>` — zero-install usage for CI.
+  - `uses: caspian/validate-action@v1` — reusable GitHub Action (v1.1 deliverable; v1.0 users wire `npx caspian` manually).
+- **casper-core plugin**
+  - From Claude Code: `/plugin install casper-core@anthropic-marketplace` (assumes marketplace acceptance — strategic goal, not a formal gate).
+  - Local development: `/plugin install ./path/to/casper-core`.
+
+### API Surface
+
+**Spec surface (Caspian Core v1.0) — four frontmatter fields form the contract**
+
+- `schema_version` (required, string, semver minor) — declares the spec version the producer writes against.
+- `type` (required, string, namespaced) — `core:story`, `bmad:epic`, `maya:lint-rule`, …
+- `requires` (optional, array of objects) — each entry: `{type: string, tags?: string[], count?: int}`.
+- `produces` (optional, object) — `{type: string}`.
+
+Agent-Skills-compatible — every Anthropic SKILL.md field remains valid. `x-*` prefix reserved as extension escape hatch. **`status` and supersession pointers (`supersedes` / `superseded_by`) are deliberately absent from v1.0. Their operational semantics have not been sufficiently challenged; they are deferred to a future spec version (v0.2 at earliest) pending a concrete use case with a BDFL-approved RFC. Adding them later as optional fields is BACKWARD_TRANSITIVE-compliant.**
+
+**CLI surface (`caspian` v1.0)**
+
+- `caspian validate <path>` — accepts file, directory, or glob; walks, parses frontmatter, validates each file against the schemas.
+- `caspian validate --format=json <path>` — machine-readable output for CI consumption.
+- `caspian --version`, `caspian --help`, `caspian validate --help` — standard CLI conventions.
+- Exit codes: `0` = all valid; non-zero = at least one invalid artifact.
+- Diagnostics include file, line, field name, suggestion (edit-distance for unknown fields), and a doc link to a stable anchor on `caspian.dev`.
+- No network access, no telemetry, no required configuration file in v1.0. Configuration (custom type-registry overrides, custom fixture paths) is deferred.
+
+**Plugin surface (casper-core v1.0)**
+
+- 2–3 porcelain commands — `/init-project`, `/discover`, `/plan-story`. Each declares typed `requires` and `produces` in its frontmatter.
+- Each command produces a typed artifact on disk (`core:overview`, `core:epic`, `core:story`, `core:plan`) that the next command in the chain consumes.
+- **Single-active-story workspace convention** — casper-core v1.0 operates under the convention that a workspace has at most one active story at a time. Type-based `requires` matching (without a `status` filter) is therefore deterministic in v1.0. When multi-story workspaces become relevant in a future release, the spec extension will coincide with the addition of `status`.
+- Claude-Code-specific surface (plugin manifest, slash-command registration) isolated in a `claude-code/` subdirectory of the plugin repo.
+
+**Website surface (`caspian.dev` v1.0)**
+
+- Single-page static site hosted on GitHub Pages (free tier). Generated from Markdown with a minimal generator (11ty or hand-written HTML — no CMS, no blog, no doc portal).
+- Sections: 30-second pitch; install-in-two-lines quickstart showing the 4-line frontmatter delta; links to spec GitHub, CLI on npm, casper-core on the marketplace, RFC process, CONTRIBUTING.
+- Stable anchor IDs per spec concept (`#schema-version`, `#type`, `#requires`, `#produces`, `#core-vocabulary`) so the CLI can emit durable doc links in diagnostics.
+- No server-side logic. Content is versioned in the same repo as the spec — changes ship together.
+
+### Code Examples
+
+- **Minimal skill adopting Caspian Core** — a four-line frontmatter delta (`schema_version`, `type`, `requires`, `produces`) added to an existing Anthropic SKILL.md. Shipped in `spec/examples/minimal-skill-adoption/`.
+- **Full casper-core chain** — the reference plugin is itself the canonical end-to-end example.
+- **Canonical fixture set** — shipped with the `caspian` CLI as `fixtures/valid/*` and `fixtures/invalid/*`. Used for CLI regression testing; doubles as a reading reference.
+- **CI integration snippet** — three-line GitHub Actions step calling `npx caspian validate ./` shipped in `spec/examples/ci-integration/`.
+
+### Migration Guide
+
+Not applicable — Caspian v1.0 is the initial release. A migration guide will be introduced only if a future breaking change requires it.
+
+### Documentation Requirements
+
+- **Spec docs** — `spec/README.md` (5-minute intro), `spec/core.md` (normative reference), `spec/CHANGELOG.md`, `spec/CONTRIBUTING.md`, `spec/proposals/TEMPLATE.md`.
+- **CLI docs** — built-in `caspian --help`; `README.md` in the CLI package covering install, common commands, and exit codes.
+- **Plugin docs** — `casper-core/README.md` covering install, the three porcelain commands, the local-override pattern (Journey 3), and the explicit scope ("v1.0 proof, not the full workflow").
+- **Vocabulary docs** — one short file per canonical `core:*` type with a rationale paragraph (sources: BMad, Agent OS, industry ADR pattern) to head off bikeshedding.
+- **Website** — `caspian.dev` landing page (see Website surface above). Part of v1.0, not deferred.
+
+### Technical Architecture Considerations
+
+- **Single source of truth for schemas.** The JSON Schema files under `spec/schemas/` are canonical (Draft 2020-12). The CLI, any IDE integration, the v1.1 CI layer, and the v1.1 runtime skill all reference these schemas — never re-declare them. This mitigates the validator stack-drift risk identified in Risk Mitigation.
+- **Vendor neutrality enforced by an implementation boundary.** The `caspian` CLI code must not import any Claude-Code-specific module. v1.0 release gate: running the CLI on a vanilla Linux container with no Claude Code installed, against the canonical fixture set, passes.
+- **Claude-Code surface isolation in casper-core.** All Claude-Code-specific code (plugin manifest, slash-command registration, any planned hooks) lives in a dedicated subdirectory. Schemas, validator, and vocabulary live at the repo root so they remain reusable by any other harness.
+- **Frontmatter parsing constraints (apply to every implementation layer).** YAML 1.2, UTF-8, no BOM. Safe loading only. Frontmatter size cap 4 KB. Path-traversal rejection (`..`, absolute paths) in any pointer field added in a future version.
+- **Canonical doc URL is `caspian.dev`**, not the GitHub repo. The CLI's diagnostics emit `caspian.dev` doc links, giving a stable URL surface that survives repo restructuring.
+
+### Implementation Considerations
+
+- **Bootstrap order.** Spec prose + JSON Schemas first; the CLI consumes the schemas; the website surfaces the prose; casper-core consumes the CLI (for self-validation during development) and demonstrates the spec. Circular dependency avoided because the CLI's validation is generic JSON Schema, not Caspian-specific.
+- **Fixture-first development.** The canonical fixture set (valid + invalid per schema) is built alongside the schemas. Every future change to a schema starts with a fixture change.
+- **Test discipline for the CLI.** Zero false positives on the valid-fixture set is a v1.0 release gate. Every reported validator bug post-v1.0 is replicated as a fixture before being fixed.
+- **Node-only in v1.0.** Python or Go implementations of the CLI are explicitly post-v1.1 — only if external-harness adoption (Vision) demands it.
+- **Publishing pipeline.** Spec, website, and CLI release together (same semver). casper-core follows its own semver but declares the Caspian `schema_version` it targets in its plugin manifest.
+- **Defensive naming.** `caspian` and `casper` are reserved on GitHub, npm, PyPI, and crates.io even where no package ships. Primary domain `caspian.dev`; defensive registration of `caspian.io` / `caspian.ai` if budget allows.
