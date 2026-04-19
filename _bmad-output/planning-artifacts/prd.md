@@ -12,6 +12,10 @@ stepsCompleted:
   - step-08-scoping
   - step-09-functional
   - step-10-nonfunctional
+  - step-11-polish
+  - step-12-complete
+status: complete
+completedAt: 2026-04-19
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -94,7 +98,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 ### Technical Success
 
 - **Contract stability** — schema evolution is BACKWARD_TRANSITIVE between v1.0 and v1.1: additive-only, no breaking changes to `schema_version`, `type`, `requires`, `produces`.
-- **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, enum strictness, unknown-field handling, path-traversal rejection in pointers). Zero false positives on the canonical fixture set shipped with v1.0.
+- **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, unknown-field handling, namespace-aware type validation with warnings on unregistered types). Zero false positives on the canonical fixture set shipped with v1.0. Forward-compatibility commitment: enum strictness and path-traversal rejection will apply when `status` and pointer fields are added in a future spec version (see NFR9).
 - **Reference plugin end-to-end** — casper-core's `/init-project` → `/discover` → `/plan-story` chain demonstrably produces artifacts that pass `caspian` CLI validation on a clean run.
 - **Vendor neutrality verified** — the `caspian` CLI runs on a machine without Claude Code installed. This is the physical evidence behind the "vendor-neutral" positioning.
 - **Unix Interop Test** — a non-Casper skill produces an artifact Casper consumes cleanly, and vice versa; scripted and reproducible. Deliverable of v1.1; the fixtures are drafted during v1.0.
