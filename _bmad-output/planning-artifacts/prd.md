@@ -4,6 +4,7 @@ stepsCompleted:
   - step-02-discovery
   - step-02b-vision
   - step-02c-executive-summary
+  - step-03-success
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -64,3 +65,78 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 - **Domain** — `general` (agentic-AI tooling and plugin ecosystem; no regulatory or real-time constraints).
 - **Complexity** — `medium` (low-complexity domain, but non-trivial protocol design, governance, validator-stack engineering, and cross-vendor interop discipline).
 - **Project Context** — `greenfield` (product net-new; hosted inside the existing `joselimmo-marketplace` plugin repo but no Caspian/Casper code pre-exists).
+
+## Success Criteria
+
+### User Success
+
+- **Primary users — plugin authors and framework maintainers.** "Worth it" = their components compose with components from other authors without prior coordination.
+  - ≥2 external adopters (third-party skills or plugins declaring `requires` / `produces` in their frontmatter) within 12 months post-v1.0.
+  - ≥1 external contributor (RFC or code contribution merged from outside the founding author) within 12 months post-v1.0.
+- **Secondary users — developers running Casper on Claude Code.** "Worth it" = workflow is discoverable on the first run.
+  - `/init-project` → `/discover` → `/plan-story` chain executes end-to-end on a greenfield project with no manual artifact editing.
+  - Developer overrides a single porcelain command locally without forking the plugin.
+
+### Business Success
+
+- **Distribution channel validated** — JSON Schema Store PR accepted (zero-config IDE validation in every editor consuming the store). Deliverable of v1.1; gating indicator for 12-month success.
+- **Ecosystem positioning validated** — ≥1 framework maintainer (BMad / Superpowers / Spec Kit / Agent OS) publicly engaged with the spec by v1.1 release; direct conversations with ≥2 maintainers logged by month 3.
+- **Marketplace traction** — casper-core accepted in the official Anthropic plugin marketplace. Strategic goal, not a formal gate.
+- **Upstream convergence initiated** — ≥1 `requires` / `produces` proposal submitted to `agentskills.io` before v1.0 release.
+
+### Technical Success
+
+- **Contract stability** — schema evolution is BACKWARD_TRANSITIVE between v1.0 and v1.1: additive-only, no breaking changes to `schema_version`, `type`, `status`, `requires`, `produces`.
+- **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, enum strictness, unknown-field handling, path-traversal rejection in pointers). Zero false positives on the canonical fixture set shipped with v1.0.
+- **Reference plugin end-to-end** — casper-core's `/init-project` → `/discover` → `/plan-story` chain demonstrably produces artifacts that pass `caspian` CLI validation on a clean run.
+- **Vendor neutrality verified** — the `caspian` CLI runs on a machine without Claude Code installed. This is the physical evidence behind the "vendor-neutral" positioning.
+- **Unix Interop Test** — a non-Casper skill produces an artifact Casper consumes cleanly, and vice versa; scripted and reproducible. Deliverable of v1.1; the fixtures are drafted during v1.0.
+
+### Measurable Outcomes
+
+**Check-in cadence (leading indicators, 3 / 6 months)**
+
+- **Month 3** — public launch post published; ≥2 framework maintainers contacted and logged; `requires` / `produces` upstream proposal drafted.
+- **Month 6** — ≥10 GitHub issues opened by non-author contributors; v1.1 scope frozen; at least one talk or discussion thread on `r/ClaudeAI`, HN, or `awesome-claude-code`.
+
+**Success gate evaluation (lagging indicators, 12 months post-v1.0)**
+
+- JSON Schema Store PR accepted.
+- ≥2 external adopters (defined above).
+- ≥1 external contributor (defined above).
+- Unix Interop Test demonstrated and reproducible.
+- **If gate fails** — scope / positioning review is triggered before further investment; sunset protocol considered if `agentskills.io` has shipped equivalent fields.
+
+## Product Scope
+
+### MVP — Minimum Viable Product (Caspian Core v1.0 + casper-core v1.0)
+
+- **Spec artifacts** — Caspian Core spec prose, JSON Schemas for all artifact types, `spec/CHANGELOG.md`, canonical `core:*` vocabulary (`core:adr`, `core:convention`, `core:learning`, `core:glossary`, `core:overview`, `core:epic`, `core:story`, `core:plan`, `core:review`, `core:rule`, `core:scratch`), extensible-registry conformance rules.
+- **Vendor-neutral `caspian` CLI validator** — no Claude Code dependency. Validates frontmatter against JSON Schemas. Accepts file, directory, or glob inputs. Strict exit codes for CI gating. Ships with a canonical fixture set for regression testing.
+- **casper-core reference plugin** — 2–3 porcelain commands (`/init-project`, `/discover`, `/plan-story`) demonstrating the full `requires → produces` chain. Claude-Code-specific surface (plugin manifest, slash-command registration) isolated in a dedicated subdirectory. Schemas, validator, and vocabulary live at the repo root.
+- **Licensing** — CC-BY-4.0 for spec prose; Apache-2.0 for JSON Schemas, validator, and Casper code. Single `LICENSE` file at repo root.
+- **Defensive registration** — `caspian` and `casper` names reserved on GitHub, npm, and PyPI even where no package is published.
+- **Outreach (continuous)** — launch post on release, PRs into `awesome-claude-code` and `awesome-agent-skills`, direct conversation with ≥1 framework maintainer before v1.1.
+
+### Growth Features (Post-MVP — scoped to a separate v1.1 PRD)
+
+- Caspian Memory Profile overlay (`memory_scope` field, two-tier memory layout).
+- casper-full: 8 porcelain commands, 6 plumbing skills, SessionStart lean-boot hook (≤500 tokens, hard cap), full Memory Profile wiring.
+- Defense-in-depth validator stack: IDE (VSCode YAML LSP), CI (`ajv` + `caspian/validate-action` GitHub Action), runtime (`validate-artifact-frontmatter` skill + `PreToolUse(Write)` hook), install-time (`claude plugin validate`).
+- Unix Interop Test scripted and reproducible.
+- JSON Schema Store PR submitted.
+- Conformance badge levels (*Core-declared* / *Core-validated* / *Profile-compliant*) + JSON manifest for author signalling and user filtering.
+
+### Vision (Future — post-v1.1)
+
+- **≥2 independent reference implementations** — a second harness-bound or CLI-only implementation validating spec portability.
+- **Framework maintainer adoption** — ≥1 of BMad / Superpowers / Spec Kit / Agent OS emits Caspian-compliant frontmatter in its generated artifacts.
+- **Upstream convergence achieved** — `requires` / `produces` accepted into `agentskills.io`. Triggers the committed sunset protocol: Caspian aliases the upstream names and deprecates its own within two minor releases.
+
+### Out of Scope / Anti-goals (explicit)
+
+- **Not an MCP replacement.** MCP solves agent↔tool; Caspian solves skill↔skill via typed artifacts.
+- **Not a methodology framework.** No prescribed process, only a contract.
+- **Not an Agent Skills competitor.** Overlay-compatible, not a fork.
+- **Not a memory runtime.** Caspian defines file-level frontmatter; Mem0, Letta, Zep retain the runtime role.
+- **No orchestration benchmark** (declarative `requires` / `produces` vs description-based inference) as a committed deliverable. Revisit if evidence emerges.
