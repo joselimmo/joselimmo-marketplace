@@ -10,6 +10,7 @@ stepsCompleted:
   - step-06-innovation
   - step-07-project-type
   - step-08-scoping
+  - step-09-functional
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -468,3 +469,66 @@ Mapped to the Product Scope sections above.
 - **Phase 3 — Expansion (Vision, post-v1.1)** — see *Product Scope → Vision* above. ≥2 independent reference implementations; framework-maintainer adoption; `agentskills.io` upstream convergence.
 
 No new content; Phase 1/2/3 exist to connect the strategic framing here to the feature lists already documented.
+
+## Functional Requirements
+
+The capability contract. Every feature shipped in v1.0 must trace back to a line below. Any capability not listed here will not exist in the final product unless explicitly added through a subsequent revision.
+
+### Spec Contract Authoring
+
+- **FR1**: Any artifact author can declare the four-field Caspian Core contract in YAML frontmatter — `schema_version`, `type`, `requires`, `produces`.
+- **FR2**: Any artifact author can express typed preconditions via `requires`, specifying the required artifact type, optional tags, and optional count.
+- **FR3**: Any artifact author can express typed postconditions via `produces`, specifying the produced artifact type.
+- **FR4**: Any artifact author can use canonical `core:*` types or define their own vendor/author-namespaced types (e.g. `bmad:epic`, `maya:lint-rule`).
+- **FR5**: Any artifact author can include Anthropic Agent Skills fields (`name`, `description`, `disable-model-invocation`, `model`, `version`, `when_to_use`, `allowed-tools`, …) alongside Caspian fields without conflict.
+- **FR6**: Any artifact author can reserve vendor or experimental extensions via the `x-*` frontmatter prefix.
+
+### Artifact Validation
+
+- **FR7**: A plugin author can validate a single file, a directory, or a glob with one `caspian validate <path>` invocation.
+- **FR8**: A plugin author can request machine-readable validation output (`--format=json`) suitable for programmatic CI consumption.
+- **FR9**: A plugin author receives diagnostics that include file, line number, field name, an edit-distance suggestion for unknown fields, and a doc link to a stable anchor on `caspian.dev`.
+- **FR10**: A plugin author receives exit codes that distinguish *all artifacts valid* (`0`) from *at least one artifact invalid* (non-zero).
+- **FR11**: A plugin author can run the validator on a system without Claude Code installed (vendor-neutrality guarantee).
+- **FR12**: A plugin author can rely on the validator to reject invalid artifacts — YAML parse errors, BOM prefix, tab indentation in frontmatter, frontmatter exceeding 4 KB, and unknown frontmatter fields.
+- **FR13**: A plugin author can use vendor or author-namespaced types (e.g. `bmad:persona`) and receive validator warnings rather than rejections on unregistered types (extensible-registry behavior).
+- **FR14**: A plugin author's artifacts are checked against canonical JSON Schema (Draft 2020-12) references that serve as single source of truth for every validation layer.
+
+### Reference Workflow (casper-core)
+
+- **FR15**: A developer can bootstrap a greenfield project with `/init-project`, producing a typed `core:overview` artifact on disk.
+- **FR16**: A developer can articulate a feature with `/discover`, producing typed `core:epic` and `core:story` artifacts on disk.
+- **FR17**: A developer can generate an implementation plan with `/plan-story`, which declares `requires: [{type: core:story, count: 1}]` and produces a typed `core:plan` artifact on disk.
+- **FR18**: A developer can run the full `/init-project` → `/discover` → `/plan-story` chain end-to-end on a greenfield project with no manual artifact editing required between commands.
+- **FR19**: A developer can operate casper-core under the single-active-story workspace convention (at most one active story at a time), with type-based `requires` matching sufficient for deterministic resolution.
+
+### Plugin Composition & Overrides
+
+- **FR20**: A developer can override a plugin-shipped skill by placing a skill with the same `name` and contract (`requires` / `produces`) in the project's local `.claude/skills/` directory.
+- **FR21**: A developer's local skill override survives plugin updates, provided the contract (`name`, `requires`, `produces`) of the overriding skill matches the upstream contract.
+- **FR22**: A developer can install casper-core from the Anthropic plugin marketplace (`/plugin install casper-core@anthropic-marketplace`) or from a local path.
+
+### Governance & Evolution
+
+- **FR23**: An external contributor can propose a non-trivial spec change (new field, enum extension, breaking schema change) via an RFC in `spec/proposals/NNNN-slug.md` using the published TEMPLATE.
+- **FR24**: The RFC TEMPLATE requires the proposer to state four mandated sections: Motivation, Alternatives Considered, Backward-Compatibility Plan, and Migration Path.
+- **FR25**: An external contributor can expect a documented BDFL response SLA (e.g. acknowledge within N days) and a published conflict-resolution procedure applicable even under BDFL governance.
+- **FR26**: Merged RFCs appear as entries in `spec/CHANGELOG.md` with a semver bump, and contributors are credited in `CONTRIBUTORS.md`.
+- **FR27**: Spec consumers can trust that artifacts written against an earlier minor version remain readable by later minor versions within the same major version (BACKWARD_TRANSITIVE schema evolution guarantee).
+
+### Distribution & Discoverability
+
+- **FR28**: The Caspian spec is distributed as a GitHub repository containing prose, JSON Schemas, canonical vocabulary docs, and fixture sets, under the stated licenses (CC-BY-4.0 for prose; Apache-2.0 for schemas and code).
+- **FR29**: The `caspian` CLI is distributed via npm under the unhyphenated `caspian` package name.
+- **FR30**: The `casper-core` plugin is distributed via the official Anthropic plugin marketplace under the unhyphenated `casper` or `casper-core` name (marketplace acceptance is a strategic goal, not a formal release gate).
+- **FR31**: The `caspian.dev` website presents a single-page landing with the 30-second pitch, a 4-line frontmatter quickstart, and links to the spec GitHub repository, the CLI on npm, casper-core on the marketplace, CONTRIBUTING, and the RFC process.
+- **FR32**: The `caspian.dev` website provides stable anchor IDs per spec concept (`#schema-version`, `#type`, `#requires`, `#produces`, `#core-vocabulary`) that the CLI's diagnostic doc links consume.
+
+### Developer Onboarding & Documentation
+
+- **FR33**: A plugin author can read the core spec (`spec/core.md`) in ten minutes or less and grasp the four-field contract.
+- **FR34**: A plugin author can consult a short rationale document for each canonical `core:*` type (`spec/vocabulary/<type>.md`) covering purpose, sources, and use boundaries.
+- **FR35**: A plugin author can run a minimal adoption example (`spec/examples/minimal-skill-adoption/`) demonstrating the 4-line frontmatter delta applied to an existing Anthropic SKILL.md.
+- **FR36**: A plugin author can copy a CI integration snippet (`spec/examples/ci-integration/`) that wires `npx caspian validate ./` into GitHub Actions in three YAML lines.
+- **FR37**: A casper-core user can read a README that explains install, the three porcelain commands, the local-override pattern (Journey 3), and the explicit scope boundary ("v1.0 proof, not the full workflow").
+- **FR38**: A plugin author can inspect the canonical fixture set (`fixtures/valid/*`, `fixtures/invalid/*`) shipped with the CLI as a reading reference for "what the spec looks like in practice".
