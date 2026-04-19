@@ -2,6 +2,7 @@
 stepsCompleted:
   - step-01-init
   - step-02-discovery
+  - step-02b-vision
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
