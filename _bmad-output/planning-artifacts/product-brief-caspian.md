@@ -1,6 +1,6 @@
 ---
 title: "Product Brief: Caspian & Casper"
-status: "draft"
+status: "complete"
 created: "2026-04-19"
 updated: "2026-04-19"
 inputs:
