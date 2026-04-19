@@ -6,6 +6,7 @@ stepsCompleted:
   - step-02c-executive-summary
   - step-03-success
   - step-04-journeys
+  - step-05-domain (skipped; low-complexity domain — technical constraints deferred to step-10 NFR)
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
