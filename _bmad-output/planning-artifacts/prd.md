@@ -11,6 +11,7 @@ stepsCompleted:
   - step-07-project-type
   - step-08-scoping
   - step-09-functional
+  - step-10-nonfunctional
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -532,3 +533,49 @@ The capability contract. Every feature shipped in v1.0 must trace back to a line
 - **FR36**: A plugin author can copy a CI integration snippet (`spec/examples/ci-integration/`) that wires `npx caspian validate ./` into GitHub Actions in three YAML lines.
 - **FR37**: A casper-core user can read a README that explains install, the three porcelain commands, the local-override pattern (Journey 3), and the explicit scope boundary ("v1.0 proof, not the full workflow").
 - **FR38**: A plugin author can inspect the canonical fixture set (`fixtures/valid/*`, `fixtures/invalid/*`) shipped with the CLI as a reading reference for "what the spec looks like in practice".
+
+## Non-Functional Requirements
+
+Quality-attribute requirements that specify **how well** the system must perform. Categories not applicable to Caspian / Casper v1.0 (Scalability — no server, no multi-tenant, no user concurrency) are explicitly omitted rather than documented with degenerate metrics.
+
+### Performance
+
+- **NFR1** — The `caspian` CLI validates a 1 000-artifact repository in under 5 seconds on a standard developer laptop (Apple M-series or equivalent). The validator is I/O-bound; parallel file I/O is acceptable but not required for v1.0.
+- **NFR2** — The `caspian` CLI startup overhead (time from invocation to first file parse) is under 500 ms on a warm Node runtime.
+- **NFR3** — The `caspian.dev` single-page site loads in under 2 seconds on a 4G mobile connection from a clean cache; DOMContentLoaded under 1 second on broadband.
+- **NFR4** — Frontmatter parsing enforces a 4 KB hard cap per artifact to prevent pathological YAML inputs from degrading validator performance.
+
+### Security
+
+- **NFR5** — YAML parsing is safe-load only (YAML 1.2; no custom tags that enable code execution). Validators reject non-UTF-8 inputs and inputs carrying a byte-order mark (BOM).
+- **NFR6** — The `caspian` CLI performs no network I/O at validate time. No telemetry is emitted. No remote schema fetching is attempted.
+- **NFR7** — casper-core ships without `hooks`, `mcpServers`, or `permissionMode` in any plugin-shipped agent. This is a Claude Code plugin-format constraint, respected as published; no elevated permissions are requested at install or runtime.
+- **NFR8** — Defensive YAML constraints are enforced at parse time: tab indentation rejected in frontmatter; unquoted booleans (`on`/`off`/`yes`/`no`) rejected; frontmatter size exceeding 4 KB rejected.
+- **NFR9** — When pointer fields (`supersedes` / `superseded_by`) are introduced in a future spec version, path-traversal references (`..`, absolute paths) must be rejected. The parser rule is documented in v1.0 as a forward-compatibility commitment.
+
+### Accessibility
+
+- **NFR10** — The `caspian.dev` single-page site meets WCAG 2.1 Level AA for its landing page (semantic HTML, readable contrast, keyboard-navigable, no reliance on color alone, skip-link provided, no animations triggered without user interaction).
+- **NFR11** — The `caspian` CLI produces human-readable diagnostics by default and machine-readable output (`--format=json`) on request, enabling integration with assistive tooling and non-terminal UIs.
+- **NFR12** — Spec documentation (Markdown) renders accessibly via GitHub's default renderer and on `caspian.dev`; no UI interactions are required to read normative content.
+
+### Interoperability
+
+- **NFR13** — Caspian frontmatter is fully overlay-compatible with Anthropic Agent Skills SKILL.md. Every documented Agent Skills field (`name`, `description`, `disable-model-invocation`, `model`, `version`, `when_to_use`, `allowed-tools`, `argument-hint`, `user-invocable`, `agent`, `hooks`, `paths`, `shell`, `effort`, `context`) remains valid inside a Caspian-conformant artifact.
+- **NFR14** — Caspian JSON Schemas conform to JSON Schema Draft 2020-12; they are consumable by any compliant JSON Schema validator without extensions.
+- **NFR15** — The `caspian` CLI integrates with GitHub Actions via standard exit codes (`0` / non-zero) and optional structured output (`--format=json`), without requiring a custom Action in v1.0.
+- **NFR16** — Any skill or command that respects Caspian Core semantics continues to load in a host that ignores Caspian fields (graceful degradation requirement). No Caspian field is load-bearing for artifact visibility in a non-Caspian-aware host.
+- **NFR17** — The `caspian` CLI operates on any machine with Node.js ≥20 (current LTS) installed; no Claude Code is required. Vendor-neutrality is a measurable invariant of the v1.0 release: the CLI runs on a minimal Node container against the canonical fixture set with no Claude Code dependency present.
+- **NFR18** — Casper-shipped slash-command `description` fields place the trigger phrase in the first sentence and respect the 1 536-character truncation budget imposed by Claude Code's auto-activation discovery.
+
+### Reliability
+
+- **NFR19** — The `caspian` CLI is deterministic: identical inputs always produce identical outputs (exit code and diagnostic content). No time-dependent, random, or external-state-dependent behavior is introduced.
+- **NFR20** — The CLI has no runtime dependency on external services. Validation proceeds offline.
+- **NFR21** — The canonical fixture set (valid + invalid) runs in CI for every PR to the spec repository. Zero regressions on the valid-fixture set is a hard release gate for every version bump.
+
+### Compatibility / Versioning
+
+- **NFR22** — Schema evolution is BACKWARD_TRANSITIVE within a major version: producers may write at the latest minor version; consumers must accept the current minor and all prior minor versions. No breaking changes between minor versions within the same major.
+- **NFR23** — Claude Code plugin format compatibility: casper-core's plugin manifest conforms to the Claude Code plugin spec as of v1.0 release. If Claude Code's plugin format evolves in a breaking way, casper-core ships a compatibility patch on a best-effort basis (no hard SLA, given solo-BDFL governance).
+- **NFR24** — The canonical doc URL (`caspian.dev`) preserves stable anchor IDs per spec concept across spec minor versions. Anchor renames require a redirect until two subsequent minor versions have shipped.
