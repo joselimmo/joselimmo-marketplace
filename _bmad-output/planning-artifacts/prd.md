@@ -1,6 +1,13 @@
 ---
 stepsCompleted:
   - step-01-init
+  - step-02-discovery
+classification:
+  projectType: developer_tool
+  projectTypeSecondary: cli_tool
+  domain: general
+  complexity: medium
+  projectContext: greenfield
 inputDocuments:
   - _bmad-output/planning-artifacts/product-brief-caspian.md
   - _bmad-output/planning-artifacts/product-brief-caspian-distillate.md
