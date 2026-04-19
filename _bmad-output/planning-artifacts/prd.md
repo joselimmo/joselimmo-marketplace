@@ -5,6 +5,7 @@ stepsCompleted:
   - step-02b-vision
   - step-02c-executive-summary
   - step-03-success
+  - step-04-journeys
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -140,3 +141,110 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 - **Not an Agent Skills competitor.** Overlay-compatible, not a fork.
 - **Not a memory runtime.** Caspian defines file-level frontmatter; Mem0, Letta, Zep retain the runtime role.
 - **No orchestration benchmark** (declarative `requires` / `produces` vs description-based inference) as a committed deliverable. Revisit if evidence emerges.
+
+## User Journeys
+
+### Journey 1 — Maya adopts Caspian Core in her published plugin *(Primary user — plugin author, happy path)*
+
+**Persona.** Maya, independent plugin author. Ships five Claude Code skills under her own GitHub org. A recurring frustration in her issues tracker: "your skill and BMad's don't play well together — I never know which runs first."
+
+**Opening scene.** Maya sees a PR notification on `awesome-claude-code`: a new entry for Caspian appears, tagged *interop spec*. She opens the spec, reads for ten minutes, grasps the contract (four fields, overlay-compatible, zero methodology tax).
+
+**Rising action.** She picks one of her skills, adds five lines of frontmatter: `schema_version: "0.1"`, `type: maya:lint-rule`, `requires: [{type: core:plan}]`, `produces: {type: core:review}`. Runs `caspian validate ./skills/` locally. Gets a clean pass.
+
+**Climax.** She ships a minor version. A week later a Casper user opens an issue: *"your skill now surfaces automatically after `/plan-story` — I didn't have to memorize the trigger."*
+
+**Resolution.** Maya adds Caspian frontmatter to her four other skills over the weekend. Adoption cost: roughly five lines per artifact. Payoff: her plugins stop being isolated islands.
+
+**Requirements revealed** — spec docs readable in under ten minutes; canonical `core:*` vocabulary unambiguous; `caspian` CLI ergonomic (`validate <path>`); namespace convention (`<vendor>:<type>`) documented; strict-but-friendly error output; overlay-compatibility (host ignoring the fields still loads the skill).
+
+### Journey 2 — Tomás ships his first story with Casper *(Secondary user — developer on Claude Code, happy path)*
+
+**Persona.** Tomás, backend engineer in a three-person team. Pragmatic, limited patience for tooling ceremony. Wants to try an opinionated workflow before committing.
+
+**Opening scene.** Tomás runs `/plugin install casper-core@anthropic-marketplace` from Claude Code. Reads the README: three commands, isolated Claude-Code surface, overlay spec underneath.
+
+**Rising action.** He runs `/init-project` on a fresh repo. Casper seeds a minimal project overview artifact (`type: core:overview`) — not a full memory scaffold, just enough to demonstrate the chain. Runs `/discover` to articulate a small feature; an epic + story artifact are written (`type: core:epic`, `type: core:story`, `status: active`). Runs `/plan-story`; the command's frontmatter declares `requires: [{type: core:story, status: active, count: 1}]`, which Casper satisfies from the active story. He gets a `core:plan` artifact back, cleanly typed.
+
+**Climax.** He implements the story manually using his usual tools, validates his edits with `caspian validate` against the produced plan, commits.
+
+**Resolution.** "Nothing magic — just things in the right order. And I can see each artifact." He keeps Casper for his side projects.
+
+**Requirements revealed** — `/init-project`, `/discover`, `/plan-story` porcelain behavior; minimal artifact seeding in v1.0 (no full Memory Profile yet); `requires` resolution semantics ("active story, count 1"); typed artifact files on disk; human-readable diagnostics.
+
+### Journey 3 — Tomás overrides `/plan-story` locally *(Secondary user — developer, edge case: turn-key-but-modifiable)*
+
+**Persona.** Tomás, two weeks into using Casper. His team uses a plan template distinct from Casper's default — shorter, three sections only.
+
+**Opening scene.** He copies `casper-core/skills/plan-story/` into his project's local `.claude/skills/plan-story/`. Modifies the body. Does **not** fork casper-core.
+
+**Rising action.** He keeps Casper's `requires` and `produces` frontmatter identical to the original. Runs `caspian validate` on his override: clean. Runs `/plan-story` — Claude Code resolves to the local skill ahead of the plugin-shipped one.
+
+**Climax.** Casper releases an update. Tomás runs `/plugin update casper-core`. His override survives; nothing else breaks, because the contract is unchanged.
+
+**Resolution.** The override is stable across Casper updates. No need to maintain a fork.
+
+**Requirements revealed** — skill identity tied to frontmatter `name` + artifact contract, not file location; local skills override plugin-shipped skills; `requires` / `produces` stability is what makes the override safe; documented override pattern in Casper README.
+
+### Journey 4 — A framework maintainer evaluates Caspian for BMad *(Primary user — framework maintainer, strategic scenario)*
+
+**Persona.** A BMad core maintainer receives an inbound RFC from a contributor proposing that BMad-generated epics emit Caspian frontmatter so they compose with Casper and other Caspian-aware tools.
+
+**Opening scene.** The maintainer opens the Caspian spec, skims the Agent-Skills-compatibility section, confirms no existing BMad frontmatter would be invalidated.
+
+**Rising action.** Spike: they add `type: bmad:epic`, `produces: {type: core:story}` to one BMad epic template. Run `caspian validate` — clean, with a friendly warning that `bmad:epic` is not in the `core:*` registry (warn, not reject — the extensibility contract holds). They verify in a BMad test harness: no downstream breakage.
+
+**Climax.** They merge the RFC. BMad releases a minor version. BMad users who also run Casper now see their epics flow directly into the Casper pipeline.
+
+**Resolution.** One small diff per artifact type. Users gain cross-framework composition. The maintainer's cost of participation was a half-day spike.
+
+**Requirements revealed** — overlay compatibility is a published contract, not a best-effort promise; extensible-registry semantics (warn on unknown type, never reject); namespace discipline (`bmad:*`) documented; conformance signalling (hint at v1.1 badges) valuable for user filtering.
+
+### Journey 5 — Priya submits an RFC to extend `requires` *(Primary user — external contributor, governance scenario)*
+
+**Persona.** Priya, author of an open-source skill orchestrator. She needs richer `requires` semantics: where the v1.0 spec accepts `count: N` (exact match), her orchestrator wants to dispatch in parallel across *1 to N* stories — so she needs a `count_max`.
+
+**Opening scene.** Priya arrives on the Caspian repo via a mention in `awesome-claude-code`. She reads `spec/README.md`, then `spec/CONTRIBUTING.md`. The RFC process is explicit: any non-trivial modification (new field, enum extension, status transition semantics, breaking schema change) goes through an RFC in `spec/proposals/NNNN-slug.md`.
+
+**Rising action.** She forks the repo, copies `spec/proposals/TEMPLATE.md`, fills the four mandated sections: **Motivation** (her concrete use case), **Alternatives considered** (why not a vendor-specific `x-*` field in her namespace? because the semantics are general and deserve to live in `core:`), **Backward-compat plan** (additive, `count_max` absent = v1.0 behavior unchanged), **Migration path** (none required — v1.0 producers remain valid). She opens the PR: `spec/proposals/0003-requires-count-max.md`.
+
+**Climax.** Discussion in the PR. The BDFL pushes back on surface-area growth: *"why not a range `{min, max}` rather than two separate fields `count` and `count_max`?"* Priya defends the asymmetry: `count: 1` (the dominant case) stays scalar, and the `count_max` extension stays optional — the spec's surface grows only for users who need it. After two rounds, the BDFL accepts. An entry is added to `spec/CHANGELOG.md`: `0.2 — additive: requires.count_max (optional)`.
+
+**Resolution.** The RFC is merged. Priya appears in `CONTRIBUTORS.md`. Her orchestrator ships the feature. Six months later, Caspian announces its first `schema_version: "0.2"` — BACKWARD_TRANSITIVE held, no migration required on adopters' side.
+
+**Requirements revealed** — `spec/CONTRIBUTING.md` documenting the RFC process; `spec/proposals/TEMPLATE.md` with mandated sections (Motivation / Alternatives / Backward-compat / Migration); `spec/CHANGELOG.md` with dated semver entries; BACKWARD_TRANSITIVE commitment enforced at review time (reviewers refuse breaking changes); documented BDFL response SLA (e.g. *BDFL acknowledges RFCs within 7 days*); `CONTRIBUTORS.md` auto-maintained; published conflict-resolution procedure (what happens if the BDFL stalls or the contributor persists in disagreement).
+
+### Journey 6 — CI catches an invalid artifact *(Technical / automation journey — validator in action)*
+
+**Persona.** A plugin-author's GitHub Actions pipeline. No human in this journey — the value is in the automation.
+
+**Opening scene.** A contributor opens a PR on a Caspian-adopting plugin. Their skill has a typo in frontmatter: `requrires` instead of `requires`.
+
+**Rising action.** CI runs `caspian validate ./skills/`. The CLI exits non-zero with a precise diagnostic:
+
+```
+skills/plan-feature/SKILL.md:7 — unknown field "requrires"
+  hint: did you mean "requires"?
+  doc: https://caspian.dev/spec/core#requires
+```
+
+**Climax.** The PR is blocked by the failed status check. Contributor sees the diagnostic inline in the PR Checks tab.
+
+**Resolution.** Contributor fixes the typo, pushes again, CI goes green. Cost: under a minute lost, one bug caught before merge.
+
+**Requirements revealed** — `caspian` CLI supports directory / glob input; exit codes suitable for CI gating (`0` = pass, non-zero = fail); diagnostics include file + line + field name + suggestion + doc link; CLI runs without Claude Code installed (CI runners are vanilla Linux); strict-mode on unknown fields (vs permissive — consistent with validator coverage matrix).
+
+### Journey Requirements Summary
+
+- **Caspian spec (v1.0)** — prose docs readable by a plugin author in ≤10 minutes; canonical `core:*` vocabulary with design rationale per type; namespace convention documented; JSON Schemas published and canonical.
+- **`caspian` CLI validator (v1.0)** — `validate <path>` command; file / directory / glob input; strict exit codes for CI; diagnostics include file, line, field, suggestion, doc link; zero Claude Code dependency; canonical fixture set shipped for regression testing.
+- **casper-core plugin (v1.0)** — three porcelain commands (`/init-project`, `/discover`, `/plan-story`) each declaring typed `requires` / `produces` frontmatter; end-to-end chain producing cleanly typed artifacts; minimal memory seeding (not full Memory Profile); Claude-Code-specific surface isolated in a subdirectory.
+- **Local-override support** — skill identity tied to frontmatter `name` + contract, not file path; plugin-shipped skills overridable by local skills with the same contract; Casper README documents the override pattern.
+- **Overlay compatibility** — every Anthropic SKILL.md field remains valid alongside Caspian fields; validator warns (never rejects) on types outside the `core:*` registry; extensibility via `<vendor>:<type>` namespacing.
+- **Governance artifacts (v1.0)** — `spec/CONTRIBUTING.md` documenting the RFC process; `spec/proposals/TEMPLATE.md` (Motivation / Alternatives / Backward-compat / Migration); `spec/CHANGELOG.md` with semver entries; `CONTRIBUTORS.md` auto-maintained; documented BDFL response SLA and conflict-resolution procedure.
+
+### Journeys explicitly out of scope for v1.0
+
+- **External-harness journey** (non-Casper orchestrator using `caspian` CLI outside Claude Code). Matters, but proving spec portability is a post-v1.1 success criterion — covered in the Vision section, not a journey the v1.0 release measures against.
+- **Unix Interop Test journey** (non-Casper skill producing an artifact Casper consumes, and vice versa). Deliverable of v1.1.
+- **Regulated-domain audit-trail journey** (team using `requires` / `produces` lineage as free provenance). Emerges naturally from the contract but does not drive any v1.0 requirement beyond what the journeys above already cover.
