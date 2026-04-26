@@ -1,6 +1,6 @@
 # Story 1.4: Envelope JSON Schema (Draft 2020-12)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -93,6 +93,19 @@ All paths in this story resolve **inside `caspian/`** — the sub-monorepo that 
   - [x] Run `pnpm -C caspian test`. Expected output: *No projects matched the filters*, exit code 0. (This is the empty-workspace pattern from Stories 1.1, 1.2, and 1.3 — unchanged in Story 1.4 because no source code is added.)
   - [x] Update File List in this story file with all new and modified files, paths relative to the repository root.
   - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: transition `1-4-envelope-json-schema-draft-2020-12` from `in-progress` to `review` (this happens in dev-story Step 9 — included here for traceability; create-story has already moved it from `backlog` to `ready-for-dev`).
+
+### Review Findings
+
+- [x] [Review][Decision] Pattern `^[^:]+:.+$` allows whitespace-only namespace or name — **Resolved: dismissed (A)** — YAML parser trims whitespace before schema evaluation; whitespace ≠ empty; pattern intentional per Dev Notes. The description claims "empty namespace or empty name are rejected" but a whitespace-only value (e.g., `"a: "` or `" :b"`) satisfies the pattern since `.+` matches any character including space, and `[^:]+` matches a space. The Dev Notes explicitly considered and rejected a stricter pattern (`^[^\s:][^\s:]*:[^\s].*$`), arguing the YAML parser (yaml v2.x strict 1.2, Story 2.3) trims whitespace before the schema sees the value. Decision required: (a) accept the looser pattern as-is — trust the YAML parser, schema description remains technically accurate since whitespace ≠ empty; (b) tighten the pattern to `^[^\s:][^\s]*:[^\s].*$` — schema enforces the constraint independently of the parser.
+- [x] [Review][Patch] `produces` root property missing description alongside `$ref` (AC11) — **Applied**: added `"description": "The typed postcondition this active component emits on a successful run."` as sibling to `$ref`. Smoke gate green (5 files, exit 0). AC11 requires a description on `produces`. The property is `{ "$ref": "#/$defs/Produces" }` with no sibling `"description"`. Unlike `requires`, which carries a property-level description alongside its `items.$ref`, `produces` has none. The Dev Notes justify this as intentional (description lives on the `$defs` definition), but AC11 explicitly lists `produces` and no spec waiver was granted. Draft 2020-12 allows sibling keywords alongside `$ref`. Fix: add `"description": "The typed postcondition this active component emits on a successful run."` alongside the `$ref`. [caspian/schemas/v1/envelope.schema.json:31]
+- [x] [Review][Defer] `count` field name implies exact count; description says "minimum" [caspian/schemas/v1/envelope.schema.json] — deferred, pre-existing spec design choice; field is named `count` in `core.md`; semantics are "at-least-N" but renaming is a spec change out of scope for Story 1.4
+- [x] [Review][Defer] `schema_version` accepts empty string (no `minLength`) [caspian/schemas/v1/envelope.schema.json] — deferred, explicit anti-pattern in story spec: schema-level rejection of unrecognized versions breaks CASPIAN-W003 warn-on-unknown policy; empty string handled by warning system in Story 2.4
+- [x] [Review][Defer] `tags` array lacks `minItems: 1`, `uniqueItems: true`, `items.minLength: 1` [caspian/schemas/v1/envelope.schema.json] — deferred, beyond Story 1.4 spec requirements; empty/duplicate/empty-string tags not addressed by any AC; could be addressed in a future hardening story
+- [x] [Review][Defer] `requires: []` (empty array) passes validation — deferred, `minItems: 1` not required by any AC; semantically equivalent to omitting the field; open design question for future spec revision
+- [x] [Review][Defer] `caspian/LICENSE` leading blank line (Story 1.1 artifact) — deferred, pre-existing in Story 1.1; `diff` confirms `schemas/LICENSE` is byte-identical to `caspian/LICENSE`; AC13 satisfied; cleanup belongs in a Story 1.1 follow-up or separate housekeeping commit
+- [x] [Review][Defer] `schema_version: 0.1` YAML float-cast trap (unquoted YAML auto-casts to float 0.1) — deferred, documentation concern for spec prose; not a schema bug; YAML parser behaviour handled by the pipeline introduced in Story 2.3
+- [x] [Review][Defer] No upper bound on `count` integer — deferred, not required by any AC or architecture constraint; no practical upper bound mandated; could add `maximum` in a future hardening story
+- [x] [Review][Defer] `Produces.additionalProperties: false` limits future extensibility — deferred, intentional per AC8 and architecture Decision A5 deliberate asymmetry; future fields in `produces` require a spec minor version bump per NFR22
 
 ## Dev Notes
 

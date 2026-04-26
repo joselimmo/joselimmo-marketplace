@@ -28,7 +28,10 @@
         [{ "type": "core:story", "count": 2 }]
       ]
     },
-    "produces": { "$ref": "#/$defs/Produces" }
+    "produces": {
+      "$ref": "#/$defs/Produces",
+      "description": "The typed postcondition this active component emits on a successful run."
+    }
   },
   "$defs": {
     "RequiresEntry": {
