@@ -37,7 +37,9 @@
       "Bash(echo \"EXIT_LINT=$?\")",
       "Bash(echo \"EXIT_TEST=$?\")",
       "Bash(mkdir -p _bmad-output/implementation-artifacts/.review-cache)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(grep '^- \\\\[`core:' caspian/spec/vocabulary/README.md)"
     ]
   }
 }
