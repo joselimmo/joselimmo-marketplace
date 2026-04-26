@@ -32,7 +32,10 @@
       "Bash(pnpm build *)",
       "Bash(git config *)",
       "Bash(xxd)",
-      "Bash(xargs -I {} git ls-files --eol {})"
+      "Bash(xargs -I {} git ls-files --eol {})",
+      "Bash(pnpm lint *)",
+      "Bash(echo \"EXIT_LINT=$?\")",
+      "Bash(echo \"EXIT_TEST=$?\")"
     ]
   }
 }
