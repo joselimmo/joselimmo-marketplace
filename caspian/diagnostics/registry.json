@@ -1,0 +1,123 @@
+{
+  "diagnostics": [
+    {
+      "code": "CASPIAN-E001",
+      "severity": "error",
+      "rule": "bom-rejection",
+      "message": "BOM byte sequence (`EF BB BF`) detected at file start",
+      "doc": "https://caspian.dev/diagnostics#caspian-e001"
+    },
+    {
+      "code": "CASPIAN-E002",
+      "severity": "error",
+      "rule": "encoding-utf8-required",
+      "message": "File encoding is not UTF-8",
+      "doc": "https://caspian.dev/diagnostics#caspian-e002"
+    },
+    {
+      "code": "CASPIAN-E003",
+      "severity": "error",
+      "rule": "tab-indent-rejection",
+      "message": "Tab character detected in frontmatter indentation",
+      "doc": "https://caspian.dev/diagnostics#caspian-e003"
+    },
+    {
+      "code": "CASPIAN-E004",
+      "severity": "error",
+      "rule": "frontmatter-byte-cap",
+      "message": "Frontmatter exceeds the 4 KB hard cap",
+      "doc": "https://caspian.dev/diagnostics#caspian-e004"
+    },
+    {
+      "code": "CASPIAN-E005",
+      "severity": "error",
+      "rule": "frontmatter-delimiters-required",
+      "message": "Missing or malformed frontmatter delimiters (`---`)",
+      "doc": "https://caspian.dev/diagnostics#caspian-e005"
+    },
+    {
+      "code": "CASPIAN-E006",
+      "severity": "error",
+      "rule": "yaml-parse-error",
+      "message": "YAML parse error in frontmatter",
+      "doc": "https://caspian.dev/diagnostics#caspian-e006"
+    },
+    {
+      "code": "CASPIAN-E007",
+      "severity": "error",
+      "rule": "yaml-1-1-boolean-coercion",
+      "message": "Unquoted YAML 1.1 boolean-like value (`on`/`off`/`yes`/`no`/`y`/`n`)",
+      "doc": "https://caspian.dev/diagnostics#caspian-e007"
+    },
+    {
+      "code": "CASPIAN-E008",
+      "severity": "error",
+      "rule": "type-required",
+      "message": "Field `type` is missing or empty",
+      "doc": "https://caspian.dev/diagnostics#caspian-e008"
+    },
+    {
+      "code": "CASPIAN-E009",
+      "severity": "error",
+      "rule": "type-namespace-name-form",
+      "message": "Field `type` is not in `<namespace>:<name>` form",
+      "doc": "https://caspian.dev/diagnostics#caspian-e009"
+    },
+    {
+      "code": "CASPIAN-E010",
+      "severity": "error",
+      "rule": "requires-must-be-array",
+      "message": "Field `requires` is not an array",
+      "doc": "https://caspian.dev/diagnostics#caspian-e010"
+    },
+    {
+      "code": "CASPIAN-E011",
+      "severity": "error",
+      "rule": "requires-entry-type-required",
+      "message": "Entry in `requires` is missing `type`",
+      "doc": "https://caspian.dev/diagnostics#caspian-e011"
+    },
+    {
+      "code": "CASPIAN-E012",
+      "severity": "error",
+      "rule": "requires-entry-invalid-shape",
+      "message": "Entry in `requires` has an invalid shape",
+      "doc": "https://caspian.dev/diagnostics#caspian-e012"
+    },
+    {
+      "code": "CASPIAN-E013",
+      "severity": "error",
+      "rule": "produces-must-be-object",
+      "message": "Field `produces` is not an object",
+      "doc": "https://caspian.dev/diagnostics#caspian-e013"
+    },
+    {
+      "code": "CASPIAN-E014",
+      "severity": "error",
+      "rule": "produces-type-required",
+      "message": "Field `produces` is missing `type`",
+      "doc": "https://caspian.dev/diagnostics#caspian-e014"
+    },
+    {
+      "code": "CASPIAN-W001",
+      "severity": "warning",
+      "rule": "frontmatter-field-allow-list",
+      "message": "Unrecognized frontmatter field outside the recognized allow-list",
+      "doc": "https://caspian.dev/diagnostics#caspian-w001"
+    },
+    {
+      "code": "CASPIAN-W002",
+      "severity": "warning",
+      "rule": "type-canonical-namespace",
+      "message": "Field `type` uses a namespace outside the canonical `core:*` registry",
+      "doc": "https://caspian.dev/diagnostics#caspian-w002"
+    },
+    {
+      "code": "CASPIAN-W003",
+      "severity": "warning",
+      "rule": "schema-version-recognized",
+      "message": "Field `schema_version` value is not recognized by this validator",
+      "doc": "https://caspian.dev/diagnostics#caspian-w003"
+    }
+  ]
+}
