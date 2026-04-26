@@ -1,6 +1,6 @@
 # Story 1.1: Project bootstrap (monorepo scaffold + dual-license layout)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -165,6 +165,58 @@ After Story 1.1 ships, every subsequent story (1.2–5.3) operates within `caspi
   - [x] From `caspian/`, ran `pnpm test` (`pnpm -C caspian test`). Output: `No projects matched the filters in "F:\work\joselimmo-marketplace-bmad\caspian"`. Exit code 0. The root `test` script was already declared as `pnpm -r --if-present test` in Task 1 to ensure exit-0 behavior on the empty workspace — no defensive workaround needed.
   - [x] Verified lockfile reproducibility (NFR21): `pnpm -C caspian install --frozen-lockfile` exits 0 with `Lockfile is up to date, resolution step is skipped`.
   - [ ] **Stage and commit** — DEFERRED: per repo policy, the dev agent does not commit unless the user explicitly asks. Recommended commit when the user is ready: `git add caspian/` then commit with `chore(caspian): bootstrap monorepo scaffold + dual-license layout (Story 1.1)`. The lockfile is not gitignored and will be tracked.
+
+### Review Findings
+
+*Reviewed 2026-04-26 against commit `6b20e65` via the BMad code-review workflow (Blind Hunter + Edge Case Hunter + Acceptance Auditor in parallel). 3 patches, 5 decisions, 10 deferred, 14 dismissed as noise.*
+
+**Decisions resolved (2026-04-26):**
+
+- D1 (`.claude/settings.local.json` modified outside `caspian/`) — **accepted as-is**: file was already tracked before this story; dev only appended permission entries.
+- D2 (`engines.node: ">=20.10"` allows EOL Node 21 / non-LTS Node 23) — **accepted as-is**: spec was respected to the letter; tightening deferred to a future infra story.
+- D3 (no enforcement of `packageManager` pin) — **resolved as patch**: add `manage-package-manager-versions=true` to `caspian/.npmrc` (pnpm 9.5+ auto-switches without requiring Corepack).
+- D4 (README structure groups pitch + 4-CTA under one heading) — **accepted as-is**: GitHub UX is more natural with the merged section; content satisfies AC2.
+- D5 (`.gitignore` strict-spec vs. defensive) — **resolved as patch**: add `.vscode/`, `.idea/`, `Thumbs.db`, `*.tgz` to `caspian/.gitignore`.
+
+**Patches applied (2026-04-26):**
+
+- [x] [Review][Patch] **Remove `**/*.md` from `caspian/biome.json` `files.includes`** — Applied. Biome 2.4.13 silently drops markdown files; entry was dead config. [`caspian/biome.json`]
+- [ ] ~~[Review][Patch] Add `// TODO Story 2.1: enforce schemas lockdown via biome` comment in `caspian/biome.json`~~ — **Dismissed after attempted fix**: `biome.json` is parsed as strict JSON by Biome 2.4.13 (NOT JSONC despite the Acceptance Auditor's claim). Adding a `//` comment caused `pnpm lint` to fail with cascading parse errors. Reverted. The Auditor's underlying concern (Story 2.1 needs a breadcrumb to find the placeholder) is satisfied by the in-story Review Findings + Dev Agent Record Deviation 1 + `deferred-work.md` entries — three text-searchable references to "Story 2.1" + "schemas lockdown". A future dev grepping `Story 2.1` finds them. Note also that the spec's Task 4 fallback ("leave a `// TODO ...` comment") was conditional on the rule being missing from the installed Biome version; the rule exists (just relocated to `style`), so the fallback never strictly triggered. [`caspian/biome.json`]
+- [x] [Review][Patch] **Replace `../_bmad-output/planning-artifacts/epics.md` cross-tree link in `caspian/README.md`** — Applied. Removed the parenthetical link reaching out of `caspian/`; the surrounding sentence now reads `"Most of the tree above is provisional during bootstrap. Each top-level directory lands with its first story."` Self-contained for future repo extraction. [`caspian/README.md:34`]
+- [x] [Review][Patch] **Add `manage-package-manager-versions=true` to `caspian/.npmrc`** (from D3) — Applied. Hardens the `packageManager: "pnpm@10.26.1"` pin without requiring Corepack on contributor machines. [`caspian/.npmrc:3`]
+- [x] [Review][Patch] **Add `.vscode/`, `.idea/`, `Thumbs.db`, `*.tgz` to `caspian/.gitignore`** (from D5) — Applied. Defensive additions on top of AC7's mandated set. [`caspian/.gitignore`]
+
+**Post-patch verification:** `pnpm -C caspian lint` and `pnpm -C caspian test` both exit 0. AC8 smoke-gate still green.
+
+**Deferred (real but not actionable in this story — see also `_bmad-output/implementation-artifacts/deferred-work.md`):**
+
+- [x] [Review][Defer] `.gitattributes` rule targets future path `packages/core/src/diagnostics/codes.generated.ts` — owner: Story 2.2; risk if Story 2.2 deviates from this exact subpath. [`caspian/.gitattributes:2`]
+- [x] [Review][Defer] `noDefaultExport` will conflict with `vitest.config.ts`/`rollup.config.ts` etc. when those land — owner: Stories 2.1+ (add `overrides` block then). [`caspian/biome.json:32`]
+- [x] [Review][Defer] Lockfile reproducibility verified single-platform only (no CI yet) — owner: Story 2.8 (`release.yml`) and a future `ci.yml` for the multi-OS matrix. [`caspian/pnpm-lock.yaml`]
+- [x] [Review][Defer] `release: "changeset publish"` script lacks the preceding `changeset version` step of the canonical changesets release flow — owner: Story 2.8 (full release wiring). [`caspian/package.json:17`]
+- [x] [Review][Defer] Root name `caspian-monorepo` vs. unscoped CLI name `caspian` — verify npm name availability before Story 2.1 ships `packages/cli`. [`caspian/package.json:2`]
+- [x] [Review][Defer] `.nvmrc=20.10` vs. Node 22 LTS migration (Node 20 LTS support ends ~April 2026) — owner: future infra story aligned with architecture step-04 F1 CI matrix. [`caspian/.nvmrc`]
+- [x] [Review][Defer] `caspian/.changeset/config.json` `$schema` URL pinned to `@changesets/config@3.1.4` while `@changesets/cli` floats `^2.31.0` — auto-generated by `changeset init`; revisit on changesets upgrade. [`caspian/.changeset/config.json:2`]
+- [x] [Review][Defer] No canary fixture / test asserts that `useFilenamingConvention` and `noDefaultExport` actually fire — owner: Story 2.1 (when source files first land). [`caspian/biome.json`]
+- [x] [Review][Defer] README CTA links return 404 on GitHub today (placeholders for `spec/`, `packages/cli/`, `plugins/casper-core/`, `spec/CONTRIBUTING.md`) — owner: each target story (1.2, 2.1+, 3.1+, 5.1) lands the destination. [`caspian/README.md:7-10`]
+- [x] [Review][Defer] `engines.node` upper-bound (also tracked under Decision 2) — if Decision 2 chooses to defer, this remains as a future infra-tightening item. [`caspian/package.json:10`]
+
+**Dismissed as noise (false positives or intentional per spec):**
+
+- Biome `!folder` (no trailing `/**`) was flagged as "won't exclude contents" — false. Biome 2.2+ semantics: bare-folder negation matches the directory and its descendants (Edge Case Hunter verified `pnpm exec biome check .` skips `node_modules/`).
+- `useFilenamingConvention` rejecting `tsconfig.base.json` / `README.md` / `LICENSE-CC-BY-4.0` — false. Rule scope is JS/TS source only (verified via `biome explain`).
+- `auto-install-peers=true` + `strict-peer-dependencies=true` "contradictory" — false. Standard pnpm pairing: auto-install resolves missing peers, strict flags incompatible ones.
+- `pnpm-lock.yaml` "not in diff" — curated diff exclusion; lockfile IS tracked (verified via `git ls-files`).
+- `.nvmrc` lacks trailing newline — false (file is 6 bytes = `20.10` + LF).
+- Em-dash in `description` field — cosmetic; project uses em-dashes intentionally throughout.
+- `pnpm-workspace.yaml` omits `site/`, `plugins/` — intentional per spec File Structure section (those are not pnpm packages).
+- "Biome formats `.md` vs `.editorconfig trim_trailing_whitespace=false` conflict" — moot; Biome 2.4 doesn't format markdown (covered by Patch 1 instead).
+- `.changeset/README.md` filename "violates kebab-case" — rule scope is JS/TS source only.
+- `coverage/`, `.vitest-cache/` ignored without vitest installed — explicitly mandated by AC7.
+- `.biomeignore` "deprecated in Biome 2.x" — AC4 explicitly required dual-file fallback.
+- README "SKILL.md compatibility" claim without citation — marketing prose, not a code issue.
+- AC6 `.changeset/README.md` doesn't walk the contributor flow on-page — Task 5 explicitly authorized using the auto-generated content.
+- `access: "public"` on `private: true` root — auto-generated by `changeset init` and intentionally forward-staged for Stories 2.1+.
 
 ## Dev Notes
 

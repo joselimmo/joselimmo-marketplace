@@ -17,7 +17,22 @@
       "Bash(echo \"---LINT_EXIT: $?\")",
       "Bash(pnpm -C caspian test)",
       "Bash(echo \"---TEST_EXIT: $?\")",
-      "Bash(pnpm -C caspian install --frozen-lockfile)"
+      "Bash(pnpm -C caspian install --frozen-lockfile)",
+      "Bash(git diff *)",
+      "Read(//tmp/**)",
+      "Read(//f//**)",
+      "Read(//c//**)",
+      "Read(//f/work/**)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm install *)",
+      "Bash(git -C F:/work/joselimmo-marketplace-bmad ls-files caspian/)",
+      "Bash(git -C F:/work/joselimmo-marketplace-bmad status caspian/ --short)",
+      "Bash(pnpm release *)",
+      "Bash(pnpm build *)",
+      "Bash(git config *)",
+      "Bash(xxd)",
+      "Bash(xargs -I {} git ls-files --eol {})"
     ]
   }
 }

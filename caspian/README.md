@@ -31,7 +31,7 @@ caspian/
 └── conformance/           # Vendor-neutral parity test suite
 ```
 
-Most of the tree above is provisional during bootstrap. Each top-level directory lands with its first story (see the [epics](../_bmad-output/planning-artifacts/epics.md) for the full sequence).
+Most of the tree above is provisional during bootstrap. Each top-level directory lands with its first story.
 
 ## License
 

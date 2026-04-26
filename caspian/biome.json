@@ -9,7 +9,6 @@
       "**/*.cjs",
       "**/*.json",
       "**/*.jsonc",
-      "**/*.md",
       "!**/dist",
       "!**/*.generated.ts",
       "!pnpm-lock.yaml",

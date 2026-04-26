@@ -3,7 +3,11 @@ packages/*/dist/
 site/dist/
 *.tsbuildinfo
 .vitest-cache/
+coverage/
+*.tgz
 .DS_Store
+Thumbs.db
 .env*
 *.log
-coverage/
+.vscode/
+.idea/
