@@ -39,7 +39,13 @@
       "Bash(mkdir -p _bmad-output/implementation-artifacts/.review-cache)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(grep '^- \\\\[`core:' caspian/spec/vocabulary/README.md)"
+      "Bash(grep '^- \\\\[`core:' caspian/spec/vocabulary/README.md)",
+      "Bash(grep -v \":1$\")",
+      "Bash(yaml\" caspian/spec/vocabulary/plan.md | head -20)",
+      "Bash(grep -A 5 \"^```yaml\" caspian/spec/vocabulary/plan.md | head -20)",
+      "Bash(awk '/^## Use Boundaries/{found=1} found && /^## Composition/{exit} found{print}' \"F:/work/joselimmo-marketplace-bmad/caspian/spec/vocabulary/convention.md\")",
+      "Bash(awk '/^## Use Boundaries/{found=1} found && /^## Composition/{exit} found{print}' \"F:/work/joselimmo-marketplace-bmad/caspian/spec/vocabulary/glossary.md\")",
+      "Bash(awk *)"
     ]
   }
 }

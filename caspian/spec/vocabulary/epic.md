@@ -29,12 +29,13 @@ convention. The RFC process in [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
 ## Identity
 
 A `core:epic` is identified by an epic title and a stable epic number
-(commonly an integer, e.g., `epic-1`, `epic-2`). The filename convention
-is kebab-case with the number prefix (`epic-1-spec-foundation.md`) so the
-default file ordering matches the planned sequence. Epics are mutable:
-their story lists grow as scope is refined and shrink as stories are cut,
-but the epic number itself is stable. A project hosts multiple epics; the
-set of epics over time forms the project's roadmap.
+(an integer). The filename convention uses a full `epic-N-` prefix:
+`epic-1-spec-foundation.md`, `epic-2-cli-validator.md`. When the epic
+number appears as a component inside a story key, it is the bare integer
+(`1-3-canonical-core-vocabulary-docs`, not `epic-1-3-...`). Epics are
+mutable: their story lists grow as scope is refined and shrink as stories
+are cut, but the epic number itself is stable. A project hosts multiple
+epics; the set of epics over time forms the project's roadmap.
 
 ## Use Boundaries
 

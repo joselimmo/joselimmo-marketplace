@@ -40,8 +40,10 @@ human-readable name. The filename mirrors the key with a `.md` extension.
 Stories are mutable while their status is `backlog` or `ready-for-dev`,
 become append-only-with-explicit-permission once `in-progress`, and are
 sealed once marked `done` (further changes happen via new stories or
-`core:learning` follow-ups). The story key is stable across the entire
-lifecycle.
+`core:learning` follow-ups). Note: `status` is not a reserved field in
+the v1.0 contract (see [`../core.md`](../core.md)) — these values are a
+widely-adopted vendor convention, not a normative constraint. The story
+key is stable across the entire lifecycle.
 
 ## Use Boundaries
 

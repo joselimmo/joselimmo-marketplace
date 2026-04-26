@@ -1,6 +1,6 @@
 # Story 1.3: Canonical `core:*` vocabulary docs
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -92,6 +92,13 @@ All paths in this story resolve **inside `caspian/`** — the sub-monorepo that 
   - [x] Run `pnpm test` from `caspian/` (or `pnpm -C caspian test`). Confirm exit code 0 and the *No projects matched the filters* output (Story 1.1 + 1.2 pattern).
   - [x] Update File List in this story file with all new and modified files, paths relative to repository root.
   - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: transition `1-3-canonical-core-vocabulary-docs` from `in-progress` to `review` (this happens in dev-story Step 9 — included here for traceability).
+
+### Review Findings
+
+- [x] [Review][Patch] adr.md — Nygard section order wrong: file says "Context / Decision / Status / Consequences" but Nygard (2011) canonical order is "Status / Context / Decision / Consequences" [`caspian/spec/vocabulary/adr.md`]
+- [x] [Review][Patch] story.md — Identity section uses `status` field values (`backlog`, `ready-for-dev`, `in-progress`, `done`) as if they are v1.0-contract fields, but `core.md` explicitly marks `status` as not reserved in v1.0; no disclaimer present (contrast: `adr.md` correctly notes `supersedes`/`superseded_by` are absent from the contract) [`caspian/spec/vocabulary/story.md`]
+- [x] [Review][Patch] epic.md — Identity creates ambiguity: `epic-1` / `epic-2` as identifiers implies "epic-" is part of the identifier, but the story-key convention in `story.md` uses the bare integer (e.g., `1-3-canonical-core-vocabulary-docs`) — add one sentence clarifying that the epic number in story keys is the bare integer, while the epic filename uses the `epic-N-slug.md` convention [`caspian/spec/vocabulary/epic.md`]
+- [x] [Review][Defer] core.md missing explicit `{#schema-evolution}` and `{#extension-mechanisms}` anchors — `adr.md` links to `../core.md#schema-evolution`, `plan.md` and `story.md` link to `../core.md#extension-mechanisms`; links resolve today via auto-generated slugs on GitHub but lack the stability guarantee of explicit anchors; core.md is sealed by Story 1.2 [`caspian/spec/core.md`] — deferred, pre-existing; fix in a future cleanup ticket (either add explicit anchors to core.md or remove the fragments from the vocabulary links)
 
 ## Dev Notes
 

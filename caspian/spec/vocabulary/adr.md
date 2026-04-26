@@ -17,7 +17,7 @@ not guessing it.
 
 The ADR pattern was articulated by **Michael Nygard** in *"Documenting
 Architecture Decisions"* (2011) — the foundational industry source that
-introduced the now-standard `Context / Decision / Status / Consequences`
+introduced the now-standard `Status / Context / Decision / Consequences`
 sections and the convention of numbered, append-only decision files. The
 pattern has been adopted across the software industry, refined into
 variants such as MADR and Y-statements, and ported into agentic
@@ -103,5 +103,5 @@ A canonical fixture lives at
 [`../../fixtures/valid/core-adr/minimal.md`](../../fixtures/valid/core-adr/minimal.md)
 *(coming soon — Story 1.6)*. The fixture demonstrates the minimal valid
 envelope; the prose body of a real ADR follows the Nygard sections
-(Context / Decision / Status / Consequences) inside the markdown body
+(Status / Context / Decision / Consequences) inside the markdown body
 below the frontmatter.
