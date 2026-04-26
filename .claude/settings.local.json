@@ -35,7 +35,9 @@
       "Bash(xargs -I {} git ls-files --eol {})",
       "Bash(pnpm lint *)",
       "Bash(echo \"EXIT_LINT=$?\")",
-      "Bash(echo \"EXIT_TEST=$?\")"
+      "Bash(echo \"EXIT_TEST=$?\")",
+      "Bash(mkdir -p _bmad-output/implementation-artifacts/.review-cache)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

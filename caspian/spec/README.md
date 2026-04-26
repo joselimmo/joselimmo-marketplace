@@ -21,11 +21,13 @@ field remains valid alongside Caspian fields.
 - **Diagnostic codes** → [`../diagnostics/registry.json`](../diagnostics/registry.json) *(coming soon — Story 1.5)* — the 17 v1.0 `CASPIAN-EXXX` / `CASPIAN-WXXX` codes.
 - **Canonical fixtures** → [`../fixtures/`](../fixtures/) *(coming soon — Story 1.6)* — valid + invalid frontmatter samples consumed by the validator's regression suite.
 - **Working examples** → [`../examples/`](../examples/) *(coming soon — Stories 1.7, 2.8)* — author-readable walkthroughs (the 4-line frontmatter delta and the CI-integration snippet).
-- **Spec changelog and proposals** → [`CHANGELOG.md`](./CHANGELOG.md) and [`proposals/`](./proposals/) *(coming soon — Stories 5.1, 5.2)*.
+- **Spec changelog** → [`CHANGELOG.md`](./CHANGELOG.md) *(coming soon — Story 5.2)*.
+- **Spec proposals** → [`proposals/`](./proposals/) *(coming soon — Story 5.1 introduces the TEMPLATE; Story 5.2 lands `0001-initial-spec.md`)*.
 
 ## License
 
-All files in this directory are licensed under **CC-BY-4.0** (see
-[`LICENSE.md`](./LICENSE.md)). This override applies to spec prose
-only; code, schemas, and tooling outside `caspian/spec/` remain under
-the repository-default Apache-2.0 license.
+All files in this directory and its subdirectories are licensed
+under **CC-BY-4.0** (see [`LICENSE.md`](./LICENSE.md)) unless an
+inner `LICENSE.md` declares otherwise. This override applies to spec
+prose only; code, schemas, and tooling outside `caspian/spec/` remain
+under the repository-default Apache-2.0 license.

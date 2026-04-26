@@ -26,8 +26,9 @@ contract is intentionally minimal: producers declare what they need and
 what they emit; consumers match by type. Caspian fields coexist with
 the agentskills.io canonical fields and the Claude Code overlay fields;
 authors MAY mix all three vocabularies in the same frontmatter without
-conflict. Vendor-defined extensions are reserved through the `x-*`
-prefix and the `<vendor>:<name>` namespace, leaving room for
+conflict. Vendor-defined fields are reserved through the `x-*`
+field-name prefix; vendor-defined types use the `<vendor>:<name>`
+namespacing convention. Both extension paths leave room for
 ecosystem-specific evolution without contention. The remainder of this
 document specifies each field's shape and semantics, the
 overlay-compatibility model, the extension mechanisms, and the
@@ -38,14 +39,19 @@ backward-compatibility guarantee that governs future minor versions.
 ### `schema_version` {#schema-version}
 
 `schema_version` is **OPTIONAL** in v1.0. When absent, consumers MUST
-treat the artifact as declaring `schema_version: "0.1"` — the v1.0
-default. Producers writing against any minor version greater than
-`"0.1"` (for example, a hypothetical `"0.2"`) MUST declare
-`schema_version` explicitly so consumers can detect the producer's
-target minor and choose whether to apply forward-compatible handling.
-The value is a string in `MAJOR.MINOR` form; patch components are not
-recognized. Unrecognized values trigger the `CASPIAN-W003` warning and
-do not invalidate the artifact.
+treat the artifact as declaring `schema_version: "0.1"` — the value
+that v1.0 of this spec emits and recognizes. (The spec's own version,
+`v1.0`, refers to the document and its publication semver; the
+`schema_version` field's value tracks the minor schema generation,
+which starts at `"0.1"`.) Producers writing against any minor version
+greater than `"0.1"` (for example, a hypothetical `"0.2"`) MUST
+declare `schema_version` explicitly so consumers can detect the
+producer's target minor and choose whether to apply forward-compatible
+handling. The value is a string in `MAJOR.MINOR` form; patch
+components are not recognized. The set of values recognized by v1.0
+of the spec is `["0.1"]`; any other value (including `"0.1.0"` with a
+patch component, `"1.0"`, or a non-numeric string) triggers the
+`CASPIAN-W003` warning and does not invalidate the artifact.
 
 Example:
 
@@ -59,15 +65,28 @@ type: core:story
 ### `type` {#type}
 
 `type` is **REQUIRED**. Its value is a non-empty string of the form
-`<namespace>:<name>`, where `<namespace>` is a vendor or framework
-identifier and `<name>` is the artifact kind. Canonical Caspian types
-live under the reserved `core:*` namespace (for example, `core:story`,
-`core:plan`); authors MAY define their own namespaces for vendor- or
+`<namespace>:<name>`. `<namespace>` is the substring before the first
+`:`; `<name>` is the remainder. Multi-colon values such as
+`core:story:v2` are valid: the first `:` separates namespace from
+name; subsequent colons live inside the name. A value missing the
+colon, or with an empty namespace or empty name, produces an
+error-severity diagnostic (defined in
+[`../diagnostics/registry.json`](../diagnostics/registry.json)
+*(coming soon — Story 1.5)*).
+
+`core:` is the only reserved namespace. Canonical Caspian types live
+under `core:*` (for example, `core:story`, `core:plan`); the canonical
+`core:*` names are documented in [`vocabulary/`](./vocabulary/)
+*(coming soon — Story 1.3)*. A `type` value under `core:` whose name
+is not in the canonical vocabulary triggers a warning diagnostic
+(proposed `CASPIAN-W004`, to be reserved by Story 1.5's registry) —
+warning rather than error so future minor versions can extend the
+canonical vocabulary without breaking older conforming artifacts.
+
+Authors MAY define their own namespaces for vendor- or
 framework-specific kinds (for example, `bmad:epic`, `maya:lint-rule`).
-A value missing the colon, or with an empty namespace or name, is
-rejected. Non-`core:*` namespaces are accepted and emit the
-`CASPIAN-W002` warning so authors who intend a canonical type can spot
-typos.
+Non-`core:*` namespaces are accepted and emit the `CASPIAN-W002`
+warning so authors who intend a canonical type can spot typos.
 
 Example:
 
@@ -86,11 +105,15 @@ following shape:
 - `type` — REQUIRED string. The required artifact's `type`.
 - `tags` — OPTIONAL array of strings. Refines matching when multiple
   artifacts of the same `type` are eligible.
-- `count` — OPTIONAL positive integer. Number of matching artifacts the
-  consumer expects. Absent means "one or more".
+- `count` — OPTIONAL positive integer. The minimum number of matching
+  artifacts the consumer expects. `count: N` means "at least N";
+  absence means "one or more" (equivalent to `count: 1`). The v1.0
+  validator does not enforce `count` — it verifies artifact structure,
+  not runtime resolution; downstream tooling that resolves `requires`
+  applies the minimum-match semantics.
 
 Resolution by anything beyond `type` is out of scope for v1.0 (see
-[Resolution Semantics — Out of Scope](#resolution-semantics--out-of-scope-for-v10-normative-seal)).
+[Resolution Semantics — Out of Scope](#resolution-semantics)).
 
 Example:
 
@@ -133,11 +156,13 @@ produces:
 components** — skills, commands, and agents — that consume
 preconditions and emit postconditions. **Documents** (passive output
 artifacts produced by an active component, such as a `core:story`
-written to disk) carry only `type`. The four-field contract is
-universal in scope: any Caspian artifact MAY declare any of the four
-fields. Documents that omit `requires` and `produces` are conformant;
-active components that omit them are conformant too, though tooling
-will not be able to plan around them.
+written to disk) carry only `type` *by convention*; this is a
+modeling guideline, not a syntactic constraint. The four-field
+contract is universal in scope: any Caspian artifact MAY declare any
+of the four fields and remain conformant. A document declaring
+`produces` is unconventional but not rejected; an active component
+omitting `requires` and `produces` is conformant too, though tooling
+will not be able to plan around it.
 
 ## Overlay-Compatibility {#overlay-compatibility}
 
@@ -145,6 +170,8 @@ A Caspian-conformant artifact's frontmatter MAY declare any combination
 of fields drawn from three tiers. The 22 known fields are listed below
 exactly once, grouped by tier; unknown fields outside these tiers
 trigger the `CASPIAN-W001` warning but never invalidate the artifact.
+The `x-*` extension prefix (next section) is evaluated first: a field
+matching `x-*` is exempt from `CASPIAN-W001` and from tier membership.
 
 | Tier | Vocabulary | Count | Fields |
 |---|---|---|---|
@@ -198,8 +225,9 @@ The canonical `core:*` vocabulary — `core:overview`, `core:epic`,
 document first ships)*. Each per-type document covers Purpose,
 Sources, Identity, Use Boundaries, Composition, Anti-pattern, and
 Examples. The anchor `#core-vocabulary` is consumed by `caspian.dev`
-and by the CLI's diagnostic doc URLs; it MUST remain stable across
-spec minor versions.
+*(coming soon — Epic 4)* and by the CLI's diagnostic doc URLs
+*(coming soon — Epic 2)*; it MUST remain stable across spec minor
+versions.
 
 ## Schema Evolution
 
@@ -220,7 +248,7 @@ is BACKWARD_TRANSITIVE-compliant — additive restoration is cheap;
 removal is expensive. The same logic applies to any artifact-identity
 or supersession model: v1.0 stays small so v1.x can stay flexible.
 
-## Resolution Semantics — Out of Scope for v1.0 (Normative Seal)
+## Resolution Semantics — Out of Scope for v1.0 (Normative Seal) {#resolution-semantics}
 
 > *"v1.0 consumers MUST NOT assume forward-compatibility on resolution
 > semantics. Future spec versions may introduce filters that v1.0
@@ -249,10 +277,12 @@ The following are deliberately out of scope for Caspian Core v1.0:
 
 ## Conformance
 
-A Caspian-conformant artifact MUST validate against
+A Caspian-conformant artifact MUST satisfy two checks: (1) it MUST
+validate against
 [`../schemas/v1/envelope.schema.json`](../schemas/v1/envelope.schema.json)
-*(coming soon — Story 1.4)* without any `error`-severity diagnostics.
-Warnings are permitted. The reference Node implementation lives in
+*(coming soon — Story 1.4)*, and (2) it MUST NOT produce any
+`error`-severity diagnostic from any validation stage (envelope
+schema, namespace check, allow-list scan). Warnings are permitted. The reference Node implementation lives in
 [`../packages/core/`](../packages/core/) *(coming soon — Epic 2)* and
 emits stable `CASPIAN-EXXX` / `CASPIAN-WXXX` codes from the diagnostic
 registry.

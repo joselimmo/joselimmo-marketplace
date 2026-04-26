@@ -1,6 +1,6 @@
 # Story 1.2: Caspian Core normative reference (`spec/core.md`)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -138,6 +138,37 @@ The seal sits in its own labeled section so it is grep-able and unambiguous. Sur
     git add caspian/spec/
     git commit -m "docs(spec): add Caspian Core normative reference (Story 1.2)"
     ```
+
+### Review Findings
+
+> Generated 2026-04-26 via `/bmad-code-review` against commit `2a4c873`. Three reviewers ran in parallel: Blind Hunter (no project context), Edge Case Hunter (boundary walk), Acceptance Auditor (AC + verbatim trace). Auditor verdict: **all 9 ACs PASS, all 5 verbatim/paraphrase mandates PASS, no anti-pattern violations**. Findings below are quality refinements, not AC failures.
+
+**Decision-needed (3) — RESOLVED 2026-04-26 by Cyril; converted to patches D1/D2/D3 below:**
+
+- [x] [Review][Decision] **`type` value with multiple colons (`a:b:c`) — accept, reject, or warn?** → **Resolved: split-on-first-colon.** namespace = part before the first `:`; name = remainder (may itself contain `:`). No diagnostic. See patch D1.
+- [x] [Review][Decision] **`requires.count` semantics — exact-match or minimum-match?** → **Resolved: minimum-match, AND non-enforced by the v1.0 validator.** `count: N` = "at least N" (consistent with absence "one or more"); enforcement is out of v1.0 validator scope (validator checks artifact structure, not project-context applicability — aligned with the Resolution Semantics seal). See patch D2.
+- [x] [Review][Decision] **`type: core:fake` (canonical namespace, undocumented name) — diagnostic policy?** → **Resolved: NEW warning diagnostic.** `core:` is the only reserved namespace; the standard is open elsewhere. A `core:<undocumented-name>` emits a new warning code (proposed `CASPIAN-W004`, to be reserved in Story 1.5's registry) — warning rather than error so future canonical-vocabulary expansions stay BACKWARD_TRANSITIVE-compliant for older artifacts. See patch D3.
+
+**Patches (11) — unambiguous textual fixes:**
+
+- [x] [Review][Patch] Add explicit `{#resolution-semantics}` anchor to the seal heading + update intra-doc link [`core.md:223`, `core.md:93`]
+- [x] [Review][Patch] Disambiguate "the v1.0 default" wording vs `schema_version: "0.1"` value (spec version v1.0 ships schema `0.1` per architecture line 296) [`core.md:40-44`]
+- [x] [Review][Patch] Define the v1.0 "recognized" `schema_version` set explicitly (architecture: `["0.1"]`); state which values trigger `CASPIAN-W003` [`core.md:46-48`]
+- [x] [Review][Patch] Replace "rejected" verb in `type` rules with "produces an error-severity diagnostic" to align with the published taxonomy without enumerating codes [`core.md:67-68`]
+- [x] [Review][Patch] State that `x-*` and `<vendor>:<name>` namespaced fields are exempt from `CASPIAN-W001` (allow-list scan, architecture line 289); document the evaluation order [`core.md:144-147` vs `163-170`]
+- [x] [Review][Patch] Sharpen "documents carry only `type`" vs "any artifact MAY declare any of the four fields" — make convention-vs-constraint distinction explicit [`core.md:131-140`]
+- [x] [Review][Patch] Split README story-attribution lump: CHANGELOG → Story 5.2; proposals/ → Stories 5.1 (TEMPLATE) + 5.2 (0001-initial-spec) [`README.md:24`]
+- [x] [Review][Patch] Sync README License paragraph with `LICENSE.md` scope: add the "subdirectories, unless an inner `LICENSE.md` declares otherwise" qualifier [`README.md:28-31`]
+- [x] [Review][Patch] Clarify Conformance section: schema validation AND no error-severity diagnostics from any validation stage (architecture pipeline lines 287-290) [`core.md:252-254`]
+- [x] [Review][Patch] Annotate `caspian.dev` and "CLI's diagnostic doc URLs" with `*(coming soon — Epic 4)*` / `*(coming soon — Epic 2)*` per anti-pattern requirement on forward references [`core.md:200-202`]
+- [x] [Review][Patch] Sharpen Overview to distinguish `x-*` (field-name extension) from `<vendor>:<name>` (type-value namespacing) — currently conflated; Extension Mechanisms section already separates them correctly [`core.md:29-31`]
+- [x] [Review][Patch] **D1** — Document `type` parsing rule (split-on-first-colon): namespace = string before the first `:`; name = remainder (may itself contain `:`). Multi-colon types like `core:story:v2` are valid; no diagnostic [`core.md:61-67`]
+- [x] [Review][Patch] **D2** — Document `requires[].count` semantics: `count: N` = "at least N" (minimum-match); enforcement is out of v1.0 validator scope (validator checks artifact structure, not runtime resolution — consistent with the Resolution Semantics seal) [`core.md:89-90`]
+- [x] [Review][Patch] **D3** — Document the `core:<undocumented-name>` policy: `core:` is the only reserved namespace; canonical names are documented in `vocabulary/` (Story 1.3); `type: core:<name-not-in-vocabulary>` triggers a new warning (proposed `CASPIAN-W004`) — warning, not error, so future vocabulary expansions stay BACKWARD_TRANSITIVE-compliant. **Cross-story note:** Story 1.5's diagnostic registry MUST reserve `CASPIAN-W004` for this rule [`core.md:63-69`]
+
+**Applied 2026-04-26.** All 14 patches applied; smoke gate re-verified green (`pnpm -C caspian lint` exit 0). `core.md` word count 1527 → 1787 (still under the 2000-word ≤10-min budget). Verbatim mandates re-checked byte-exact (Resolution Semantics seal at L253–255; Anthropic SKILL.md sentence at L182–183). Forward dependency: **Story 1.5's diagnostic registry MUST reserve `CASPIAN-W004`** for the `core:<undocumented-name>` warning introduced by patch D3 (`core.md:78–84`).
+
+**Dismissed as noise (10):** Tier-3 list mismatch with FR5 (false positive — spec matches FR5 exactly per PRD line 508; the agent confused FR5 with NFR13's stale `version` reference); `agentskills.io` external-claim verifiability (not a defect); 5-min vs 10-min reading-time framing (trivial); LICENSE.md path verification (Story 1.1 confirmed files exist); coming-soon markers / Conformance "impossible at ship time" (intentional architectural pattern); README SKILL.md sentence variant (Auditor approved); See Also vs What lives elsewhere navigation divergence (different lists, different purposes); link text truncation on the seal cross-reference (intentional shorthand); 22-fields list `argument-hint` vs `arguments` ambiguity (real distinct Claude Code fields); `produces: {}` empty-object explicit diagnostic (anti-pattern forbids enumerating codes; the existing "REQUIRED when present" rule covers it implicitly).
 
 ## Dev Notes
 
