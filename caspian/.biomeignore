@@ -1,0 +1,5 @@
+**/dist/
+**/*.generated.ts
+pnpm-lock.yaml
+fixtures/invalid/**
+node_modules/

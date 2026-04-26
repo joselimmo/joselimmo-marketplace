@@ -1,0 +1,23 @@
+{
+  "name": "caspian-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Caspian — Composable Agent Skill Protocol. Spec, vendor-neutral CLI validator, and reference Claude Code plugin.",
+  "license": "Apache-2.0",
+  "author": "Cyril Houillon",
+  "type": "module",
+  "engines": {
+    "node": ">=20.10"
+  },
+  "packageManager": "pnpm@10.26.1",
+  "scripts": {
+    "lint": "biome check .",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.13",
+    "@changesets/cli": "^2.31.0"
+  }
+}

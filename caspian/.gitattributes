@@ -1,0 +1,2 @@
+* text=auto eol=lf
+packages/core/src/diagnostics/codes.generated.ts merge=ours linguist-generated=true

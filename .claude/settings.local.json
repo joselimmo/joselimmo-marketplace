@@ -3,7 +3,21 @@
     "allow": [
       "Read(//c/Users/Cyril/.claude/**)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pnpm --version)",
+      "Bash(git --version)",
+      "Bash(npm view *)",
+      "Bash(curl -fsSL https://www.apache.org/licenses/LICENSE-2.0.txt -o caspian/LICENSE)",
+      "Bash(curl -fsSL https://creativecommons.org/licenses/by/4.0/legalcode.txt -o caspian/LICENSE-CC-BY-4.0)",
+      "Bash(pnpm -C caspian add -Dw @biomejs/biome @changesets/cli)",
+      "Bash(pnpm -C caspian exec changeset init)",
+      "Bash(pnpm -C caspian exec biome check .)",
+      "Bash(echo \"---EXIT: $?\")",
+      "Bash(pnpm -C caspian lint)",
+      "Bash(echo \"---LINT_EXIT: $?\")",
+      "Bash(pnpm -C caspian test)",
+      "Bash(echo \"---TEST_EXIT: $?\")",
+      "Bash(pnpm -C caspian install --frozen-lockfile)"
     ]
   }
 }

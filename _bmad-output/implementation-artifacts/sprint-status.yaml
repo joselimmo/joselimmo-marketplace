@@ -1,0 +1,90 @@
+# generated: 2026-04-26
+# last_updated: 2026-04-26
+# (last_updated also reflected in the YAML field below)
+# project: joselimmo-marketplace-bmad
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-26
+last_updated: 2026-04-26
+project: joselimmo-marketplace-bmad
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Spec Foundation & Plugin-Author Adoption
+  epic-1: in-progress
+  1-1-project-bootstrap-monorepo-scaffold-dual-license-layout: review
+  1-2-caspian-core-normative-reference-spec-core-md: backlog
+  1-3-canonical-core-vocabulary-docs: backlog
+  1-4-envelope-json-schema-draft-2020-12: backlog
+  1-5-diagnostic-registry-registry-schema: backlog
+  1-6-canonical-fixture-set-valid-invalid: backlog
+  1-7-minimal-skill-adoption-example: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: CLI Validator & CI Integration
+  epic-2: backlog
+  2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: backlog
+  2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: backlog
+  2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: backlog
+  2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: backlog
+  2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: backlog
+  2-6-format-json-stable-schema-b4-golden-snapshots-verify-pack: backlog
+  2-7-conformance-suite-3-layer-vendor-neutrality-enforcement: backlog
+  2-8-npm-publish-with-provenance-examples-ci-integration: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Reference Workflow casper-core (Claude Code Plugin)
+  epic-3: backlog
+  3-1-casper-core-plugin-manifest-foundation-files: backlog
+  3-2-init-project-command-produces-core-overview: backlog
+  3-3-discover-command-produces-core-story-with-core-epic-side-output: backlog
+  3-4-plan-story-command-requires-core-story-produces-core-plan: backlog
+  3-5-end-to-end-chain-override-pattern-casper-core-readme: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Discoverability via caspian.dev
+  epic-4: backlog
+  4-1-caspian-dev-landing-page-index-html-styles-scaffold: backlog
+  4-2-diagnostics-page-generator-build-mjs-reads-registry-emits-diagnostics-html: backlog
+  4-3-github-pages-deployment-workflow-anchor-stability-policy: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Governance & Spec Evolution
+  epic-5: backlog
+  5-1-spec-level-rfc-governance-spec-contributing-md-spec-proposals-template-md: backlog
+  5-2-initial-foundational-proposal-spec-changelog-md: backlog
+  5-3-repo-level-governance-bundle-auto-contributors: backlog
+  epic-5-retrospective: optional

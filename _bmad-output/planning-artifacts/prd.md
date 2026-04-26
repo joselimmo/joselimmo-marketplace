@@ -28,6 +28,12 @@ revisions:
       - 'API Surface — added semantic note on field attachment (requires/produces are attached to active components; documents carry type only)'
       - 'Product Scope — JSON Schemas reinterpreted as 2 schemas (envelope + diagnostic registry); per-core:* type schemas deferred to v0.2+ pending RFC'
       - 'Journey 6 — clarified plugin author opts into a strict-warnings CI gate; warning-level diagnostics do not exit non-zero by default'
+  - date: '2026-04-26'
+    type: implementation-readiness amendments
+    notes: 'Driven by the implementation-readiness workflow (see _bmad-output/planning-artifacts/implementation-readiness-report-2026-04-26.md, Step 5 minor concern 1). Aligns PRD wording with epics doc Requirements Inventory.'
+    items:
+      - 'NFR1 — annotated as a tracked budget for v1.0 (the under-5s target on a 1 000-artifact corpus); benchmark instrumentation deferred to v1.1 since no canonical 1 000-artifact corpus exists at v1.0. Not a v1.0 release gate.'
+      - 'NFR2 — annotated as a tracked budget for v1.0 (the under-500ms warm-startup target); instrumentation deferred to v1.1. Not a v1.0 release gate.'
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -558,8 +564,8 @@ Quality-attribute requirements that specify **how well** the system must perform
 
 ### Performance
 
-- **NFR1** — The `caspian` CLI validates a 1 000-artifact repository in under 5 seconds on a standard developer laptop (Apple M-series or equivalent). The validator is I/O-bound; parallel file I/O is acceptable but not required for v1.0.
-- **NFR2** — The `caspian` CLI startup overhead (time from invocation to first file parse) is under 500 ms on a warm Node runtime.
+- **NFR1** — The `caspian` CLI validates a 1 000-artifact repository in under 5 seconds on a standard developer laptop (Apple M-series or equivalent). The validator is I/O-bound; parallel file I/O is acceptable but not required for v1.0. **v1.0 status: tracked budget, not a release gate** (no canonical 1 000-artifact corpus exists at v1.0; benchmark instrumentation deferred to v1.1).
+- **NFR2** — The `caspian` CLI startup overhead (time from invocation to first file parse) is under 500 ms on a warm Node runtime. **v1.0 status: tracked budget, not a release gate** (instrumentation deferred to v1.1).
 - **NFR3** — The `caspian.dev` single-page site loads in under 2 seconds on a 4G mobile connection from a clean cache; DOMContentLoaded under 1 second on broadband.
 - **NFR4** — Frontmatter parsing enforces a 4 KB hard cap per artifact to prevent pathological YAML inputs from degrading validator performance.
 
