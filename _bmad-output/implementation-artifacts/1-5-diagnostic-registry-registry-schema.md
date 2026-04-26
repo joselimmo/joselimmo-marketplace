@@ -1,6 +1,6 @@
 # Story 1.5: Diagnostic registry + registry schema
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -834,6 +834,23 @@ All paths relative to repo root (`F:\work\joselimmo-marketplace-bmad\`).
 
 - `_bmad-output/implementation-artifacts/1-5-diagnostic-registry-registry-schema.md` — Tasks/Subtasks marked complete; Dev Agent Record populated (Agent Model, Debug Log, Completion Notes); File List populated; Status transitioned `ready-for-dev → in-progress → review`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — `1-5-diagnostic-registry-registry-schema` transitioned `backlog → ready-for-dev → in-progress → review`; session markers appended; `last_updated: 2026-04-27`
+
+### Review Findings
+
+**0 decision-needed · 0 patch · 10 defer · 8 dismissed**
+
+#### Deferred
+
+- [x] [Review][Defer] Schema has no cross-field constraint preventing `code`/`severity` letter mismatch (e.g., `CASPIAN-E001` with `severity: "warning"`) [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, JSON Schema 2020-12 cross-field constraints require `if/then/else` complexity; all 17 current entries are correct by construction; low risk for a hand-authored registry; revisit at schema v2 or via CI script
+- [x] [Review][Defer] `doc` URL numeric suffix is not constrained to match the `code` numeric suffix [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, JSON Schema cannot enforce numeric equality across fields; all 17 entries are correct; Story 2.2/4.2 generators should verify alignment at generation time
+- [x] [Review][Defer] No `uniqueItems: true` on the `diagnostics` array — duplicate full-object entries pass schema validation [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, Reference Registry-Schema Model omits this; `uniqueItems` compares full objects not just `code` values (imperfect solution); consider adding in schema v2 or enforcing via CI `ajv-validate-registry` step (Epic 2)
+- [x] [Review][Defer] No kebab-case pattern constraint on the `rule` field — only `minLength: 1` enforced [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, Reference Registry-Schema Model only had `minLength: 1`; all 17 current entries use kebab-case; a future schema v2 could add `pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"`
+- [x] [Review][Defer] `message` field has no `maxLength` constraint — CLI output could receive unbounded messages [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, story spec Reference Model omits `maxLength`; current 17 messages are concise (26–69 chars); consider `maxLength: 200` in schema v2
+- [x] [Review][Defer] CHANGELOG.md cross-references `spec/CHANGELOG.md`, `packages/cli/CHANGELOG.md`, `packages/core/CHANGELOG.md` — none of these paths exist yet [caspian/diagnostics/CHANGELOG.md] — deferred, forward-looking governance text appropriate for a v1.0 foundation document; resolves as Epic 2 (Story 2.8) and Story 5.2 ship
+- [x] [Review][Defer] No machine-readable `version` field in `registry.json` — CHANGELOG states decoupled semver but the registry itself carries no version tag [caspian/diagnostics/registry.json] — deferred, by design (`additionalProperties: false` at root disallows extra fields without a `schemas/v2/` bump); version tracking is prose-only via CHANGELOG; recorded in Completion Notes
+- [x] [Review][Defer] CASPIAN-E009 message contains literal angle brackets (`<namespace>:<name>`) — Story 4.2 HTML generator must HTML-escape all string fields [caspian/diagnostics/registry.json] — deferred, canonical architecture message text; `<` and `>` are intentional pattern-syntax notation; Story 4.2 MUST apply standard HTML entity escaping to all registry fields before rendering
+- [x] [Review][Defer] No uniqueness constraint on the `rule` field — two entries could share the same rule name with different codes [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, Story 2.2 TypeScript generator should detect and reject duplicate rule names; all 17 current rules are unique
+- [x] [Review][Defer] Append-only governance is process-dependent, not schema-enforced — no CI step `ajv-validate-registry` yet [caspian/schemas/v1/diagnostic-registry.schema.json] — deferred, already recorded as Forward Dependency in Completion Notes; CI step lands in Epic 2
 
 ### Change Log
 

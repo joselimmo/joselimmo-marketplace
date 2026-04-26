@@ -37,6 +37,7 @@
 
 generated: 2026-04-26
 last_updated: 2026-04-27
+# 2026-04-27: story 1-5 moved review → done after BMad code-review (0 patches, 0 decisions, 10 deferred, 8 dismissed)
 # 2026-04-27: story 1-5 moved in-progress → review (dev-story workflow; 4 files: diagnostics/LICENSE + CHANGELOG.md + registry.json with 17 codes + schemas/v1/diagnostic-registry.schema.json; smoke gate 7 files green)
 # 2026-04-27: story 1-5 moved ready-for-dev → in-progress (dev-story workflow)
 # 2026-04-27: story 1-5 moved backlog → ready-for-dev (create-story workflow; diagnostic-registry.schema.json + diagnostics/registry.json with 17 v1.0 codes + diagnostics/CHANGELOG.md + diagnostics/LICENSE under caspian/)
@@ -65,7 +66,7 @@ development_status:
   1-2-caspian-core-normative-reference-spec-core-md: done
   1-3-canonical-core-vocabulary-docs: done
   1-4-envelope-json-schema-draft-2020-12: done
-  1-5-diagnostic-registry-registry-schema: review
+  1-5-diagnostic-registry-registry-schema: done
   1-6-canonical-fixture-set-valid-invalid: backlog
   1-7-minimal-skill-adoption-example: backlog
   epic-1-retrospective: optional

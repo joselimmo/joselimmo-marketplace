@@ -46,7 +46,8 @@
       "Bash(awk '/^## Use Boundaries/{found=1} found && /^## Composition/{exit} found{print}' \"F:/work/joselimmo-marketplace-bmad/caspian/spec/vocabulary/convention.md\")",
       "Bash(awk '/^## Use Boundaries/{found=1} found && /^## Composition/{exit} found{print}' \"F:/work/joselimmo-marketplace-bmad/caspian/spec/vocabulary/glossary.md\")",
       "Bash(awk *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   }
 }
