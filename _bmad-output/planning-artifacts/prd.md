@@ -16,6 +16,18 @@ stepsCompleted:
   - step-12-complete
 status: complete
 completedAt: 2026-04-19
+lastEdited: '2026-04-26'
+revisions:
+  - date: '2026-04-26'
+    type: architecture-driven amendments
+    notes: 'Driven by the architecture workflow (see _bmad-output/planning-artifacts/architecture.md, PRD Amendments Required sections in step-04 and step-07).'
+    items:
+      - 'FR1 — schema_version reclassified from required to optional with implicit default "0.1"'
+      - 'FR12 — unknown-field policy reframed as warn-on-unknown rather than reject'
+      - 'FR5 + agentskills.io reference — corrected canonical field list (6 fields) + Claude Code overlay (12 fields)'
+      - 'API Surface — added semantic note on field attachment (requires/produces are attached to active components; documents carry type only)'
+      - 'Product Scope — JSON Schemas reinterpreted as 2 schemas (envelope + diagnostic registry); per-core:* type schemas deferred to v0.2+ pending RFC'
+      - 'Journey 6 — clarified plugin author opts into a strict-warnings CI gate; warning-level diagnostics do not exit non-zero by default'
 classification:
   projectType: developer_tool
   projectTypeSecondary: cli_tool
@@ -98,7 +110,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 ### Technical Success
 
 - **Contract stability** — schema evolution is BACKWARD_TRANSITIVE between v1.0 and v1.1: additive-only, no breaking changes to `schema_version`, `type`, `requires`, `produces`.
-- **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, unknown-field handling, namespace-aware type validation with warnings on unregistered types). Zero false positives on the canonical fixture set shipped with v1.0. Forward-compatibility commitment: enum strictness and path-traversal rejection will apply when `status` and pointer fields are added in a future spec version (see NFR9).
+- **Validator correctness** — the `caspian` CLI implements the full validation coverage matrix for its layer (YAML parse errors, BOM rejection, size cap enforcement, schema conformance, warn-on-unknown-field handling, namespace-aware type validation with warnings on unregistered types). Zero false positives on the canonical fixture set shipped with v1.0. Forward-compatibility commitment: enum strictness and path-traversal rejection will apply when `status` and pointer fields are added in a future spec version (see NFR9).
 - **Reference plugin end-to-end** — casper-core's `/init-project` → `/discover` → `/plan-story` chain demonstrably produces artifacts that pass `caspian` CLI validation on a clean run.
 - **Vendor neutrality verified** — the `caspian` CLI runs on a machine without Claude Code installed. This is the physical evidence behind the "vendor-neutral" positioning.
 - **Unix Interop Test** — a non-Casper skill produces an artifact Casper consumes cleanly, and vice versa; scripted and reproducible. Deliverable of v1.1; the fixtures are drafted during v1.0.
@@ -122,7 +134,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 
 ### MVP — Minimum Viable Product (Caspian Core v1.0 + casper-core v1.0)
 
-- **Spec artifacts** — Caspian Core spec prose, JSON Schemas for all artifact types, `spec/CHANGELOG.md`, canonical `core:*` vocabulary (`core:adr`, `core:convention`, `core:learning`, `core:glossary`, `core:overview`, `core:epic`, `core:story`, `core:plan`, `core:review`, `core:rule`, `core:scratch`), extensible-registry conformance rules.
+- **Spec artifacts** — Caspian Core spec prose, two canonical JSON Schemas (envelope contract `schemas/v1/envelope.schema.json` + diagnostic registry `schemas/v1/diagnostic-registry.schema.json`; per-`core:*`-type schemas deferred to v0.2+ pending an RFC tying them to resolution-semantics evolution — composition rules between `core:*` types are casper-core's orchestration concern, not validator scope), `spec/CHANGELOG.md`, canonical `core:*` vocabulary (`core:adr`, `core:convention`, `core:learning`, `core:glossary`, `core:overview`, `core:epic`, `core:story`, `core:plan`, `core:review`, `core:rule`, `core:scratch`), extensible-registry conformance rules.
 - **Vendor-neutral `caspian` CLI validator** — no Claude Code dependency. Validates frontmatter against JSON Schemas. Accepts file, directory, or glob inputs. Strict exit codes for CI gating. Ships with a canonical fixture set for regression testing.
 - **casper-core reference plugin** — 2–3 porcelain commands (`/init-project`, `/discover`, `/plan-story`) demonstrating the full `requires → produces` chain. Claude-Code-specific surface (plugin manifest, slash-command registration) isolated in a dedicated subdirectory. Schemas, validator, and vocabulary live at the repo root.
 - **Licensing** — CC-BY-4.0 for spec prose; Apache-2.0 for JSON Schemas, validator, and Casper code. Single `LICENSE` file at repo root.
@@ -230,7 +242,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 
 **Opening scene.** A contributor opens a PR on a Caspian-adopting plugin. Their skill has a typo in frontmatter: `requrires` instead of `requires`.
 
-**Rising action.** CI runs `caspian validate ./skills/`. The CLI exits non-zero with a precise diagnostic:
+**Rising action.** CI runs `caspian validate ./skills/`. The plugin author's CI is configured with a strict-warnings gate (exit non-zero on any diagnostic, error or warning — e.g., `caspian validate --format=json ./skills/ | jq -e '.summary.errors == 0 and .summary.warnings == 0'`). The CLI emits a precise diagnostic and the gate triggers a non-zero exit:
 
 ```
 skills/plan-feature/SKILL.md:7 — unknown field "requrires"
@@ -242,7 +254,7 @@ skills/plan-feature/SKILL.md:7 — unknown field "requrires"
 
 **Resolution.** Contributor fixes the typo, pushes again, CI goes green. Cost: under a minute lost, one bug caught before merge.
 
-**Requirements revealed** — `caspian` CLI supports directory / glob input; exit codes suitable for CI gating (`0` = pass, non-zero = fail); diagnostics include file + line + field name + suggestion + doc link; CLI runs without Claude Code installed (CI runners are vanilla Linux); strict-mode on unknown fields (vs permissive — consistent with validator coverage matrix).
+**Requirements revealed** — `caspian` CLI supports directory / glob input; exit codes suitable for CI gating (`0` = no errors, non-zero = at least one error; warnings are exit-0 by default); machine-readable `--format=json` output enables CI authors to opt into strict-warnings gating via downstream tooling (`jq` or equivalent); diagnostics include file + line + field name + suggestion + doc link; CLI runs without Claude Code installed (CI runners are vanilla Linux); warn-on-unknown-fields policy (consistent with FR12 + NFR16 graceful degradation + FR13 extensible-registry).
 
 ### Journey Requirements Summary
 
@@ -271,7 +283,7 @@ skills/plan-feature/SKILL.md:7 — unknown field "requrires"
 
 **Complementary standards (not competitors)**
 
-- **Anthropic Agent Skills (`agentskills.io`, Dec 2025)** — official open standard. Cross-vendor adoption in under three months (OpenAI, Microsoft, Cursor, GitHub, Atlassian, Figma). Covers SKILL.md frontmatter only (`name`, `description`, `disable-model-invocation`, `model`, `version`). Caspian fills the gap above: agents, commands, memory documents, composition semantics. Overlay-compatible by construction — every Agent Skills field remains valid inside a Caspian-conformant artifact.
+- **Anthropic Agent Skills (`agentskills.io`, Dec 2025)** — official open standard. Cross-vendor adoption in under three months (OpenAI, Microsoft, Cursor, GitHub, Atlassian, Figma). The standard is layered: **agentskills.io canonical fields** (`name`, `description`, `license`, `allowed-tools`, `metadata`, `compatibility` — six fields) and the **Claude Code overlay** (`when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell` — twelve additional vendor fields, on top of the canonical six). Caspian fills the gap above both layers: composition semantics (`requires` / `produces`) for agents, commands, and memory documents. Overlay-compatible by construction — every agentskills.io canonical and Claude Code overlay field remains valid inside a Caspian-conformant artifact.
 - **MCP (Model Context Protocol, Linux Foundation)** — 10 000+ servers, 97M monthly SDK downloads. Solves agent↔tool discovery and invocation. Orthogonal to Caspian's skill↔skill artifact contract. The 2026 roadmap adds `.well-known` MCP Server Cards for static capability discovery — complementary to Caspian's static artifact typing, not competitive.
 
 **Incumbent spec-driven frameworks (Caspian positions as substrate, not competitor)**
@@ -348,10 +360,12 @@ Sections `visual_design` and `store_compliance` are skipped per CSV (not applica
 
 **Spec surface (Caspian Core v1.0) — four frontmatter fields form the contract**
 
-- `schema_version` (required, string, semver minor) — declares the spec version the producer writes against.
+- `schema_version` (optional in v1.0, string, semver minor) — declares the spec version the producer writes against. **Default `"0.1"` when absent in v1.0.** Producers writing against v0.2+ MUST declare `schema_version` explicitly to enable consumer-side forward-compatibility detection.
 - `type` (required, string, namespaced) — `core:story`, `bmad:epic`, `maya:lint-rule`, …
 - `requires` (optional, array of objects) — each entry: `{type: string, tags?: string[], count?: int}`.
 - `produces` (optional, object) — `{type: string}`.
+
+**Semantic note on field attachment.** `requires` and `produces` are semantically attached to **active components** (skills, commands, agents) — the artifacts that consume preconditions and emit postconditions. **Documents** (passive output artifacts produced by a skill, such as a `core:story` written to disk) carry only `type`. The four-field contract is universal in scope (any Caspian artifact MAY declare any of the four fields), but `requires` / `produces` are typically empty or absent on documents.
 
 Agent-Skills-compatible — every Anthropic SKILL.md field remains valid. `x-*` prefix reserved as extension escape hatch. **`status` and supersession pointers (`supersedes` / `superseded_by`) are deliberately absent from v1.0. Their operational semantics have not been sufficiently challenged; they are deferred to a future spec version (v0.2 at earliest) pending a concrete use case with a BDFL-approved RFC. Adding them later as optional fields is BACKWARD_TRANSITIVE-compliant.**
 
@@ -481,11 +495,11 @@ The capability contract. Every feature shipped in v1.0 must trace back to a line
 
 ### Spec Contract Authoring
 
-- **FR1**: Any artifact author can declare the four-field Caspian Core contract in YAML frontmatter — `schema_version`, `type`, `requires`, `produces`.
+- **FR1**: Any artifact author can declare the Caspian Core contract in YAML frontmatter — `type` (required), `requires` (optional), `produces` (optional), and `schema_version` (optional in v1.0; defaults to `"0.1"` when absent; producers writing against v0.2+ MUST declare `schema_version` explicitly).
 - **FR2**: Any artifact author can express typed preconditions via `requires`, specifying the required artifact type, optional tags, and optional count.
 - **FR3**: Any artifact author can express typed postconditions via `produces`, specifying the produced artifact type.
 - **FR4**: Any artifact author can use canonical `core:*` types or define their own vendor/author-namespaced types (e.g. `bmad:epic`, `maya:lint-rule`).
-- **FR5**: Any artifact author can include Anthropic Agent Skills fields (`name`, `description`, `disable-model-invocation`, `model`, `version`, `when_to_use`, `allowed-tools`, …) alongside Caspian fields without conflict.
+- **FR5**: Any artifact author can include agentskills.io canonical fields (`name`, `description`, `license`, `allowed-tools`, `metadata`, `compatibility`) and Claude Code overlay fields (`when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell`) alongside Caspian fields without conflict.
 - **FR6**: Any artifact author can reserve vendor or experimental extensions via the `x-*` frontmatter prefix.
 
 ### Artifact Validation
@@ -495,7 +509,7 @@ The capability contract. Every feature shipped in v1.0 must trace back to a line
 - **FR9**: A plugin author receives diagnostics that include file, line number, field name, an edit-distance suggestion for unknown fields, and a doc link to a stable anchor on `caspian.dev`.
 - **FR10**: A plugin author receives exit codes that distinguish *all artifacts valid* (`0`) from *at least one artifact invalid* (non-zero).
 - **FR11**: A plugin author can run the validator on a system without Claude Code installed (vendor-neutrality guarantee).
-- **FR12**: A plugin author can rely on the validator to reject invalid artifacts — YAML parse errors, BOM prefix, tab indentation in frontmatter, frontmatter exceeding 4 KB, and unknown frontmatter fields.
+- **FR12**: A plugin author can rely on the validator to reject syntactically invalid artifacts — YAML parse errors, BOM prefix, non-UTF-8 encoding, tab indentation in frontmatter, unquoted YAML 1.1 boolean coercion (`on` / `off` / `yes` / `no`), and frontmatter exceeding 4 KB. Frontmatter fields outside the recognized allow-list (Caspian core fields + agentskills.io canonical fields + Claude Code overlay fields + `x-*` extensions + `<vendor>:<name>` namespaced fields) are emitted as **warnings**, not errors, consistent with NFR16 graceful degradation and FR13 extensible-registry behavior.
 - **FR13**: A plugin author can use vendor or author-namespaced types (e.g. `bmad:persona`) and receive validator warnings rather than rejections on unregistered types (extensible-registry behavior).
 - **FR14**: A plugin author's artifacts are checked against canonical JSON Schema (Draft 2020-12) references that serve as single source of truth for every validation layer.
 

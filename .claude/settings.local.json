@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/Cyril/.claude/**)"
+      "Read(//c/Users/Cyril/.claude/**)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ]
   }
 }
