@@ -1,6 +1,6 @@
 # Story 1.6: Canonical fixture set (valid + invalid)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -165,6 +165,17 @@ The listed `code` value(s) MUST match the directory's intended diagnostic — e.
   - [x] Update File List in this story file with all new and modified files, paths relative to the repository root.
   - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: transition `1-6-canonical-fixture-set-valid-invalid` from `in-progress` to `review` (this happens in dev-story Step 9 — included here for traceability; create-story has already moved it from `backlog` to `ready-for-dev`).
   - [x] Append the Deferred-Work entries listed in *Deferred Work* below (the 7 vocabulary docs whose `coming soon — Story 1.6` annotations Story 1.6 does NOT resolve, plus the AC12 biome-glob-tightening item if the dev took the *Preferred* branch).
+
+### Review Findings
+
+- [x] [Review][Decision] `vendor-namespaced.md` W001 exemption for `<vendor>:<field-name>` not in `core.md` — resolved: moved to `invalid/W001-unknown-field/vendor-namespaced.md` with `"line":3` expected; `valid/overlay-compat/` now has 2 files (AC6 deviation justified by incorrect AC premise) [`caspian/fixtures/invalid/W001-unknown-field/vendor-namespaced.md`]
+- [x] [Review][Patch] E007 fixture triggers secondary W001 — replaced `enabled: yes` with `user-invocable: yes` [`caspian/fixtures/invalid/E007-unquoted-bool/yes-as-string.md:3`]
+- [x] [Review][Defer] Line-number convention for file-level stage-1/stage-2 rejections — E002 `"line":1` but first invalid byte (0x91) is at line 3; E004 `"line":1` but oversized content starts at line 3; already deferred to Story 2.6 authoritative line-number reconciliation (story Deferred Work item 5) — deferred, pre-existing [`caspian/fixtures/invalid/E002-encoding/non-utf8.expected.json`, `caspian/fixtures/invalid/E004-oversized/over-4kb.expected.json`]
+- [x] [Review][Defer] E008 `"line":1` anchor convention for absent-field diagnostics not documented in AC9 contract — actionable at Epic 2 validator implementation — deferred, pre-existing [`caspian/fixtures/invalid/E008-type-missing/no-type.expected.json`]
+- [x] [Review][Defer] No fixture for `type: ""` (empty type string) — E008 registry message says "missing or empty" but the empty-string case is untested; out of scope Story 1.6 — deferred, pre-existing
+- [x] [Review][Defer] No fixture for `requires: []` (empty array) — schema has no `minItems`, behavioral edge case for downstream tooling; out of scope Story 1.6 — deferred, pre-existing
+- [x] [Review][Defer] No fixture for scalar non-string `requires` entry (e.g. `requires: [42]`) — gap in invalid coverage; out of scope Story 1.6 — deferred, pre-existing
+- [x] [Review][Defer] No fixture for zero-byte / whitespace-only file — edge case distinct from E005; out of scope Story 1.6 — deferred, pre-existing
 
 ## Dev Notes
 
