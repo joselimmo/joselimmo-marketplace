@@ -613,7 +613,7 @@ caspian/
 │   │   └── after/SKILL.md                     # +4 lines Caspian frontmatter
 │   └── ci-integration/                        # FR36
 │       ├── README.md
-│       └── github-actions-snippet.yml         # 3-line `npx caspian validate ./`
+│       └── github-actions-snippet.yml         # 3-line `npx @caspian-dev/cli validate ./`
 │
 ├── conformance/                               # vendor-neutral conformance test suite
 │   ├── README.md                              # how to run an arbitrary validator against the suite
@@ -625,11 +625,11 @@ caspian/
 │       └── ... (case per critical behavior; v1.0 ships ~17 cases mirroring the diagnostic codes)
 │
 ├── packages/                                  # NODE packages ONLY — vendor-neutral
-│   ├── core/                                  # @caspian/core — pure validation; consumed by cli (and v1.1 LSP/CI/runtime/install layers)
+│   ├── core/                                  # @caspian-dev/core — pure validation; consumed by @caspian-dev/cli (and v1.1 LSP/CI/runtime/install layers)
 │   │   ├── LICENSE                            # Apache-2.0 explicit
 │   │   ├── README.md                          # API surface, public exports, semver promise
 │   │   ├── CHANGELOG.md                       # core semver (governance header)
-│   │   ├── package.json                       # name="@caspian/core"; exports: { ".": "./dist/index.js", "./diagnostics": "./dist/diagnostics/index.js" }; engines.node=">=20.10"
+│   │   ├── package.json                       # name="@caspian-dev/core"; exports: { ".": "./dist/index.js", "./diagnostics": "./dist/diagnostics/index.js" }; engines.node=">=22.13"; publishConfig.access="public"
 │   │   ├── tsconfig.json                      # extends ../../tsconfig.base.json; rootDirs: ["./src"] (no .. ascent — D3 verrou 1)
 │   │   ├── vitest.config.ts                   # cwd-stable test config (uses import.meta.url)
 │   │   ├── src/
@@ -660,11 +660,11 @@ caspian/
 │   │   │   └── verify-codes-hash.ts           # CI: re-hashes registry.json and compares to header in codes.generated.ts; fails on mismatch
 │   │   └── dist/                              # gitignored; tsc + copy-schemas output
 │   │
-│   └── cli/                                   # caspian — npm CLI wrapper around @caspian/core
+│   └── cli/                                   # @caspian-dev/cli — npm CLI wrapper around @caspian-dev/core (binary in PATH = `caspian`)
 │       ├── LICENSE                            # Apache-2.0 explicit
 │       ├── README.md                          # install, validate <path>, exit codes, --format=json
 │       ├── CHANGELOG.md                       # cli semver (governance header: "decoupled from core; stable CLI surface")
-│       ├── package.json                       # name="caspian"; bin={"caspian":"./dist/cli.js"}; deps: @caspian/core (workspace:^), commander, fast-glob, chalk; engines.node=">=20.10"; caspian.supportedSchemaVersions=["0.1"]; files: ["dist/", "README.md", "CHANGELOG.md", "LICENSE"]
+│       ├── package.json                       # name="@caspian-dev/cli"; bin={"caspian":"./dist/cli.js"} (binary preserves caspian brand post-install); deps: @caspian-dev/core (workspace:^), commander, fast-glob, chalk; engines.node=">=22.13"; caspian.supportedSchemaVersions=["0.1"]; files: ["dist/", "README.md", "CHANGELOG.md", "LICENSE"]; publishConfig.access="public" (required for scoped packages)
 │       ├── tsconfig.json                      # extends base; rootDirs: ["./src"]
 │       ├── vitest.config.ts
 │       ├── .dependency-cruiser.cjs            # forbidden imports rule (no @anthropic-ai/* or @claude/*)
@@ -716,7 +716,7 @@ caspian/
 
 1. **Source-level** — `packages/cli/.dependency-cruiser.cjs` declares a `forbidden` rule: `from: ^packages/(core|cli)/src` to `^node_modules/(@anthropic-ai|@claude)`. Catches direct, transitive, type-only, and statically-resolvable dynamic imports. Runs in CI as `pnpm depcruise`.
 2. **Lockfile-level** — CI step `pnpm ls --prod --depth=Infinity --json | jq` checks no resolved dependency name in `packages/core` or `packages/cli` matches `claude` or `anthropic`. Catches transitives that bypass dep-cruiser.
-3. **Runtime-level** — release gate: `docker run --rm -v $(pwd):/work node:20-alpine sh -c "cd /work && npx caspian validate ./fixtures/valid/"` passes on a vanilla Linux container with no Claude Code installed. The execution proof.
+3. **Runtime-level** — release gate: `docker run --rm -v $(pwd):/work node:22-alpine sh -c "cd /work && npx @caspian-dev/cli validate ./fixtures/valid/"` passes on a vanilla Linux container with no Claude Code installed. The execution proof.
 
 The grep approach is rejected; it provides false confidence on transitive deps and type-only imports.
 
@@ -753,7 +753,7 @@ The grep approach is rejected; it provides false confidence on transitive deps a
 
 > Caspian publishes 1 coordinated release per semver tag from the monorepo. The tag triggers `release.yml` which runs changesets to compose CHANGELOGs, then publishes the npm packages with provenance. This single release fans out to 3 downstream consumer surfaces:
 >
-> - **npm registry** (primary artifact): `@caspian/core` + `caspian` (CLI wrapper).
+> - **npm registry** (primary artifact): `@caspian-dev/core` + `@caspian-dev/cli` (binary in PATH = `caspian`).
 > - **Anthropic plugin marketplace** (downstream): `plugins/casper-core/` packaged and submitted; the manifest declares the target `schema_version`.
 > - **caspian.dev** (downstream): `site/dist/` regenerated from `diagnostics/registry.json` and `spec/` content; deployed to GitHub Pages.
 >
@@ -773,7 +773,7 @@ The earlier "3 channels independent" framing is rejected as misleading.
 
 **Governance & Evolution** (FR23–FR27) → `spec/CONTRIBUTING.md` + `spec/proposals/TEMPLATE.md` + `spec/CHANGELOG.md` + `CONTRIBUTORS.md` (auto-maintained by changesets) + `CODE_OF_CONDUCT.md`.
 
-**Distribution & Discoverability** (FR28–FR32) → root `LICENSE` + `LICENSE-CC-BY-4.0` (FR28) + `packages/cli/package.json` (FR29) + `plugins/casper-core/plugin.json` (FR30) + `site/src/index.html` (FR31) + `site/build.mjs` (FR32).
+**Distribution & Discoverability** (FR28–FR32) → root `LICENSE` + `LICENSE-CC-BY-4.0` (FR28) + `packages/cli/package.json` `name="@caspian-dev/cli"` (FR29 — pivoted from unscoped `caspian`, see Epic 1 retro AI-3) + `plugins/casper-core/plugin.json` (FR30) + `site/src/index.html` (FR31) + `site/build.mjs` (FR32).
 
 **Developer Onboarding & Documentation** (FR33–FR38) → `spec/README.md` (FR33) + `spec/vocabulary/*.md` (FR34) + `examples/minimal-skill-adoption/` (FR35) + `examples/ci-integration/` (FR36) + `plugins/casper-core/README.md` (FR37) + `fixtures/**` (FR38).
 
@@ -870,8 +870,8 @@ pnpm build                            # tsc + copy-schemas across all packages
 **Iteration**:
 
 ```bash
-pnpm --filter @caspian/core dev       # tsc --watch + vitest --watch
-pnpm --filter caspian dev             # tsc --watch + vitest --watch (depends on @caspian/core via workspace:^)
+pnpm --filter @caspian-dev/core dev       # tsc --watch + vitest --watch
+pnpm --filter @caspian-dev/cli dev        # tsc --watch + vitest --watch (depends on @caspian-dev/core via workspace:^)
 pnpm --filter site build              # node build.mjs
 pnpm conformance                      # ./conformance/runner.mjs against packages/cli/dist/cli.js
 ```
@@ -894,16 +894,16 @@ pnpm conformance                      # ./conformance/runner.mjs against package
 1. `changesets version` composes CHANGELOGs across packages
 2. `pnpm install --frozen-lockfile`
 3. `pnpm build`
-4. `pnpm publish -r --provenance` (publishes `@caspian/core` then `caspian`)
+4. `pnpm publish -r --provenance` (publishes `@caspian-dev/core` then `@caspian-dev/cli`)
 5. `git push --tags`
 6. Triggers `site.yml` for GH Pages redeployment.
 
 **Implementation sequence (Story-by-Story, revised for core+cli split + conformance + plugins)**:
 
-1. **Story-001: Monorepo scaffold** — pnpm workspaces, root configs (biome, tsconfig.base, .changeset, .gitignore, .gitattributes, .editorconfig), `packages/core` skeleton with `package.json` + `tsconfig.json` + minimal `src/index.ts`, `packages/cli` skeleton consuming `@caspian/core` via `workspace:^`, schemas/v1/envelope.schema.json minimal version, one valid + one invalid fixture, `caspian validate <single-file>` returning exit 0/1, CI green (lint + test + dep-cruise).
+1. **Story-001: Monorepo scaffold** — pnpm workspaces, root configs (biome, tsconfig.base, .changeset, .gitignore, .gitattributes, .editorconfig), `packages/core` skeleton with `package.json` + `tsconfig.json` + minimal `src/index.ts`, `packages/cli` skeleton consuming `@caspian-dev/core` via `workspace:^`, schemas/v1/envelope.schema.json minimal version, one valid + one invalid fixture, `caspian validate <single-file>` returning exit 0/1, CI green (lint + test + dep-cruise).
 2. **Story-002: Diagnostic registry + safeguards** — `diagnostics/registry.json` with all 17 codes, `schemas/v1/diagnostic-registry.schema.json`, `gen-diagnostic-codes.ts` with sha256 header, `verify-codes-hash.ts`, `.gitattributes`, pre-commit hook configured.
-3. **Story-003: Pipeline stages 1–3 in `@caspian/core`** — byte-level + frontmatter extraction + YAML parse + post-parse unquoted-bool scan, with fixture coverage E001–E007.
-4. **Story-004: Pipeline stages 4–6 in `@caspian/core`** — envelope schema validation + namespace check + allow-list scan, fixture coverage E008–E014, W001–W003.
+3. **Story-003: Pipeline stages 1–3 in `@caspian-dev/core`** — byte-level + frontmatter extraction + YAML parse + post-parse unquoted-bool scan, with fixture coverage E001–E007.
+4. **Story-004: Pipeline stages 4–6 in `@caspian-dev/core`** — envelope schema validation + namespace check + allow-list scan, fixture coverage E008–E014, W001–W003.
 5. **Story-005: CLI walker + multi-file** — `packages/cli/src/walker.ts`, `packages/cli/src/output/human.ts`, summary footer, integration tests.
 6. **Story-006: `--format=json` + B4 stable schema** — `packages/cli/src/output/json.ts`, golden snapshot tests, `published-files.snapshot.json` baseline + `verify-pack.ts`.
 7. **Story-007: casper-core plugin** — `plugins/casper-core/{plugin.json, commands/*.md, README.md}` declaring typed `requires`/`produces`, override-pattern documented per Journey 3.
@@ -941,7 +941,7 @@ pnpm conformance                      # ./conformance/runner.mjs against package
 | Reference Workflow casper-core | FR15–FR19 | `plugins/casper-core/commands/{init-project,discover,plan-story}.md` |
 | Plugin Composition & Overrides | FR20–FR22 | Documented in `plugins/casper-core/README.md`; relies on Claude Code's native skill-override behavior |
 | Governance & Evolution | FR23–FR27 | `spec/CONTRIBUTING.md` + `spec/proposals/TEMPLATE.md` + `spec/CHANGELOG.md` (governance header) + `CONTRIBUTORS.md` (auto-maintained by changesets) + BACKWARD_TRANSITIVE policy in `spec/core.md` |
-| Distribution & Discoverability | FR28–FR32 | Root `LICENSE` + `LICENSE-CC-BY-4.0` (FR28) + `packages/cli/package.json` `name="caspian"` (FR29) + `plugins/casper-core/plugin.json` (FR30) + `site/src/index.html` 4-CTA hub (FR31) + `site/build.mjs` stable anchor IDs (FR32) |
+| Distribution & Discoverability | FR28–FR32 | Root `LICENSE` + `LICENSE-CC-BY-4.0` (FR28) + `packages/cli/package.json` `name="@caspian-dev/cli"` (FR29 — pivoted from unscoped `caspian`, see Epic 1 retro AI-3) + `plugins/casper-core/plugin.json` (FR30) + `site/src/index.html` 4-CTA hub (FR31) + `site/build.mjs` stable anchor IDs (FR32) |
 | Developer Onboarding | FR33–FR38 | `spec/README.md` (FR33) + `spec/vocabulary/*.md` (FR34) + `examples/minimal-skill-adoption/` (FR35) + `examples/ci-integration/` (FR36) + `plugins/casper-core/README.md` (FR37) + `fixtures/**` (FR38) |
 
 **Non-Functional Requirements — 24/24 covered.**

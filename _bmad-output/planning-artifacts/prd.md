@@ -355,9 +355,9 @@ Sections `visual_design` and `store_compliance` are skipped per CSV (not applica
 
 - **Spec consumption** — browse `caspian.dev` for the human-readable entry point; clone the GitHub repo for full normative sources (prose, schemas, fixtures); reference the JSON Schemas by URL in v1.1 once the JSON Schema Store PR lands.
 - **CLI validator**
-  - `npm install -g caspian` — global install for interactive use.
-  - `npx caspian validate <path>` — zero-install usage for CI.
-  - `uses: caspian/validate-action@v1` — reusable GitHub Action (v1.1 deliverable; v1.0 users wire `npx caspian` manually).
+  - `npm install -g @caspian-dev/cli` — global install for interactive use; the binary in PATH is `caspian`.
+  - `npx @caspian-dev/cli validate <path>` — zero-install usage for CI.
+  - `uses: caspian-dev/validate-action@v1` — reusable GitHub Action (v1.1 deliverable; v1.0 users wire `npx @caspian-dev/cli` manually).
 - **casper-core plugin**
   - From Claude Code: `/plugin install casper-core@anthropic-marketplace` (assumes marketplace acceptance — strategic goal, not a formal gate).
   - Local development: `/plugin install ./path/to/casper-core`.
@@ -403,7 +403,7 @@ Agent-Skills-compatible — every Anthropic SKILL.md field remains valid. `x-*` 
 - **Minimal skill adopting Caspian Core** — a four-line frontmatter delta (`schema_version`, `type`, `requires`, `produces`) added to an existing Anthropic SKILL.md. Shipped in `spec/examples/minimal-skill-adoption/`.
 - **Full casper-core chain** — the reference plugin is itself the canonical end-to-end example.
 - **Canonical fixture set** — shipped with the `caspian` CLI as `fixtures/valid/*` and `fixtures/invalid/*`. Used for CLI regression testing; doubles as a reading reference.
-- **CI integration snippet** — three-line GitHub Actions step calling `npx caspian validate ./` shipped in `spec/examples/ci-integration/`.
+- **CI integration snippet** — three-line GitHub Actions step calling `npx @caspian-dev/cli validate ./` shipped in `examples/ci-integration/`.
 
 ### Migration Guide
 
@@ -472,7 +472,7 @@ Scope-adjacent risks not already captured in the Innovation / Risk Mitigation se
 **Technical risks**
 
 - *Scope risk: `caspian` CLI performance regressions on large codebases.* Mitigation — `caspian validate` is I/O-bound and per-file; shipping a profile benchmark in v1.0 on a 1 000-file synthetic repo sets a baseline. Not a v1.0 release gate unless a real user reports an issue during internal dogfooding.
-- *Scope risk: cross-platform CLI packaging (Windows, Mac, Linux).* Mitigation — ship as a Node package (`npm install -g caspian`). Cross-platform is Node's problem, not ours. A `pkg`-style bundled binary is deferred to post-v1.0 if zero-Node-install usage emerges as a demand.
+- *Scope risk: cross-platform CLI packaging (Windows, Mac, Linux).* Mitigation — ship as a Node package (`npm install -g @caspian-dev/cli`). Cross-platform is Node's problem, not ours. A `pkg`-style bundled binary is deferred to post-v1.0 if zero-Node-install usage emerges as a demand.
 
 **Market risks**
 
@@ -544,7 +544,7 @@ The capability contract. Every feature shipped in v1.0 must trace back to a line
 ### Distribution & Discoverability
 
 - **FR28**: The Caspian spec is distributed as a GitHub repository containing prose, JSON Schemas, canonical vocabulary docs, and fixture sets, under the stated licenses (CC-BY-4.0 for prose; Apache-2.0 for schemas and code).
-- **FR29**: The `caspian` CLI is distributed via npm under the unhyphenated `caspian` package name.
+- **FR29**: The Caspian CLI is distributed via npm as `@caspian-dev/cli` under the `caspian-dev` organization (mirroring the canonical domain `caspian.dev`). The unhyphenated `caspian` package name was unavailable at publication time (squat by an unrelated maintainer; see Epic 1 retrospective AI-3, 2026-04-27). The binary name in PATH after global install remains `caspian` (declared via the `bin` field in `package.json`), so post-install user experience reads `caspian validate <path>` unchanged.
 - **FR30**: The `casper-core` plugin is distributed via the official Anthropic plugin marketplace under the unhyphenated `casper` or `casper-core` name (marketplace acceptance is a strategic goal, not a formal release gate).
 - **FR31**: The `caspian.dev` website presents a single-page landing with the 30-second pitch, a 4-line frontmatter quickstart, and links to the spec GitHub repository, the CLI on npm, casper-core on the marketplace, CONTRIBUTING, and the RFC process.
 - **FR32**: The `caspian.dev` website provides stable anchor IDs per spec concept (`#schema-version`, `#type`, `#requires`, `#produces`, `#core-vocabulary`) that the CLI's diagnostic doc links consume.
@@ -554,7 +554,7 @@ The capability contract. Every feature shipped in v1.0 must trace back to a line
 - **FR33**: A plugin author can read the core spec (`spec/core.md`) in ten minutes or less and grasp the four-field contract.
 - **FR34**: A plugin author can consult a short rationale document for each canonical `core:*` type (`spec/vocabulary/<type>.md`) covering purpose, sources, and use boundaries.
 - **FR35**: A plugin author can run a minimal adoption example (`spec/examples/minimal-skill-adoption/`) demonstrating the 4-line frontmatter delta applied to an existing Anthropic SKILL.md.
-- **FR36**: A plugin author can copy a CI integration snippet (`spec/examples/ci-integration/`) that wires `npx caspian validate ./` into GitHub Actions in three YAML lines.
+- **FR36**: A plugin author can copy a CI integration snippet (`examples/ci-integration/`) that wires `npx @caspian-dev/cli validate ./` into GitHub Actions in three YAML lines.
 - **FR37**: A casper-core user can read a README that explains install, the three porcelain commands, the local-override pattern (Journey 3), and the explicit scope boundary ("v1.0 proof, not the full workflow").
 - **FR38**: A plugin author can inspect the canonical fixture set (`fixtures/valid/*`, `fixtures/invalid/*`) shipped with the CLI as a reading reference for "what the spec looks like in practice".
 

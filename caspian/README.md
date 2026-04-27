@@ -5,7 +5,7 @@ The Claude Code plugin ecosystem grew from zero to thousands of skills, agents, 
 ## Get Started in 30 Seconds
 
 - **Read the spec** — [`spec/`](./spec/) — *coming soon* (Stories 1.2–1.3, 5.1–5.2). The 4-field contract, canonical `core:*` vocabulary, governance and RFC process.
-- **Install the CLI** — [`packages/cli/`](./packages/cli/) — *coming soon* (Stories 2.1–2.8). `npm install -g caspian` then `caspian validate <path>` to gate your repo on Caspian conformance with zero Claude Code dependency.
+- **Install the CLI** — [`packages/cli/`](./packages/cli/) — *coming soon* (Stories 2.1–2.8). `npm install -g @caspian-dev/cli` (the binary in PATH is `caspian`) then `caspian validate <path>` to gate your repo on Caspian conformance with zero Claude Code dependency.
 - **Try the reference plugin** — [`plugins/casper-core/`](./plugins/casper-core/) — *coming soon* (Stories 3.1–3.5). `/plugin install casper-core@anthropic-marketplace` to demo the `/init-project` → `/discover` → `/plan-story` chain.
 - **Contribute via RFC** — [`spec/CONTRIBUTING.md`](./spec/CONTRIBUTING.md) — *coming soon* (Story 5.1). Fork, copy `spec/proposals/TEMPLATE.md`, fill the four mandated sections, open a PR.
 
@@ -23,8 +23,8 @@ caspian/
 ├── fixtures/              # Canonical valid + invalid artifact samples
 ├── examples/              # Author-readable walkthroughs
 ├── packages/
-│   ├── core/              # @caspian/core — vendor-neutral validation engine
-│   └── cli/               # caspian — Node CLI on npm
+│   ├── core/              # @caspian-dev/core — vendor-neutral validation engine
+│   └── cli/               # @caspian-dev/cli — Node CLI on npm (binary: caspian)
 ├── plugins/
 │   └── casper-core/       # Claude Code reference plugin
 ├── site/                  # caspian.dev landing site source

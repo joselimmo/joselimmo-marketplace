@@ -24,7 +24,7 @@ This document provides the complete epic and story breakdown for **Caspian + cas
 The product ships four artifacts in a single coordinated release:
 
 1. **Caspian Core spec** — prose, JSON Schemas, canonical `core:*` vocabulary, fixtures, diagnostic registry.
-2. **`@caspian/core` + `caspian` CLI** — vendor-neutral Node/TypeScript validator (no Claude Code dependency).
+2. **`@caspian-dev/core` + `@caspian-dev/cli`** — vendor-neutral Node/TypeScript validator (no Claude Code dependency); the binary in PATH after global install is named `caspian`.
 3. **`casper-core` reference plugin** — Claude Code plugin demonstrating the `requires → produces` chain end-to-end.
 4. **`caspian.dev` landing site** — static GitHub Pages site with stable per-concept anchor IDs consumed by CLI diagnostics.
 
@@ -79,7 +79,7 @@ No UX Design Specification was produced for v1.0 (the surfaces are CLI / spec pr
 #### Distribution & Discoverability
 
 - **FR28**: The Caspian spec is distributed as a GitHub repository containing prose, JSON Schemas, canonical vocabulary docs, and fixture sets, under the stated licenses (CC-BY-4.0 for prose; Apache-2.0 for schemas and code).
-- **FR29**: The `caspian` CLI is distributed via npm under the unhyphenated `caspian` package name.
+- **FR29**: The Caspian CLI is distributed via npm as `@caspian-dev/cli` under the `caspian-dev` organization (mirroring the canonical domain `caspian.dev`). The unhyphenated `caspian` package name was unavailable at publication time (squat by an unrelated maintainer; see Epic 1 retrospective AI-3, 2026-04-27). The binary name in PATH after global install remains `caspian` (declared via the `bin` field in `package.json`), so post-install user experience reads `caspian validate <path>` unchanged.
 - **FR30**: The `casper-core` plugin is distributed via the official Anthropic plugin marketplace under the unhyphenated `casper` or `casper-core` name (marketplace acceptance is a strategic goal, not a formal release gate).
 - **FR31**: The `caspian.dev` website presents a single-page landing with the 30-second pitch, a 4-line frontmatter quickstart, and links to the spec GitHub repository, the CLI on npm, casper-core on the marketplace, CONTRIBUTING, and the RFC process.
 - **FR32**: The `caspian.dev` website provides stable anchor IDs per spec concept (`#schema-version`, `#type`, `#requires`, `#produces`, `#core-vocabulary`) that the CLI's diagnostic doc links consume.
@@ -89,7 +89,7 @@ No UX Design Specification was produced for v1.0 (the surfaces are CLI / spec pr
 - **FR33**: A plugin author can read the core spec (`spec/core.md`) in ten minutes or less and grasp the four-field contract.
 - **FR34**: A plugin author can consult a short rationale document for each canonical `core:*` type (`spec/vocabulary/<type>.md`) covering purpose, sources, and use boundaries.
 - **FR35**: A plugin author can run a minimal adoption example (`spec/examples/minimal-skill-adoption/`) demonstrating the 4-line frontmatter delta applied to an existing Anthropic SKILL.md.
-- **FR36**: A plugin author can copy a CI integration snippet (`spec/examples/ci-integration/`) that wires `npx caspian validate ./` into GitHub Actions in three YAML lines.
+- **FR36**: A plugin author can copy a CI integration snippet (`examples/ci-integration/`) that wires `npx @caspian-dev/cli validate ./` into GitHub Actions in three YAML lines.
 - **FR37**: A casper-core user can read a README that explains install, the three porcelain commands, the local-override pattern (Journey 3), and the explicit scope boundary ("v1.0 proof, not the full workflow").
 - **FR38**: A plugin author can inspect the canonical fixture set (`fixtures/valid/*`, `fixtures/invalid/*`) shipped with the CLI as a reading reference for "what the spec looks like in practice".
 
@@ -148,7 +148,7 @@ Architecture-driven technical requirements (sourced from `architecture.md`) that
 
 #### Monorepo Layout & Tooling
 
-- **pnpm workspaces alone** — no `turbo`, no `nx`. Three packages (`@caspian/core`, `caspian`, plugin) at v1.0 do not justify build-graph caching tooling.
+- **pnpm workspaces alone** — no `turbo`, no `nx`. Three packages (`@caspian-dev/core`, `@caspian-dev/cli`, plugin) at v1.0 do not justify build-graph caching tooling.
 - **TypeScript 5.x** — `module: "nodenext"`, `target: "ES2022"`, `strict: true`. Single root `tsconfig.base.json` extended by each package's `tsconfig.json`.
 - **Node engine** — `engines.node = ">=20.10"` declared in every published `package.json` (Node 20 LTS minimum).
 - **Build** — `tsc` only for the CLI/core packages (no bundler in v1.0); hand-written `site/build.mjs` for the static landing.
@@ -197,20 +197,20 @@ Architecture-driven technical requirements (sourced from `architecture.md`) that
 
 1. **Source-level** — `packages/cli/.dependency-cruiser.cjs` `forbidden` rule: `from: ^packages/(core|cli)/src` to `^node_modules/(@anthropic-ai|@claude)`. Catches direct, transitive, type-only, and statically-resolvable dynamic imports. CI step: `pnpm depcruise`.
 2. **Lockfile-level** — CI step `pnpm ls --prod --depth=Infinity --json | jq` checks no resolved dependency name in `packages/core` or `packages/cli` matches `claude` or `anthropic`. Catches transitives that bypass dep-cruiser.
-3. **Runtime-level (release gate)** — `docker run --rm -v $(pwd):/work node:20-alpine sh -c "cd /work && npx caspian validate ./fixtures/valid/"` passes on a vanilla Linux container with no Claude Code installed. Execution proof.
+3. **Runtime-level (release gate)** — `docker run --rm -v $(pwd):/work node:22-alpine sh -c "cd /work && npx @caspian-dev/cli validate ./fixtures/valid/"` passes on a vanilla Linux container with no Claude Code installed. Execution proof.
 
 #### Distribution & Release
 
-- **CLI ↔ spec semver decoupled** — CLI declares `caspian.supportedSchemaVersions` in `packages/cli/package.json`; v1.0 ships CLI `0.1.0` + spec `schema_version: "0.1"`.
+- **CLI ↔ spec semver decoupled** — CLI declares `caspian.supportedSchemaVersions` in `packages/cli/package.json` (the custom `caspian.*` namespace key is preserved verbatim — it identifies the spec compatibility surface, not the npm package name); v1.0 ships CLI `0.1.0` + spec `schema_version: "0.1"`.
 - **1 coordinated release → 3 downstream surfaces** — single git tag drives:
-  - npm: `@caspian/core` + `caspian` published with `pnpm publish --provenance` via GitHub Actions OIDC (Sigstore-backed).
+  - npm: `@caspian-dev/core` + `@caspian-dev/cli` published with `pnpm publish --provenance` via GitHub Actions OIDC (Sigstore-backed).
   - Anthropic plugin marketplace: `plugins/casper-core/` packaged and submitted; `plugin.json` declares the target `schema_version`. **Manual submission in v1.0** (not automated).
   - GitHub Pages (`caspian.dev`): `site/dist/` regenerated from `diagnostics/registry.json` + `spec/` and pushed.
 - **CI matrix** — Node 20 LTS + Node 22, `ubuntu-latest` only for v1.0. macOS / Windows added in v1.1 if user demand emerges.
 
 #### Surface Isolation & License Boundaries
 
-- **`packages/`** — Node packages only (`@caspian/core`, `caspian`); vendor-neutral.
+- **`packages/`** — Node packages only (`@caspian-dev/core`, `@caspian-dev/cli`); vendor-neutral.
 - **`plugins/`** — vendor-specific integrations; `plugins/casper-core/` is the entire Claude-Code-bound surface (markdown + manifest, no Node code).
 - **License layout** — root `LICENSE` Apache-2.0; `spec/LICENSE.md` CC-BY-4.0 override; `site/LICENSE.md` dual statement; every sub-package re-declares its Apache-2.0 LICENSE explicitly so isolated consumers see it unambiguously.
 
@@ -294,7 +294,7 @@ If a UX spec is produced for v1.1 (casper-full + JSON Schema Store + CI Action +
 | FR26 | Epic 5 | Merged RFCs → CHANGELOG + CONTRIBUTORS |
 | FR27 | Epic 1 + Epic 5 | BACKWARD_TRANSITIVE — codified in spec (Epic 1) + enforced at review (Epic 5) |
 | FR28 | Epic 1 | GitHub repo + dual-licensing layout (Apache-2.0 / CC-BY-4.0) |
-| FR29 | Epic 2 | npm distribution under `caspian` package name |
+| FR29 | Epic 2 | npm distribution under `@caspian-dev/cli` (binary in PATH = `caspian`) |
 | FR30 | Epic 3 | Anthropic plugin marketplace distribution |
 | FR31 | Epic 4 | `caspian.dev` single-page landing |
 | FR32 | Epic 4 | Stable anchor IDs per spec concept |
@@ -325,7 +325,7 @@ If a UX spec is produced for v1.1 (casper-full + JSON Schema Store + CI Action +
 
 ### Epic 2: CLI Validator & CI Integration
 
-**User outcome:** A plugin author installs `caspian` from npm, runs `caspian validate <path>` locally on a file / directory / glob, gets human-readable diagnostics with edit-distance suggestions and stable doc links, gates their CI on conformance via the `--format=json` output and exit codes, and trusts the validator runs identically on any vanilla Node ≥20 machine without Claude Code installed. Cross-implementation parity is provable via the conformance suite.
+**User outcome:** A plugin author installs `@caspian-dev/cli` from npm (the binary in PATH is `caspian`), runs `caspian validate <path>` locally on a file / directory / glob, gets human-readable diagnostics with edit-distance suggestions and stable doc links, gates their CI on conformance via the `--format=json` output and exit codes, and trusts the validator runs identically on any vanilla Node ≥22 machine without Claude Code installed. Cross-implementation parity is provable via the conformance suite.
 
 **FRs covered:** FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR29, FR36.
 
@@ -333,7 +333,7 @@ If a UX spec is produced for v1.1 (casper-full + JSON Schema Store + CI Action +
 
 **Standalone:** Depends on Epic 1's schemas + diagnostic registry + fixtures. Independent of Epic 3 (casper-core) and Epic 4 (caspian.dev). Per PRD: *"the CLI is useful without casper-core"*.
 
-**Implementation notes:** Implements the 6-stage validation pipeline (T1.5 scope). Ships `@caspian/core` (validation logic) + `caspian` CLI wrapper. Includes the conformance suite (`conformance/runner.mjs` + cases mirroring the 17 codes 1:1). Enforces vendor-neutrality through three layers: `dependency-cruiser` source-level rules + lockfile audit + docker container release gate. The CLI emits doc URLs to `caspian.dev/diagnostics#caspian-eXXX` (URL strings ship even before Epic 4 lands the page). Publishes via `pnpm publish --provenance` through GitHub Actions OIDC (Sigstore-backed).
+**Implementation notes:** Implements the 6-stage validation pipeline (T1.5 scope). Ships `@caspian-dev/core` (validation logic) + `caspian` CLI wrapper. Includes the conformance suite (`conformance/runner.mjs` + cases mirroring the 17 codes 1:1). Enforces vendor-neutrality through three layers: `dependency-cruiser` source-level rules + lockfile audit + docker container release gate. The CLI emits doc URLs to `caspian.dev/diagnostics#caspian-eXXX` (URL strings ship even before Epic 4 lands the page). Publishes via `pnpm publish --provenance` through GitHub Actions OIDC (Sigstore-backed).
 
 ---
 
@@ -687,19 +687,19 @@ So that I see exactly what changes when I adopt Caspian and verify it's overlay-
 
 ## Epic 2: CLI Validator & CI Integration
 
-A plugin author installs `caspian` from npm, runs `caspian validate <path>` locally on a file / directory / glob, gets human-readable diagnostics with edit-distance suggestions and stable doc links, gates their CI on conformance via the `--format=json` output and exit codes, and trusts the validator runs identically on any vanilla Node ≥20 machine without Claude Code installed. Cross-implementation parity is provable via the conformance suite.
+A plugin author installs `@caspian-dev/cli` from npm (the binary in PATH is `caspian`), runs `caspian validate <path>` locally on a file / directory / glob, gets human-readable diagnostics with edit-distance suggestions and stable doc links, gates their CI on conformance via the `--format=json` output and exit codes, and trusts the validator runs identically on any vanilla Node ≥22 machine without Claude Code installed. Cross-implementation parity is provable via the conformance suite.
 
-### Story 2.1: `@caspian/core` skeleton + envelope schema integration (loader.ts)
+### Story 2.1: `@caspian-dev/core` skeleton + envelope schema integration (loader.ts)
 
 As a CLI implementer (or future alternative-host implementer of Caspian validation),
-I want a vendor-neutral `@caspian/core` package with a single canonical schema-loading entry point,
+I want a vendor-neutral `@caspian-dev/core` package with a single canonical schema-loading entry point,
 So that all validation layers share one bundled schema source and the single-source-of-truth invariant is mechanically enforced.
 
 **Acceptance Criteria:**
 
 **Given** the package layout
 **When** I open `packages/core/package.json`
-**Then** `name = "@caspian/core"`, `engines.node = ">=20.10"`
+**Then** `name = "@caspian-dev/core"`, `engines.node = ">=22.13"`
 **And** `exports` declares `{ ".": "./dist/index.js", "./diagnostics": "./dist/diagnostics/index.js" }`
 **And** the `files` array is restrictive (publishes only `dist/`, `README.md`, `CHANGELOG.md`, `LICENSE`)
 **And** `LICENSE` (Apache-2.0 explicit) is present at `packages/core/LICENSE`
@@ -723,7 +723,7 @@ So that all validation layers share one bundled schema source and the single-sou
 **And** `loader.ts` provides an `import.meta.url`-based fallback to repo-root `schemas/v1/` for dev mode
 
 **Given** schema bundling at build time
-**When** I run `pnpm build` (or `pnpm --filter @caspian/core build`)
+**When** I run `pnpm build` (or `pnpm --filter @caspian-dev/core build`)
 **Then** `packages/core/scripts/copy-schemas.ts` copies `schemas/v1/**/*.json` into `packages/core/dist/schemas/v1/`
 **And** the bundled schemas are loaded at runtime without any network call (NFR6, no remote schema fetching)
 
@@ -787,7 +787,7 @@ So that the codes I reference in source code can never silently drift from `diag
 **Then** the file exports a `Reporter` interface (concrete formatters live in `packages/cli`, not in core)
 
 **Given** the diagnostics sub-export
-**When** I import from `@caspian/core/diagnostics` in another package
+**When** I import from `@caspian-dev/core/diagnostics` in another package
 **Then** I can reference `CASPIAN_E001`, `CASPIAN_W001`, etc., as typed constants
 **And** I cannot edit `codes.generated.ts` by hand without breaking the hash check
 
@@ -798,7 +798,7 @@ So that the codes I reference in source code can never silently drift from `diag
 
 ---
 
-### Story 2.3: Pipeline stages 1–3 in `@caspian/core` (byte-level + frontmatter extraction + YAML parse)
+### Story 2.3: Pipeline stages 1–3 in `@caspian-dev/core` (byte-level + frontmatter extraction + YAML parse)
 
 As a plugin author,
 I want the validator to detect encoding, BOM, frontmatter-extraction, and YAML-parse failures with stable diagnostic codes,
@@ -857,7 +857,7 @@ So that syntactically invalid artifacts fail fast with a clear, machine-stable e
 
 ---
 
-### Story 2.4: Pipeline stages 4–6 in `@caspian/core` (envelope + namespace + allow-list)
+### Story 2.4: Pipeline stages 4–6 in `@caspian-dev/core` (envelope + namespace + allow-list)
 
 As a plugin author,
 I want the validator to enforce envelope shape, warn on non-`core:*` types and unknown fields, and offer edit-distance suggestions,
@@ -916,7 +916,7 @@ So that I get strict-but-friendly feedback that matches the FR12 (warn on out-of
 
 ---
 
-### Story 2.5: `caspian` CLI package — walker + multi-file aggregation + human formatter
+### Story 2.5: `@caspian-dev/cli` package (caspian binary) — walker + multi-file aggregation + human formatter
 
 As a plugin author,
 I want a `caspian validate <path>` CLI that accepts file/directory/glob inputs and prints clear human-readable diagnostics with file/line/code/message/doc-URL,
@@ -931,7 +931,7 @@ So that I can validate my project locally with a single command and read the out
 **Given** a directory
 **When** I run `caspian validate ./fixtures/valid/`
 **Then** the CLI walks the directory recursively for `*.md` files via `fast-glob`
-**And** every matched file is validated through `@caspian/core`'s `validateFile()`
+**And** every matched file is validated through `@caspian-dev/core`'s `validateFile()`
 
 **Given** a glob pattern
 **When** I run `caspian validate '**/*.md'`
@@ -974,8 +974,8 @@ So that I can validate my project locally with a single command and read the out
 
 **Given** the package metadata
 **When** I open `packages/cli/package.json`
-**Then** `name = "caspian"`, `bin = {"caspian": "./dist/cli.js"}`, `engines.node = ">=20.10"`
-**And** dependencies are `@caspian/core` (workspace:^), `commander` (~v12), `fast-glob`, `chalk`
+**Then** `name = "@caspian-dev/cli"`, `bin = {"caspian": "./dist/cli.js"}` (binary name preserved), `engines.node = ">=22.13"`
+**And** dependencies are `@caspian-dev/core` (workspace:^), `commander` (~v12), `fast-glob`, `chalk`
 **And** dev dependencies include `vitest` for integration tests
 
 ---
@@ -1073,7 +1073,7 @@ So that *"the validator is portable"* is a mechanically provable invariant, not 
 **And** this layer catches transitive dependencies that the source-level cruiser cannot see
 
 **Given** vendor-neutrality enforcement layer 3 (runtime release gate)
-**When** the release pipeline runs `docker run --rm -v $(pwd):/work node:20-alpine sh -c "cd /work && npx caspian validate ./fixtures/valid/"`
+**When** the release pipeline runs `docker run --rm -v $(pwd):/work node:22-alpine sh -c "cd /work && npx @caspian-dev/cli validate ./fixtures/valid/"`
 **Then** the validator exits `0` on a vanilla Linux container with no Claude Code installed
 **And** this docker step is blocking on the `release.yml` workflow before publish
 
@@ -1097,34 +1097,35 @@ So that I can gate my repo's PRs on Caspian conformance in under five minutes (F
 **Then** the workflow triggers on PR merge to `main` after `changesets` composes the release PR
 **And** the workflow runs `pnpm install --frozen-lockfile`, `pnpm build`, then `pnpm publish -r --provenance`
 **And** the publish uses GitHub Actions OIDC tokens (no long-lived npm tokens stored)
-**And** Sigstore-backed provenance attestations are generated for `@caspian/core` and `caspian` (the CLI wrapper)
+**And** Sigstore-backed provenance attestations are generated for `@caspian-dev/core` and `@caspian-dev/cli`
 
 **Given** the post-publish verification
-**When** I run `npm view caspian@<published-version>` after a release
+**When** I run `npm view @caspian-dev/cli@<published-version>` after a release
 **Then** the registry lists the package with `provenance` attestations visible
-**And** `npm view caspian@<version> dist.signatures` confirms Sigstore signing
+**And** `npm view @caspian-dev/cli@<version> dist.signatures` confirms Sigstore signing
 
 **Given** the CLI package metadata
 **When** I open `packages/cli/package.json`
-**Then** `name = "caspian"` (unhyphenated, matching FR29)
-**And** `bin = {"caspian": "./dist/cli.js"}`
-**And** `engines.node = ">=20.10"`
-**And** `caspian.supportedSchemaVersions = ["0.1"]`
+**Then** `name = "@caspian-dev/cli"` (scoped, matching FR29 — the unhyphenated `caspian` name was unavailable on npm)
+**And** `bin = {"caspian": "./dist/cli.js"}` (binary in PATH preserves the `caspian` brand post-install)
+**And** `engines.node = ">=22.13"`
+**And** `caspian.supportedSchemaVersions = ["0.1"]` (custom `caspian.*` namespace key preserved verbatim — identifies spec compatibility, not the npm package name)
 **And** `files = ["dist/", "README.md", "CHANGELOG.md", "LICENSE"]` (restrictive — no source, no tests, no scripts shipped)
+**And** `publishConfig = { "access": "public" }` (required for scoped packages on npm to publish publicly)
 
 **Given** the CI integration snippet
 **When** I open `examples/ci-integration/github-actions-snippet.yml`
 **Then** the file is a valid GitHub Actions workflow snippet
-**And** the validation step is exactly three YAML lines (excluding setup/checkout boilerplate): `- name: Validate Caspian frontmatter`, `  run: npx caspian validate ./skills/`, `  shell: bash` (or equivalent minimal form)
+**And** the validation step is exactly three YAML lines (excluding setup/checkout boilerplate): `- name: Validate Caspian frontmatter`, `  run: npx @caspian-dev/cli validate ./skills/`, `  shell: bash` (or equivalent minimal form)
 
 **Given** the snippet README
 **When** I open `examples/ci-integration/README.md`
-**Then** the README explains: install Node ≥20 in CI, run `npx caspian validate ./<path>/`, fail PR on non-zero exit
-**And** the README documents the optional strict-warnings gate via `npx caspian validate --format=json ./skills/ | jq -e '.summary.errors == 0 and .summary.warnings == 0'` (PRD Journey 6 reference)
+**Then** the README explains: install Node ≥22 in CI, run `npx @caspian-dev/cli validate ./<path>/`, fail PR on non-zero exit
+**And** the README documents the optional strict-warnings gate via `npx @caspian-dev/cli validate --format=json ./skills/ | jq -e '.summary.errors == 0 and .summary.warnings == 0'` (PRD Journey 6 reference)
 **And** no Claude Code reference appears in the snippet (vendor-neutrality preserved)
 
-**Given** a fresh user with only Node ≥20 installed
-**When** they run `npx caspian validate ./` in any project
+**Given** a fresh user with only Node ≥22 installed
+**When** they run `npx @caspian-dev/cli validate ./` in any project
 **Then** the CLI executes successfully without requiring Claude Code, additional config, or network access at validate time (NFR6, NFR17, NFR20)
 
 **Given** the publish artifact integrity
@@ -1136,7 +1137,7 @@ So that I can gate my repo's PRs on Caspian conformance in under five minutes (F
 
 **Given** the CLI README in the published package
 **When** I open `packages/cli/README.md`
-**Then** the README documents install (`npm install -g caspian` and `npx caspian`), the `validate <path>` command, the exit-code matrix (0/1/2/3), and the `--format=json` shape
+**Then** the README documents install (`npm install -g @caspian-dev/cli` — binary in PATH = `caspian`; or zero-install `npx @caspian-dev/cli`), the `validate <path>` command, the exit-code matrix (0/1/2/3), and the `--format=json` shape
 **And** the README links to `caspian.dev` for the full spec and diagnostics reference
 
 ---
