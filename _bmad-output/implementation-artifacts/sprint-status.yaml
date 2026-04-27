@@ -1,5 +1,5 @@
 # generated: 2026-04-26
-# last_updated: 2026-04-27 (Story 2-1 moved to review — Epic 2 first story implemented)
+# last_updated: 2026-04-27 (Story 2-2 moved to review — typed TS constants + sha256 + verify-hash + ajv-validate-registry + custom pre-commit installer)
 # (last_updated also reflected in the YAML field below)
 # project: joselimmo-marketplace-bmad
 # project_key: NOKEY
@@ -37,6 +37,9 @@
 
 generated: 2026-04-26
 last_updated: 2026-04-27
+# 2026-04-27: story 2-2 moved in-progress → review (dev-story workflow; 7 files created (caspian/packages/core/scripts/{gen-diagnostic-codes.ts, verify-codes-hash.ts, ajv-validate-registry.ts}, caspian/packages/core/src/diagnostics/{reporter.ts, codes.generated.ts}, caspian/packages/core/tests/unit/diagnostics/codes-shape.test.ts, caspian/scripts/install-pre-commit.mjs) + 6 modified (caspian/package.json + simple-git-hooks devDep + config block + prepare script, caspian/packages/core/package.json + gen:codes/verify/ajv scripts + amended build chain, caspian/packages/core/src/diagnostics/{types.ts +DiagnosticDefinition, index.ts expanded barrel}, caspian/packages/core/{CHANGELOG.md +Story 2.2 bullet, README.md +typed constants paragraph}, caspian/pnpm-lock.yaml +simple-git-hooks 2.13.1); all 16 ACs satisfied; 8/8 cross-checks pass with 3 deliberate departures (custom hook installer for sub-folder repo arrangement; direct-hook verification instead of test commit on main; no `|| true` on prepare); smoke gate 24 biome-checked files (was 18 in Story 2.1) — new floor for Story 2.3+; lint/test/build/verify-codes-hash/ajv-validate-registry all exit 0)
+# 2026-04-27: story 2-2 moved ready-for-dev → in-progress (dev-story workflow)
+# 2026-04-27: story 2-2 moved backlog → ready-for-dev (create-story workflow; diagnostic registry → typed TS constants `codes.generated.ts` (18 entries) with sha256 header + `verify-codes-hash` CI gate + `ajv-validate-registry` CI gate + `simple-git-hooks` pre-commit + `Reporter` interface + `DiagnosticDefinition` type expansion; story file at _bmad-output/implementation-artifacts/2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash.md)
 # 2026-04-27: story 2-1 moved review → done after BMad code-review (2 decisions accepted, 1 patch applied (smoke.test.ts statSync→existsSync), 9 deferred, 11 dismissed)
 # 2026-04-27: story 2-1 moved in-progress → review (dev-story workflow; 14 files created (caspian/packages/core/{package.json, LICENSE, README.md, CHANGELOG.md, tsconfig.json, vitest.config.ts, src/index.ts, src/validator.ts, src/schemas/loader.ts, src/diagnostics/{types.ts, index.ts}, scripts/copy-schemas.ts, tests/helpers/paths.ts, tests/unit/smoke.test.ts}) + 2 modified (caspian/biome.json Verrou 2 activation + Story-1.1-deferral-#2 noDefaultExport override resolved; caspian/pnpm-lock.yaml additive 843 lines + 4 peer-annotation refinements); all 18 ACs satisfied; 8/8 cross-checks pass; smoke gate 18 biome-checked files (was 7 in Story 1.5-1.8 chain) — new floor for Story 2.2+; build/test/lint all exit 0)
 # 2026-04-27: story 2-1 moved ready-for-dev → in-progress (dev-story workflow)
@@ -96,7 +99,7 @@ development_status:
   # Epic 2: CLI Validator & CI Integration
   epic-2: in-progress
   2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: done
-  2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: backlog
+  2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: review
   2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: backlog
   2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: backlog
   2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: backlog

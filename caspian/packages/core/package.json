@@ -25,7 +25,10 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsx scripts/copy-schemas.ts",
+    "gen:codes": "tsx scripts/gen-diagnostic-codes.ts",
+    "verify-codes-hash": "tsx scripts/verify-codes-hash.ts",
+    "ajv-validate-registry": "tsx scripts/ajv-validate-registry.ts",
+    "build": "pnpm gen:codes && tsc -p tsconfig.json && tsx scripts/copy-schemas.ts",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
     "test:watch": "vitest",

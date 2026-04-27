@@ -14,10 +14,18 @@
     "lint": "biome check .",
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "gen:codes": "pnpm --filter @caspian-dev/core gen:codes",
+    "verify-codes-hash": "pnpm --filter @caspian-dev/core verify-codes-hash",
+    "ajv-validate-registry": "pnpm --filter @caspian-dev/core ajv-validate-registry",
+    "prepare": "node scripts/install-pre-commit.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
-    "@changesets/cli": "^2.31.0"
+    "@changesets/cli": "^2.31.0",
+    "simple-git-hooks": "^2.11.1"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "cd caspian && pnpm --filter @caspian-dev/core gen:codes && cd .. && git add caspian/packages/core/src/diagnostics/codes.generated.ts"
   }
 }

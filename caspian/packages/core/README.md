@@ -27,9 +27,14 @@ From the `.` entry point (`@caspian-dev/core`):
 
 From the `./diagnostics` sub-export (`@caspian-dev/core/diagnostics`):
 
-- `Diagnostic`, `Severity`, `ValidationResult` — type definitions.
-  Story 2.2 will export typed diagnostic-code constants
-  (`CASPIAN_E001`, `CASPIAN_W001`, …) alongside.
+- `Diagnostic`, `Severity`, `ValidationResult`, `DiagnosticDefinition`, `Reporter`
+  — type definitions.
+- `CASPIAN_E001` through `CASPIAN_E014`, `CASPIAN_W001` through `CASPIAN_W004` —
+  18 typed code constants (`DiagnosticDefinition` values) generated from
+  `caspian/diagnostics/registry.json`. The generated file `codes.generated.ts`
+  carries a sha256 header verified at build time by `pnpm verify-codes-hash`;
+  the registry shape is validated against
+  `schemas/v1/diagnostic-registry.schema.json` by `pnpm ajv-validate-registry`.
 
 ## Single source of truth for schemas
 
