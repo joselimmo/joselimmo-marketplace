@@ -37,6 +37,7 @@
 
 generated: 2026-04-26
 last_updated: 2026-04-27
+# 2026-04-27: story 2-1 moved review → done after BMad code-review (2 decisions accepted, 1 patch applied (smoke.test.ts statSync→existsSync), 9 deferred, 11 dismissed)
 # 2026-04-27: story 2-1 moved in-progress → review (dev-story workflow; 14 files created (caspian/packages/core/{package.json, LICENSE, README.md, CHANGELOG.md, tsconfig.json, vitest.config.ts, src/index.ts, src/validator.ts, src/schemas/loader.ts, src/diagnostics/{types.ts, index.ts}, scripts/copy-schemas.ts, tests/helpers/paths.ts, tests/unit/smoke.test.ts}) + 2 modified (caspian/biome.json Verrou 2 activation + Story-1.1-deferral-#2 noDefaultExport override resolved; caspian/pnpm-lock.yaml additive 843 lines + 4 peer-annotation refinements); all 18 ACs satisfied; 8/8 cross-checks pass; smoke gate 18 biome-checked files (was 7 in Story 1.5-1.8 chain) — new floor for Story 2.2+; build/test/lint all exit 0)
 # 2026-04-27: story 2-1 moved ready-for-dev → in-progress (dev-story workflow)
 # 2026-04-27: story 2-1 moved backlog → ready-for-dev (create-story workflow; @caspian-dev/core package skeleton + envelope schema integration via loader.ts + 3-verrou single-source-of-truth (tsconfig rootDir + biome noRestrictedImports + audit grep) + ajv 2020-12 instance + stub Promise<Diagnostic[]> validateFile public API + tests/helpers/paths.ts cwd-stable infrastructure + copy-schemas build script; story file at _bmad-output/implementation-artifacts/2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts.md)
@@ -94,7 +95,7 @@ development_status:
 
   # Epic 2: CLI Validator & CI Integration
   epic-2: in-progress
-  2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: review
+  2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: done
   2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: backlog
   2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: backlog
   2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: backlog

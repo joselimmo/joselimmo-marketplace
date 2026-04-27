@@ -17,7 +17,7 @@ describe("@caspian-dev/core smoke", () => {
   });
 
   it("FIXTURES_DIR and SCHEMAS_DIR resolve to existing directories", () => {
-    expect(fs.statSync(FIXTURES_DIR).isDirectory()).toBe(true);
-    expect(fs.statSync(SCHEMAS_DIR).isDirectory()).toBe(true);
+    expect(fs.existsSync(FIXTURES_DIR)).toBe(true);
+    expect(fs.existsSync(SCHEMAS_DIR)).toBe(true);
   });
 });

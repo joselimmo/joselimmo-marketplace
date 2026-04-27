@@ -1,6 +1,6 @@
 # Story 2.1: `@caspian-dev/core` skeleton + envelope schema integration (loader.ts)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -861,6 +861,8 @@ Only the 2 expected in-place modifications + the new `packages/` tree. No unexpe
 
 - **Loader filename consolidation (Verrou 3):** the audit grep mandates "exactly 1 result" per architecture line 727. Initial implementation used inline path strings, producing 3 grep matches (2 paths + 1 error message). Refactored to centralize the filename in a single constant `ENVELOPE_SCHEMA_FILE = "envelope.schema.json"` (loader.ts:5) referenced via `path.resolve(here, ..., ENVELOPE_SCHEMA_FILE)` and the `Error()` message — net 1 grep match. The story file's *Reference loader.ts* model showed inline path strings; the dev-time refactor satisfies AC7's strict reading without changing semantics.
 
+- **ajv `compile()` vs `addSchema()` (AC9 — deliberate departure, undocumented until review):** AC9 specifies `ajv.addSchema(schema, canonicalId)` then a separate compile step. Implementation uses `ajv.compile(schema)` directly. `compile()` registers the schema under its `$id` implicitly (`$id` = `https://caspian.dev/schemas/v1/envelope.schema.json`), so `ajv.getSchema(canonicalId)` resolves correctly and `$ref` cross-schema resolution is unaffected. Accepted in code review (2026-04-27); Story 2.4 should verify `ajv.getSchema(canonicalId)` resolves before adopting the pattern.
+
 - **No deferrals introduced by Story 2.1 implementation.** All 18 ACs satisfied; all 8 cross-checks pass (with one acceptable substitution in #1 to match the canonical TS6059 error and one fallback in #2 to make biome's literal-path matching work). The Verrou 3 filename consolidation is recorded above as a refinement of the Reference Model rather than a deferral. Future hardening candidates that emerged during implementation (none blocking, all optional):
   - Biome 2.5+ may expose a regex/glob form for `noRestrictedImports.paths` — Story 2.7 (conformance + vendor-neutrality enforcement) can consolidate the literal-depth enumeration if so.
   - The TS1543-vs-TS6059 distinction in Cross-check #1 (JSON ascent rejected via syntax check, TS-source ascent rejected via rootDir check) is informational — both rejection paths satisfy the architectural intent.
@@ -901,3 +903,19 @@ Only the 2 expected in-place modifications + the new `packages/` tree. No unexpe
 | 2026-04-27 | Story 2.1 created (ready-for-dev) opening Epic 2: `@caspian-dev/core` skeleton + 3-verrou single-SoT lockdown. |
 | 2026-04-27 | Implementation complete — 14 files created, 2 modified in place; all 18 ACs satisfied; 8/8 cross-checks pass. |
 | 2026-04-27 | Smoke gate verified: `pnpm -C caspian lint` 18 files exit 0; `pnpm -C caspian test` 3/3 pass; `pnpm -C caspian build` exit 0; ESM-import smoke check returns `function`. Status moved to review. |
+| 2026-04-27 | BMad code review complete: 2 decision-needed, 1 patch, 9 deferred, 11 dismissed. |
+
+### Review Findings
+
+- [x] [Review][Decision] **AC9 — Named import `{ Ajv2020 }` vs spec-mandated default import** — accepted; named import retained (TS2351 with default import under TS 5.9 + nodenext + ajv 8.20; documented in Completion Notes). [`caspian/packages/core/src/validator.ts:1`]
+- [x] [Review][Decision] **AC9 — `ajv.compile()` vs spec-mandated `ajv.addSchema()` + separate retrieval** — accepted; `compile()` implicitly registers schema by `$id` = canonical URI; functionally equivalent. Added to Completion Notes as deliberate departure. [`caspian/packages/core/src/validator.ts:11-14`]
+- [x] [Review][Patch] **`smoke.test.ts` — `fs.statSync` throws raw ENOENT instead of clean assertion failure** — fixed: replaced `fs.statSync(X).isDirectory()` with `fs.existsSync(X)` assertions. [`caspian/packages/core/tests/unit/smoke.test.ts:19-22`]
+- [x] [Review][Defer] **`fs.access()` TOCTOU race in `validateFile`** [`caspian/packages/core/src/index.ts:6`] — deferred, pre-existing; production implementation (Story 2.3+) will replace with full `fs.readFile()`
+- [x] [Review][Defer] **Cache concurrency — null-check guard allows double-initialization under concurrent awaits** [`caspian/packages/core/src/schemas/loader.ts:12-13`, `src/validator.ts:6-7`] — deferred, pre-existing; harmless in Node.js single-threaded event loop; minor inefficiency only
+- [x] [Review][Defer] **`object | null` type hole in `cachedEnvelopeSchema`** [`caspian/packages/core/src/schemas/loader.ts:11`] — deferred, pre-existing; acceptable for pre-1.0 internal module; Story 2.2+ can refine
+- [x] [Review][Defer] **`noRestrictedImports` depth enumeration incomplete — depths 0 and 5+ not covered** [`caspian/biome.json:36-43`] — deferred, pre-existing; acknowledged limitation; Story 2.7 conformance can improve if biome gains regex/glob support
+- [x] [Review][Defer] **`copy-schemas.ts` copies all `.json` from `schemas/v1/` without an allowlist** [`caspian/packages/core/scripts/copy-schemas.ts:15-17`] — deferred, pre-existing; spec-prescribed behavior; low risk with current 2-file set; Story 2.8 pre-publish can add allowlist
+- [x] [Review][Defer] **`exports` map missing explicit `"types"` conditions** [`caspian/packages/core/package.json:13-16`] — deferred, pre-existing; Story 2.8 pre-publish cleanup
+- [x] [Review][Defer] **`validateFile` accepts directory paths via `fs.access()`** [`caspian/packages/core/src/index.ts:6`] — deferred, pre-existing; production impl (Story 2.3+) enforces file-only via real read
+- [x] [Review][Defer] **`dist/.tsbuildinfo` included in `files: ["dist/"]` — embeds absolute machine paths in npm tarball** [`caspian/packages/core/tsconfig.json:7`, `package.json:17`] — deferred, pre-existing; Story 2.8 pre-publish: add to `.npmignore` or move `tsBuildInfoFile` outside `dist/`
+- [x] [Review][Defer] **README missing explicit "deliberate departure" label for `Promise<Diagnostic[]>` signature** [`caspian/packages/core/README.md:23`] — deferred, pre-existing; departure self-evident; reasoning captured in Completion Notes
