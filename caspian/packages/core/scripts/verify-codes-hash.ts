@@ -27,7 +27,7 @@ const rawBytes = await fs.readFile(REGISTRY_PATH);
 const recomputed = crypto.createHash("sha256").update(rawBytes).digest("hex");
 
 const codesText = await fs.readFile(CODES_PATH, "utf8");
-const firstLine = codesText.split("\n", 1)[0] ?? "";
+const firstLine = (codesText.split("\n", 1)[0] ?? "").replace(/\r$/, "");
 const match = firstLine.match(HEADER_PATTERN);
 
 if (match === null) {
@@ -41,7 +41,7 @@ const captured = match[1];
 
 if (captured !== recomputed) {
   console.error(
-    `Error: codes.generated.ts is out of sync with diagnostics/registry.json. Expected hash ${captured}, got ${recomputed}. Run \`pnpm gen:codes\` to regenerate, then commit the result.`,
+    `Error: codes.generated.ts is out of sync with diagnostics/registry.json. Header contains ${captured} but registry now hashes to ${recomputed}. Run \`pnpm gen:codes\` to regenerate, then commit the result.`,
   );
   process.exit(1);
 }

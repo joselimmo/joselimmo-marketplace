@@ -1,6 +1,6 @@
 # Story 2.2: Diagnostic registry → typed TS constants (`codes.generated.ts`) with sha256 + verify hash
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -330,6 +330,23 @@ Each cross-check is a separate paragraph in *Debug Log References* with the exac
   - [x] Update *Completion Notes List* with files-created counts, files-modified-in-place, smoke-gate baseline number, and any deliberate departures from epic AC text.
   - [x] Update *File List* with all created and modified paths.
   - [x] Update *Change Log* table.
+
+### Review Findings
+
+- [x] [Review][Decision] D1 — `pnpm test` fails at module load on clean checkout → **resolved: option 1** — add `gen:codes` pre-step to `@caspian-dev/core` `test` script. See P3 below.
+- [x] [Review][Decision] D2 — `simple-git-hooks` devDep installed but binary never invoked → **resolved: option 1** — remove `simple-git-hooks` from devDeps, move hook config to `caspian/hooks.config.json`, update installer to read from that file. See P4 below.
+- [x] [Review][Patch] P3 (from D1) — Add `gen:codes` pre-step to test script — fixed: `"test": "pnpm gen:codes && vitest run"`. [`caspian/packages/core/package.json` — scripts.test]
+- [x] [Review][Patch] P4 (from D2) — Remove `simple-git-hooks` devDep and extract hook config — fixed: removed devDep + config block from `caspian/package.json`, created `caspian/hooks.config.json`, updated `install-pre-commit.mjs` to read from it, ran `pnpm install` (lockfile updated, -1 package). [`caspian/package.json`, `caspian/scripts/install-pre-commit.mjs`, `caspian/hooks.config.json` (new), `caspian/pnpm-lock.yaml`]
+- [x] [Review][Patch] P1 — `verify-codes-hash` error message semantics inverted — fixed: rephrased to "Header contains ${captured} but registry now hashes to ${recomputed}". [`caspian/packages/core/scripts/verify-codes-hash.ts:43`]
+- [x] [Review][Patch] P2 — CRLF trailing `\r` breaks sha256 header regex — fixed: added `.replace(/\r$/, "")` in both `verify-codes-hash.ts:30` and `codes-shape.test.ts:62`. [`caspian/packages/core/scripts/verify-codes-hash.ts:30`, `caspian/packages/core/tests/unit/diagnostics/codes-shape.test.ts:62`]
+- [x] [Review][Defer] W1 — `replace("-", "_")` non-global: all 18 current codes have exactly one hyphen so output is correct, but any future code with 2+ hyphens produces an invalid JS identifier silently. Consider `replaceAll("-", "_")` in a future story. [`caspian/packages/core/scripts/gen-diagnostic-codes.ts:51`] — deferred, latent only; spec AC3 literally says `replace`
+- [x] [Review][Defer] W2 — sha256 computed over raw bytes: if `registry.json` or `codes.generated.ts` are checked out with CRLF (Windows developer bypassing `.gitattributes`), the hash diverges from the LF baseline. `.gitattributes eol=lf` provides protection but not immunity. Fix: normalize newlines before hashing. — deferred, mitigated by `.gitattributes`
+- [x] [Review][Defer] W3 — Spurious `.git` cleanup silent skip: `install-pre-commit.mjs` only removes `caspian/.git/` if it contains exactly one entry (`hooks/`). If `simple-git-hooks` writes additional files, cleanup silently skips with no log. [`caspian/scripts/install-pre-commit.mjs:85`] — deferred, edge case
+- [x] [Review][Defer] W4 — `absGitDir` base coupling: the relative gitDir is resolved via `path.resolve(here, "..", gitDir)` where `here/..` happens to equal the `execSync` cwd. If either is ever changed independently, resolution silently points to the wrong directory. [`caspian/scripts/install-pre-commit.mjs:40`] — deferred, fragile but correct today
+- [x] [Review][Defer] W5 — `RegistryEntry` interface duplicated: defined independently in `gen-diagnostic-codes.ts` and `codes-shape.test.ts`; scripts are excluded from tsconfig so no compile-time enforcement of alignment. — deferred, maintenance concern
+- [x] [Review][Defer] W6 — Scripts excluded from tsconfig: `gen-diagnostic-codes.ts`, `verify-codes-hash.ts`, `ajv-validate-registry.ts` are run by `tsx` only; type errors in these files are invisible to `tsc`. — deferred, accepted trade-off
+- [x] [Review][Defer] W7 — `prepare` installs hook in CI git workspaces: the hook fires on `git commit`, not on `pnpm install`, so most CI pipelines are unaffected. `SKIP_SIMPLE_GIT_HOOKS=1` escape hatch exists but is undocumented for CI operators. — deferred, minor
+- [x] [Review][Defer] W8 — CHANGELOG omits the custom `install-pre-commit.mjs` installer: the deliberate AC2 departure (custom installer instead of `simple-git-hooks || true`) is documented in sprint notes and the script header but not in `CHANGELOG.md`. — deferred, minor documentation gap
 
 ## Dev Notes
 

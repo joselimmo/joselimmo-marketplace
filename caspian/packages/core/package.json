@@ -30,7 +30,7 @@
     "ajv-validate-registry": "tsx scripts/ajv-validate-registry.ts",
     "build": "pnpm gen:codes && tsc -p tsconfig.json && tsx scripts/copy-schemas.ts",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "vitest run",
+    "test": "pnpm gen:codes && vitest run",
     "test:watch": "vitest",
     "copy-schemas": "tsx scripts/copy-schemas.ts"
   },

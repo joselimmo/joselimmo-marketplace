@@ -59,7 +59,7 @@ describe("@caspian-dev/core/diagnostics codes.generated", () => {
       "codes.generated.ts",
     );
     const text = await fs.readFile(codesPath, "utf8");
-    const firstLine = text.split("\n", 1)[0] ?? "";
+    const firstLine = (text.split("\n", 1)[0] ?? "").replace(/\r$/, "");
     expect(firstLine).toMatch(/^\/\/ Hash: [a-f0-9]{64}$/);
   });
 

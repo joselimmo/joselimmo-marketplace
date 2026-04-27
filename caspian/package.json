@@ -22,10 +22,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
-    "@changesets/cli": "^2.31.0",
-    "simple-git-hooks": "^2.11.1"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "cd caspian && pnpm --filter @caspian-dev/core gen:codes && cd .. && git add caspian/packages/core/src/diagnostics/codes.generated.ts"
+    "@changesets/cli": "^2.31.0"
   }
 }
