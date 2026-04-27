@@ -47,7 +47,8 @@
       "Bash(awk '/^## Use Boundaries/{found=1} found && /^## Composition/{exit} found{print}' \"F:/work/joselimmo-marketplace-bmad/caspian/spec/vocabulary/glossary.md\")",
       "Bash(awk *)",
       "Bash(node *)",
-      "Bash(echo \"EXIT:$?\")"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git -C \"F:\\\\work\\\\joselimmo-marketplace-bmad\" log --oneline -n 10)"
     ]
   }
 }

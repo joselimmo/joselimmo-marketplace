@@ -1,5 +1,5 @@
 # generated: 2026-04-26
-# last_updated: 2026-04-27 (code-review)
+# last_updated: 2026-04-27 (dev-story 1-6)
 # (last_updated also reflected in the YAML field below)
 # project: joselimmo-marketplace-bmad
 # project_key: NOKEY
@@ -37,6 +37,9 @@
 
 generated: 2026-04-26
 last_updated: 2026-04-27
+# 2026-04-27: story 1-6 moved in-progress → review (dev-story workflow; 43 files: fixtures/README.md + fixtures/LICENSE + 7 valid (4 core-* + 3 overlay-compat) + 17 invalid pairs (.md + .expected.json) under caspian/fixtures/{valid,invalid}/; smoke gate 7 files green — Story 1.5 baseline preserved exactly)
+# 2026-04-27: story 1-6 moved ready-for-dev → in-progress (dev-story workflow)
+# 2026-04-27: story 1-6 moved backlog → ready-for-dev (create-story workflow; canonical fixture set: caspian/fixtures/ with README + LICENSE + 7 valid fixtures (4 core-* + 3 overlay-compat) + 17 invalid fixture pairs (.md + .expected.json) under caspian/fixtures/{valid,invalid}/)
 # 2026-04-27: story 1-5 moved review → done after BMad code-review (0 patches, 0 decisions, 10 deferred, 8 dismissed)
 # 2026-04-27: story 1-5 moved in-progress → review (dev-story workflow; 4 files: diagnostics/LICENSE + CHANGELOG.md + registry.json with 17 codes + schemas/v1/diagnostic-registry.schema.json; smoke gate 7 files green)
 # 2026-04-27: story 1-5 moved ready-for-dev → in-progress (dev-story workflow)
@@ -67,7 +70,7 @@ development_status:
   1-3-canonical-core-vocabulary-docs: done
   1-4-envelope-json-schema-draft-2020-12: done
   1-5-diagnostic-registry-registry-schema: done
-  1-6-canonical-fixture-set-valid-invalid: backlog
+  1-6-canonical-fixture-set-valid-invalid: review
   1-7-minimal-skill-adoption-example: backlog
   epic-1-retrospective: optional
 
