@@ -18,3 +18,10 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   Adds `Reporter` interface and `DiagnosticDefinition` type to `./diagnostics`
   sub-export. Pre-commit hook (`simple-git-hooks` config block) regenerates
   `codes.generated.ts` on every commit.
+- Pipeline stages 1–3 (`validateFile` real implementation): byte-level (`CASPIAN-E001`,
+  `CASPIAN-E002`), frontmatter extraction (`CASPIAN-E004`, `CASPIAN-E005`),
+  YAML parse (`CASPIAN-E003`, `CASPIAN-E006`, `CASPIAN-E007`) via `yaml` v2.x
+  strict 1.2 safe-load + post-parse tab-indent and YAML 1.1 unquoted-boolean
+  scans. Adds `parsers/{byte-reader,frontmatter,yaml}.ts`, `pipeline.ts`,
+  `constants.ts` (4 KB cap, YAML 1.1 boolean keyword set). Adds runtime
+  dependency `yaml ^2.6.0`. Stages 4–6 land in Story 2.4.

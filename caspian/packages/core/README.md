@@ -21,9 +21,11 @@ The package uses **named exports only** — no `export default`.
 From the `.` entry point (`@caspian-dev/core`):
 
 - `validateFile(path: string): Promise<Diagnostic[]>` — validates a single
-  file and returns the array of diagnostics (empty array = valid).
-  Story 2.1 ships a stub that returns `[]`; the full pipeline lands in
-  Stories 2.3 + 2.4.
+  file against pipeline stages 1–3 (byte-level, frontmatter extraction,
+  YAML parse) and returns the array of diagnostics (empty array = valid
+  through stage 3). Stages 4–6 (envelope shape, namespace check,
+  allow-list scan) land in Story 2.4; until then, files passing stage 3
+  return an empty diagnostic array even if their envelope shape is invalid.
 
 From the `./diagnostics` sub-export (`@caspian-dev/core/diagnostics`):
 
@@ -35,6 +37,20 @@ From the `./diagnostics` sub-export (`@caspian-dev/core/diagnostics`):
   carries a sha256 header verified at build time by `pnpm verify-codes-hash`;
   the registry shape is validated against
   `schemas/v1/diagnostic-registry.schema.json` by `pnpm ajv-validate-registry`.
+
+## Pipeline stages
+
+| Stage | Module                              | Diagnostics                              |
+|-------|-------------------------------------|------------------------------------------|
+| 1     | `parsers/byte-reader.ts`            | `CASPIAN-E001`, `CASPIAN-E002`           |
+| 2     | `parsers/frontmatter.ts`            | `CASPIAN-E004`, `CASPIAN-E005`           |
+| 3     | `parsers/yaml.ts`                   | `CASPIAN-E003`, `CASPIAN-E006`, `CASPIAN-E007` |
+| 4–6   | (Story 2.4)                         | `CASPIAN-E008`–`E014`, `CASPIAN-W001`–`W004` |
+
+Pipeline ordering is fail-fast per stage (architecture D1): a failure in
+stage N suppresses stages N+1..6 for that file. Within stage 3, the
+unquoted-YAML-1.1-boolean post-parse scan continues-and-collects (multiple
+`CASPIAN-E007` emissions in a single pass).
 
 ## Single source of truth for schemas
 

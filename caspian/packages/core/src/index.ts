@@ -1,15 +1,13 @@
-import fs from "node:fs/promises";
 import type { Diagnostic } from "./diagnostics/types.js";
-import { getEnvelopeValidator } from "./validator.js";
+import { runPipeline } from "./pipeline.js";
 
 export async function validateFile(filePath: string): Promise<Diagnostic[]> {
-  await fs.access(filePath);
-  await getEnvelopeValidator();
-  return [];
+  return runPipeline(filePath);
 }
 
 export type {
   Diagnostic,
+  DiagnosticDefinition,
   Severity,
   ValidationResult,
 } from "./diagnostics/types.js";
