@@ -1,5 +1,5 @@
 # generated: 2026-04-26
-# last_updated: 2026-04-27 (Epic 1 retro AI-3 + AI-2 spec-side patches applied; AI-1 pending)
+# last_updated: 2026-04-27 (Epic 1 retro AI-2 code-side committed; AI-1 spike contexted as Story 1.8)
 # (last_updated also reflected in the YAML field below)
 # project: joselimmo-marketplace-bmad
 # project_key: NOKEY
@@ -37,6 +37,11 @@
 
 generated: 2026-04-26
 last_updated: 2026-04-27
+# 2026-04-27: story 1-8 moved review → done after BMad code-review (0 patches, 0 decisions, 10 deferred, 6 dismissed)
+# 2026-04-27: story 1-8 moved in-progress → review (dev-story workflow; 4 files: registry.json (17→18 entries) + CHANGELOG.md (Unreleased bullet) + fixtures/invalid/W004-non-canonical-core-name/{non-canonical-name.md, non-canonical-name.expected.json}; all 13 ACs + 5 cross-checks pass; smoke gate 7 files / exit 0 — Story 1.5+ baseline preserved exactly)
+# 2026-04-27: story 1-8 moved ready-for-dev → in-progress (dev-story workflow)
+# 2026-04-27: story 1-8 added to development_status as backlog → ready-for-dev (create-story workflow; AI-1 mini-spike from Epic 1 retro: append CASPIAN-W004 to caspian/diagnostics/registry.json + create caspian/fixtures/invalid/W004-non-canonical-core-name/ pair + append Unreleased bullet to caspian/diagnostics/CHANGELOG.md; story file at _bmad-output/implementation-artifacts/1-8-caspian-w004-registry-reservation.md). epic-1 re-opened done → in-progress to host the spike; will return to done once 1-8 reaches done.
+# 2026-04-27: AI-2 code-side patches committed (e3564c8) — caspian/.nvmrc 20.10 → 22.13, caspian/package.json engines.node >=20.10 → >=22.13, deferred-work.md resolution notes for entries 1.1 #6 + 1.1 #10. Lockfile unchanged (pnpm install: Already up to date). Smoke gate green (7 files, exit 0).
 # 2026-04-27: Epic 1 retro AI-3 (npm naming) + AI-2 (Node 22) spec-side patches applied — `@caspian-dev` org reserved by Cyril; PRD FR29 + epics.md Stories 2.x ACs + architecture.md tree + dev/release flows pivoted to `@caspian-dev/cli` + `@caspian-dev/core`; engines.node bumped to >=22.13; binary name `caspian` preserved via `bin` field. Smoke gate green (7 files, exit 0). AI-1 (CASPIAN-W004 reservation) still pending — mini-spike next.
 # 2026-04-27: epic-1-retrospective moved optional → done (retro doc saved at epic-1-retro-2026-04-27.md; 11 action items captured: 3 critical-path (W004 reserve, Node 22 migration, npm caspian name conflict) + 3 parallel + 5 in-line hardening)
 # 2026-04-27: epic-1 moved in-progress → done (all 7 stories complete; retrospective optional/skipped)
@@ -80,6 +85,7 @@ development_status:
   1-5-diagnostic-registry-registry-schema: done
   1-6-canonical-fixture-set-valid-invalid: done
   1-7-minimal-skill-adoption-example: done
+  1-8-caspian-w004-registry-reservation: done
   epic-1-retrospective: done
 
   # Epic 2: CLI Validator & CI Integration

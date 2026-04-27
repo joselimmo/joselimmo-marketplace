@@ -48,7 +48,11 @@
       "Bash(awk *)",
       "Bash(node *)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(git -C \"F:\\\\work\\\\joselimmo-marketplace-bmad\" log --oneline -n 10)"
+      "Bash(git -C \"F:\\\\work\\\\joselimmo-marketplace-bmad\" log --oneline -n 10)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Read(//dev/**)"
     ]
   }
 }

@@ -118,6 +118,13 @@
       "rule": "schema-version-recognized",
       "message": "Field `schema_version` value is not recognized by this validator",
       "doc": "https://caspian.dev/diagnostics#caspian-w003"
+    },
+    {
+      "code": "CASPIAN-W004",
+      "severity": "warning",
+      "rule": "core-namespace-name-not-in-vocabulary",
+      "message": "Field `type` uses a `core:` name outside the canonical vocabulary",
+      "doc": "https://caspian.dev/diagnostics#caspian-w004"
     }
   ]
 }
