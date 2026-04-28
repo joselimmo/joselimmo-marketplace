@@ -1,6 +1,6 @@
 # Story 2.3: Pipeline stages 1–3 in `@caspian-dev/core` (byte-level + frontmatter extraction + YAML parse)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -426,6 +426,14 @@ Each cross-check is a separate paragraph in *Debug Log References* with the exac
   - [x] *Completion Notes List* updated with files counts, smoke-gate baseline (35), resolved yaml version (2.8.3), and the documented departures.
   - [x] *File List* updated.
   - [x] *Change Log* updated.
+
+### Review Findings
+
+- [x] [Review][Patch] Missing stage-3 short-circuit test in `pipeline.test.ts` — AC9 requires a test verifying that a stage-3 failure (E003/E006/E007) returns immediately with no subsequent stages running. [`caspian/packages/core/tests/unit/pipeline.test.ts`]
+- [x] [Review][Defer] `y`/`n` in `YAML_1_1_UNQUOTED_BOOLEANS` — false positive risk on legitimate single-character string values; spec-mandated per AC1. [`caspian/packages/core/src/constants.ts`] — deferred, spec-mandated
+- [x] [Review][Defer] Unchecked cast `doc.toJS() as Record<string, unknown>` — YAML sequence/scalar frontmatter silently passes stage 3; stage 4 (Story 2.4) handles envelope shape validation. [`caspian/packages/core/src/parsers/yaml.ts`] — deferred, Story 2.4 responsibility
+- [x] [Review][Defer] Duplicated line-counting helpers — `countLinesUpTo` (`frontmatter.ts`) and `offsetToRawLine` (`yaml.ts`) implement the same algorithm in separate files; future divergence risk. [`caspian/packages/core/src/parsers/frontmatter.ts`, `caspian/packages/core/src/parsers/yaml.ts`] — deferred, refactoring debt
+- [x] [Review][Defer] `---` inside a YAML block scalar misidentified as closing delimiter — regex-based extraction could truncate frontmatter prematurely; fails safely with E006. [`caspian/packages/core/src/parsers/frontmatter.ts`] — deferred, regex limitation
 
 ## Dev Notes
 

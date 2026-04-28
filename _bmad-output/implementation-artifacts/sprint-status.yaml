@@ -2,6 +2,7 @@
 # last_updated: 2026-04-27 (Story 2-2 moved to review — typed TS constants + sha256 + verify-hash + ajv-validate-registry + custom pre-commit installer)
 # last_updated: 2026-04-27 (Story 2-2 moved review → done after BMad code-review; 4 patches applied)
 # last_updated: 2026-04-27 (Story 2-3 moved backlog → ready-for-dev — pipeline stages 1-3 in @caspian-dev/core: byte-level (E001/E002) + frontmatter extraction (E004/E005) + YAML parse (E003/E006/E007) via yaml v2.x strict 1.2 safe-load + post-parse scans; orchestrator pipeline.ts; validateFile rewired; 7 fixtures from Story 1.6 as ground truth via tests/fixtures-runner.test.ts)
+# last_updated: 2026-04-28 (Story 2-3 moved review → done after BMad code-review; 1 patch applied (P1: add stage-3 short-circuit test to pipeline.test.ts — 44/44 tests pass); 4 deferred, 14 dismissed)
 # (last_updated also reflected in the YAML field below)
 # project: joselimmo-marketplace-bmad
 # project_key: NOKEY
@@ -38,7 +39,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-26
-last_updated: 2026-04-27
+last_updated: 2026-04-28
+# 2026-04-28: story 2-3 moved review → done after BMad code-review (1 patch applied: add stage-3 short-circuit test to pipeline.test.ts — 44/44 tests pass; 4 deferred, 14 dismissed)
 # 2026-04-27: story 2-3 moved in-progress → review (dev-story workflow; 10 files created (caspian/packages/core/src/{constants.ts, parsers/byte-reader.ts, parsers/frontmatter.ts, parsers/yaml.ts, pipeline.ts}, caspian/packages/core/tests/{fixtures-runner.test.ts, unit/parsers/byte-reader.test.ts, unit/parsers/frontmatter.test.ts, unit/parsers/yaml.test.ts, unit/pipeline.test.ts}) + 5 modified (caspian/packages/core/{package.json + yaml ^2.6.0 runtime dep, src/index.ts stub→runPipeline rewire + DiagnosticDefinition re-export, CHANGELOG.md +Story 2.3 bullet, README.md Public API surface + Pipeline stages sub-section}, caspian/pnpm-lock.yaml +yaml 2.8.3 + peer-annotation refinements); all 12 ACs satisfied; 10/10 cross-checks pass with 2 deliberate departures (yaml v2 unresolved-tag detection via doc.warnings.code === "TAG_RESOLVE_FAILED" instead of try/catch since v2 strict mode keeps tag warnings in warnings not errors; raw excludes trailing newline of last content line per architecture D4 byte-counting precision — confirmed by 4096/4097 boundary test); smoke gate 35 biome-checked files (was 24 in Story 2.2) — new floor for Story 2.4+; lint/test/build/verify-codes-hash/ajv-validate-registry all exit 0; 43/43 tests pass across 7 files)
 # 2026-04-27: story 2-3 moved ready-for-dev → in-progress (dev-story workflow)
 # 2026-04-27: story 2-3 moved backlog → ready-for-dev (create-story workflow; pipeline stages 1-3 in @caspian-dev/core — src/parsers/{byte-reader, frontmatter, yaml}.ts + src/pipeline.ts + src/constants.ts (MAX_FRONTMATTER_BYTES=4096, YAML_1_1_UNQUOTED_BOOLEANS frozen Set) + validateFile rewired in src/index.ts; emits CASPIAN-E001 BOM, E002 non-UTF-8, E003 tab-indent, E004 4KB cap, E005 missing delim, E006 yaml parse, E007 unquoted bool; yaml ^2.6.0 added to deps; tests/unit/parsers/* + tests/unit/pipeline.test.ts + tests/fixtures-runner.test.ts (table-driven over fixtures/invalid/E001-E007); story file at _bmad-output/implementation-artifacts/2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse.md)
@@ -106,7 +108,7 @@ development_status:
   epic-2: in-progress
   2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: done
   2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: done
-  2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: review
+  2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: done
   2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: backlog
   2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: backlog
   2-6-format-json-stable-schema-b4-golden-snapshots-verify-pack: backlog

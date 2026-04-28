@@ -24,6 +24,15 @@ describe("pipeline orchestrator", () => {
     expect(diagnostics[0].code).toBe("CASPIAN-E005");
   });
 
+  it("stage 3 short-circuits — tab-indent fixture returns ONLY E003 (stages 4–6 do not run)", async () => {
+    const diagnostics = await runPipeline(
+      fixture("invalid/E003-tab-indent/tab-in-yaml.md"),
+    );
+
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0].code).toBe("CASPIAN-E003");
+  });
+
   it("clean fixture returns empty diagnostics array (stages 1–3 pass)", async () => {
     const diagnostics = await runPipeline(
       fixture("valid/core-overview/minimal.md"),
