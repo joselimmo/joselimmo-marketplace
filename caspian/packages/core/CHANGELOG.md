@@ -24,4 +24,12 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   strict 1.2 safe-load + post-parse tab-indent and YAML 1.1 unquoted-boolean
   scans. Adds `parsers/{byte-reader,frontmatter,yaml}.ts`, `pipeline.ts`,
   `constants.ts` (4 KB cap, YAML 1.1 boolean keyword set). Adds runtime
-  dependency `yaml ^2.6.0`. Stages 4–6 land in Story 2.4.
+  dependency `yaml ^2.6.0`.
+- Pipeline stages 4–6 (continue-and-collect): envelope schema validation
+  (`CASPIAN-E008`–`CASPIAN-E014`, ajv 2020-12) via `validators/envelope.ts`;
+  namespace checks (`CASPIAN-W002`, `CASPIAN-W003`, `CASPIAN-W004`) via
+  `validators/namespace.ts`; allow-list scan (`CASPIAN-W001`, 22 known fields +
+  `x-*` prefix, inline Levenshtein suggestion) via `validators/allow-list.ts`.
+  Extends `constants.ts` with `RECOGNIZED_FIELDS`, `SUPPORTED_SCHEMA_VERSIONS`,
+  `CANONICAL_CORE_NAMES`. Fixture runner expanded from 7 (E001–E007) to 19
+  (E001–E014 + W001–W004) pairs.

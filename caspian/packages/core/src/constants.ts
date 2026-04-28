@@ -17,3 +17,60 @@ export const MAX_FRONTMATTER_BYTES = 4096;
 export const YAML_1_1_UNQUOTED_BOOLEANS: ReadonlySet<string> = Object.freeze(
   new Set(["on", "off", "yes", "no", "y", "n"]),
 );
+
+/**
+ * 22-field allow-list for stage 6 (W001). Combines 4 Caspian core fields,
+ * 6 agentskills.io canonical fields, and 12 Claude Code overlay fields.
+ */
+export const RECOGNIZED_FIELDS: ReadonlySet<string> = Object.freeze(
+  new Set([
+    "schema_version",
+    "type",
+    "requires",
+    "produces",
+    "name",
+    "description",
+    "license",
+    "allowed-tools",
+    "metadata",
+    "compatibility",
+    "when_to_use",
+    "argument-hint",
+    "arguments",
+    "disable-model-invocation",
+    "user-invocable",
+    "model",
+    "effort",
+    "context",
+    "agent",
+    "hooks",
+    "paths",
+    "shell",
+  ]),
+);
+
+/**
+ * Recognized `schema_version` values for stage 5 W003 check.
+ */
+export const SUPPORTED_SCHEMA_VERSIONS: ReadonlySet<string> = Object.freeze(
+  new Set(["0.1"]),
+);
+
+/**
+ * Canonical `core:*` names derived from `caspian/spec/vocabulary/` (one file
+ * per type, excluding README.md and glossary.md). Used by stage 5 W004 check.
+ */
+export const CANONICAL_CORE_NAMES: ReadonlySet<string> = Object.freeze(
+  new Set([
+    "overview",
+    "plan",
+    "learning",
+    "review",
+    "rule",
+    "scratch",
+    "convention",
+    "story",
+    "epic",
+    "adr",
+  ]),
+);

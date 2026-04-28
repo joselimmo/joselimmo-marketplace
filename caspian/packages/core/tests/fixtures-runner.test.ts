@@ -19,7 +19,7 @@ interface FixtureCase {
   expectedPath: string;
 }
 
-const STAGES_1_TO_3_DIRS = /^E00[1-7]-/;
+const STAGES_1_TO_6_DIRS = /^(E0(0[1-9]|1[0-4])|W00[1-4])-/;
 
 async function discoverFixtures(): Promise<FixtureCase[]> {
   const invalidDir = path.join(FIXTURES_DIR, "invalid");
@@ -27,32 +27,35 @@ async function discoverFixtures(): Promise<FixtureCase[]> {
   const cases: FixtureCase[] = [];
 
   for (const dir of dirs) {
-    if (!dir.isDirectory() || !STAGES_1_TO_3_DIRS.test(dir.name)) continue;
+    if (!dir.isDirectory() || !STAGES_1_TO_6_DIRS.test(dir.name)) continue;
 
     const subDir = path.join(invalidDir, dir.name);
     const entries = await fs.readdir(subDir);
-    const md = entries.find(
+    const mds = entries.filter(
       (e) => e.endsWith(".md") && !e.endsWith(".expected.md"),
     );
-    if (md === undefined) continue;
-    const expected = entries.find((e) => e.endsWith(".expected.json"));
-    if (expected === undefined) continue;
 
-    cases.push({
-      label: `${dir.name}/${md}`,
-      fixturePath: path.join(subDir, md),
-      expectedPath: path.join(subDir, expected),
-    });
+    for (const md of mds) {
+      const base = md.slice(0, -3); // strip .md
+      const expected = entries.find((e) => e === `${base}.expected.json`);
+      if (expected === undefined) continue;
+
+      cases.push({
+        label: `${dir.name}/${md}`,
+        fixturePath: path.join(subDir, md),
+        expectedPath: path.join(subDir, expected),
+      });
+    }
   }
 
   return cases.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-describe("fixtures-runner — stages 1–3 (E001–E007)", async () => {
+describe("fixtures-runner — stages 1–6 (E001–E014, W001–W004)", async () => {
   const cases = await discoverFixtures();
 
-  it("discovered the expected number of E001–E007 fixture pairs", () => {
-    expect(cases).toHaveLength(7);
+  it("discovered the expected number of E001–E014 + W001–W004 fixture pairs", () => {
+    expect(cases).toHaveLength(19);
   });
 
   it.each(

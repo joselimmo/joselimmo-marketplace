@@ -2,6 +2,9 @@ import type { Diagnostic } from "./diagnostics/types.js";
 import { readFile } from "./parsers/byte-reader.js";
 import { extractFrontmatter } from "./parsers/frontmatter.js";
 import { parseYaml } from "./parsers/yaml.js";
+import { scanAllowList } from "./validators/allow-list.js";
+import { validateEnvelope } from "./validators/envelope.js";
+import { checkNamespace } from "./validators/namespace.js";
 
 export async function runPipeline(filePath: string): Promise<Diagnostic[]> {
   const stage1 = await readFile(filePath);
@@ -19,9 +22,13 @@ export async function runPipeline(filePath: string): Promise<Diagnostic[]> {
     return stage3.diagnostics;
   }
 
-  // TODO Story 2.4: stages 4–6 (envelope, namespace, allow-list).
-  // Stage 3's `stage3.data` will be the input for stage 4.
-  void stage3.data;
+  const stage4 = await validateEnvelope(
+    stage3.data,
+    stage2.raw,
+    stage2.startLine,
+  );
+  const stage5 = checkNamespace(stage3.data, stage2.raw, stage2.startLine);
+  const stage6 = scanAllowList(stage2.raw, stage2.startLine);
 
-  return [];
+  return [...stage4.diagnostics, ...stage5.diagnostics, ...stage6.diagnostics];
 }

@@ -68,7 +68,12 @@
       "Bash(echo \"\\(expected exit 1; got exit $?\\)\")",
       "Bash(echo \"\\(exit $?\\)\")",
       "Bash(sh .git/hooks/pre-commit)",
-      "Bash(git check-attr *)"
+      "Bash(git check-attr *)",
+      "Bash(git *)",
+      "Bash(gh pr *)",
+      "Bash(grep -E \"packages\\\\\\\\\\\\\\\\core\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(echo \"exit code: $?\")"
     ]
   }
 }
