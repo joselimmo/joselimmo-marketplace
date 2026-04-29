@@ -1,0 +1,393 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`format-json — multi-file aggregation > directory walk → multiple results in walker order + summary aggregated 1`] = `
+"{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "fixtures/valid/core-epic/minimal.md",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "file": "fixtures/valid/core-overview/minimal.md",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "file": "fixtures/valid/core-plan/minimal.md",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "file": "fixtures/valid/core-story/minimal.md",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "file": "fixtures/valid/overlay-compat/all-22-known-fields.md",
+      "valid": true,
+      "diagnostics": []
+    },
+    {
+      "file": "fixtures/valid/overlay-compat/x-extension.md",
+      "valid": true,
+      "diagnostics": []
+    }
+  ],
+  "summary": {
+    "files": 6,
+    "errors": 0,
+    "warnings": 0
+  }
+}
+"
+`;
+
+exports[`format-json — multi-file aggregation > invalid directory → mixed results, summary aggregates errors + warnings 1`] = `
+"{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "fixtures/invalid/E001-bom/with-bom.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E001",
+          "severity": "error",
+          "line": 1,
+          "message": "BOM byte sequence (\`EF BB BF\`) detected at file start",
+          "doc": "https://caspian.dev/diagnostics#caspian-e001"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E002-encoding/non-utf8.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E002",
+          "severity": "error",
+          "line": 1,
+          "message": "File encoding is not UTF-8",
+          "doc": "https://caspian.dev/diagnostics#caspian-e002"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E003-tab-indent/tab-in-yaml.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E003",
+          "severity": "error",
+          "line": 4,
+          "message": "Tab character detected in frontmatter indentation",
+          "doc": "https://caspian.dev/diagnostics#caspian-e003"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E004-oversized/over-4kb.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E004",
+          "severity": "error",
+          "line": 1,
+          "message": "Frontmatter exceeds the 4 KB hard cap",
+          "doc": "https://caspian.dev/diagnostics#caspian-e004"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E005-missing-delimiters/no-closing-delim.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E005",
+          "severity": "error",
+          "line": 1,
+          "message": "Missing or malformed frontmatter delimiters (\`---\`)",
+          "doc": "https://caspian.dev/diagnostics#caspian-e005"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E006-yaml-parse/unclosed-bracket.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E006",
+          "severity": "error",
+          "line": 3,
+          "message": "YAML parse error in frontmatter",
+          "doc": "https://caspian.dev/diagnostics#caspian-e006"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E007-unquoted-bool/yes-as-string.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E007",
+          "severity": "error",
+          "line": 3,
+          "message": "Unquoted YAML 1.1 boolean-like value (\`on\`/\`off\`/\`yes\`/\`no\`/\`y\`/\`n\`)",
+          "doc": "https://caspian.dev/diagnostics#caspian-e007"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E008-type-missing/no-type.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E008",
+          "severity": "error",
+          "line": 1,
+          "field": "type",
+          "message": "Field \`type\` is missing or empty",
+          "doc": "https://caspian.dev/diagnostics#caspian-e008"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E009-type-not-namespaced/bare-name.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E009",
+          "severity": "error",
+          "line": 2,
+          "field": "type",
+          "message": "Field \`type\` is not in \`<namespace>:<name>\` form",
+          "doc": "https://caspian.dev/diagnostics#caspian-e009"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E010-requires-not-array/string-instead.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E010",
+          "severity": "error",
+          "line": 3,
+          "field": "requires",
+          "message": "Field \`requires\` is not an array",
+          "doc": "https://caspian.dev/diagnostics#caspian-e010"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E011-requires-entry-missing-type/missing-type-key.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E011",
+          "severity": "error",
+          "line": 4,
+          "field": "requires",
+          "message": "Entry in \`requires\` is missing \`type\`",
+          "doc": "https://caspian.dev/diagnostics#caspian-e011"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E012-requires-invalid-shape/extra-property.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E012",
+          "severity": "error",
+          "line": 5,
+          "field": "requires",
+          "message": "Entry in \`requires\` has an invalid shape",
+          "doc": "https://caspian.dev/diagnostics#caspian-e012"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E013-produces-not-object/array-instead.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E013",
+          "severity": "error",
+          "line": 3,
+          "field": "produces",
+          "message": "Field \`produces\` is not an object",
+          "doc": "https://caspian.dev/diagnostics#caspian-e013"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/E014-produces-missing-type/empty-object.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E014",
+          "severity": "error",
+          "line": 3,
+          "field": "produces",
+          "message": "Field \`produces\` is missing \`type\`",
+          "doc": "https://caspian.dev/diagnostics#caspian-e014"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/W001-unknown-field/typo-metadat.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W001",
+          "severity": "warning",
+          "line": 3,
+          "field": "metadat",
+          "message": "Unrecognized frontmatter field outside the recognized allow-list: \`metadat\`. Did you mean \`metadata\`? See: https://caspian.dev/diagnostics#caspian-w001",
+          "doc": "https://caspian.dev/diagnostics#caspian-w001"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/W001-unknown-field/vendor-namespaced.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W001",
+          "severity": "warning",
+          "line": 3,
+          "field": "examples:custom-field",
+          "message": "Unrecognized frontmatter field outside the recognized allow-list: \`examples:custom-field\`. See: https://caspian.dev/diagnostics#caspian-w001",
+          "doc": "https://caspian.dev/diagnostics#caspian-w001"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/W002-non-core-namespace/bmad-epic.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W002",
+          "severity": "warning",
+          "line": 2,
+          "field": "type",
+          "message": "Field \`type\` uses a namespace outside the canonical \`core:*\` registry: \`bmad:epic\`.",
+          "doc": "https://caspian.dev/diagnostics#caspian-w002"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/W003-unrecognized-schema-version/version-9-9.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W003",
+          "severity": "warning",
+          "line": 2,
+          "field": "schema_version",
+          "message": "Field \`schema_version\` value is not recognized by this validator: \`9.9\`.",
+          "doc": "https://caspian.dev/diagnostics#caspian-w003"
+        }
+      ]
+    },
+    {
+      "file": "fixtures/invalid/W004-non-canonical-core-name/non-canonical-name.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W004",
+          "severity": "warning",
+          "line": 2,
+          "field": "type",
+          "message": "Field \`type\` uses a \`core:\` name outside the canonical vocabulary",
+          "doc": "https://caspian.dev/diagnostics#caspian-w004"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "files": 19,
+    "errors": 14,
+    "warnings": 5
+  }
+}
+"
+`;
+
+exports[`format-json — schema shape (B4) > E008 file → exit 1 + valid:false + summary.errors=1 + field='type' 1`] = `
+"{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "fixtures/invalid/E008-type-missing/no-type.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-E008",
+          "severity": "error",
+          "line": 1,
+          "field": "type",
+          "message": "Field \`type\` is missing or empty",
+          "doc": "https://caspian.dev/diagnostics#caspian-e008"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "files": 1,
+    "errors": 1,
+    "warnings": 0
+  }
+}
+"
+`;
+
+exports[`format-json — schema shape (B4) > W001 file → exit 0 + valid:true + summary.warnings=1 + verbatim message 1`] = `
+"{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "fixtures/invalid/W001-unknown-field/typo-metadat.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W001",
+          "severity": "warning",
+          "line": 3,
+          "field": "metadat",
+          "message": "Unrecognized frontmatter field outside the recognized allow-list: \`metadat\`. Did you mean \`metadata\`? See: https://caspian.dev/diagnostics#caspian-w001",
+          "doc": "https://caspian.dev/diagnostics#caspian-w001"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "files": 1,
+    "errors": 0,
+    "warnings": 1
+  }
+}
+"
+`;
+
+exports[`format-json — schema shape (B4) > valid file → schemaVersion '1' + 1 result valid:true + summary 1/0/0 1`] = `
+"{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "fixtures/valid/core-overview/minimal.md",
+      "valid": true,
+      "diagnostics": []
+    }
+  ],
+  "summary": {
+    "files": 1,
+    "errors": 0,
+    "warnings": 0
+  }
+}
+"
+`;

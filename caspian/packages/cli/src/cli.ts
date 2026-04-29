@@ -32,9 +32,12 @@ async function main(): Promise<number> {
       "validate a file, directory, or glob pattern (recurses *.md files in directories)",
     )
     .argument("<path>", "file, directory, or glob pattern")
+    .option("-f, --format <mode>", "output format (human | json)", "human")
     .exitOverride()
-    .action(async (inputPath: string) => {
-      exitCode = await runValidate(inputPath);
+    .action(async (inputPath: string, options: { format: string }) => {
+      exitCode = await runValidate(inputPath, {
+        format: options.format as "human" | "json",
+      });
     });
 
   await program.parseAsync(process.argv);

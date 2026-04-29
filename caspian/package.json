@@ -18,6 +18,7 @@
     "gen:codes": "pnpm --filter @caspian-dev/core gen:codes",
     "verify-codes-hash": "pnpm --filter @caspian-dev/core verify-codes-hash",
     "ajv-validate-registry": "pnpm --filter @caspian-dev/core ajv-validate-registry",
+    "verify-pack": "pnpm --filter @caspian-dev/cli verify-pack",
     "prepare": "node scripts/install-pre-commit.mjs"
   },
   "devDependencies": {

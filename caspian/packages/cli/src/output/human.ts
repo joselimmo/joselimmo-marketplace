@@ -1,42 +1,18 @@
-import type { Diagnostic, DiagnosticDefinition } from "@caspian-dev/core";
-import * as diagnosticsModule from "@caspian-dev/core/diagnostics";
+import type { Diagnostic } from "@caspian-dev/core";
 import { Chalk } from "chalk";
+import { getDocUrl } from "./doc-url.js";
+import type { FileResult } from "./types.js";
 
 // Deterministic ANSI when caller passes useColor: true.
 // Plain strings when useColor: false. We never rely on chalk's TTY auto-detect
 // inside the formatter — the caller (commands/validate.ts) decides.
 const colored = new Chalk({ level: 1 });
 
-export interface FileResult {
-  file: string;
-  diagnostics: Diagnostic[];
-}
+export type { FileResult };
 
 export interface FormatOptions {
   useColor: boolean;
   skippedCount?: number;
-}
-
-const DOC_URL_BY_CODE: ReadonlyMap<string, string> = (() => {
-  const map = new Map<string, string>();
-  for (const value of Object.values(diagnosticsModule)) {
-    if (
-      value !== null &&
-      typeof value === "object" &&
-      "code" in value &&
-      "doc" in value &&
-      typeof (value as DiagnosticDefinition).code === "string" &&
-      typeof (value as DiagnosticDefinition).doc === "string"
-    ) {
-      const def = value as DiagnosticDefinition;
-      map.set(def.code, def.doc);
-    }
-  }
-  return map;
-})();
-
-export function getDocUrl(code: string): string | undefined {
-  return DOC_URL_BY_CODE.get(code);
 }
 
 const HINT_RE = /^(.*?)\. Did you mean `(.+?)`\?(?: See: .+)?$/;

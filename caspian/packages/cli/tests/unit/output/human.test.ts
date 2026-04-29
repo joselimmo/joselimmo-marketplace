@@ -1,10 +1,8 @@
 import type { Diagnostic } from "@caspian-dev/core";
 import { describe, expect, it } from "vitest";
-import {
-  type FileResult,
-  formatHuman,
-  getDocUrl,
-} from "../../../src/output/human.js";
+import { getDocUrl } from "../../../src/output/doc-url.js";
+import { formatHuman } from "../../../src/output/human.js";
+import type { FileResult } from "../../../src/output/types.js";
 
 const noColor = { useColor: false };
 const withColor = { useColor: true };

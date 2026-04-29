@@ -60,7 +60,25 @@ const constLines = registry.diagnostics.map((entry) => {
   ].join("\n");
 });
 
-const output = [...banner, "", importLine, "", ...constLines, ""].join("\n");
+const constNames = registry.diagnostics.map((entry) =>
+  entry.code.replace("-", "_"),
+);
+const definitionsLine = [
+  "export const DIAGNOSTIC_DEFINITIONS: readonly DiagnosticDefinition[] = [",
+  ...constNames.map((n) => `  ${n},`),
+  "];",
+].join("\n");
+
+const output = [
+  ...banner,
+  "",
+  importLine,
+  "",
+  ...constLines,
+  "",
+  definitionsLine,
+  "",
+].join("\n");
 
 await fs.writeFile(OUTPUT_PATH, output, "utf8");
 console.log(

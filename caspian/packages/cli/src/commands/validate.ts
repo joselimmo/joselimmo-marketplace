@@ -2,7 +2,9 @@ import path from "node:path";
 import { validateFile } from "@caspian-dev/core";
 import { supportsColor } from "chalk";
 import { EXIT_ERROR, EXIT_OK, EXIT_USAGE } from "../constants.js";
-import { type FileResult, formatHuman } from "../output/human.js";
+import { formatHuman } from "../output/human.js";
+import { formatJson } from "../output/json.js";
+import type { FileResult } from "../output/types.js";
 import {
   EmptyDirectoryError,
   GlobNoMatchError,
@@ -10,6 +12,10 @@ import {
   type WalkResult,
   walk,
 } from "../walker.js";
+
+export interface RunValidateOptions {
+  format: "human" | "json";
+}
 
 function toDisplayPath(absolutePath: string, cwd: string): string {
   // Normalize to forward slashes for cross-platform stable display paths.
@@ -23,7 +29,21 @@ function toDisplayPath(absolutePath: string, cwd: string): string {
   return absFwd;
 }
 
-export async function runValidate(input: string): Promise<number> {
+export async function runValidate(
+  input: string,
+  options: RunValidateOptions,
+): Promise<number> {
+  // Defense in depth: commander's option processing should reject non-string
+  // values, but this guard catches programmatic misuse and lets us own the
+  // exact error message format (instead of commander's "invalid argument").
+  if (options.format !== "human" && options.format !== "json") {
+    process.stderr.write(
+      `error: invalid --format value: '${options.format}' (expected 'human' or 'json')\n`,
+    );
+    process.stderr.write("Run 'caspian validate --help' for usage.\n");
+    return EXIT_USAGE;
+  }
+
   const cwd = process.cwd();
 
   let walkResult: WalkResult;
@@ -53,6 +73,8 @@ export async function runValidate(input: string): Promise<number> {
     throw err;
   }
 
+  // Skipped-file warnings emit on stderr in BOTH modes — stderr is the
+  // canonical channel for non-validation messages per architecture.md:432.
   for (const skipped of walkResult.skippedOutsideCwd) {
     process.stderr.write(
       `Skipped: ${toDisplayPath(skipped, cwd)} resolves outside the working directory\n`,
@@ -72,19 +94,23 @@ export async function runValidate(input: string): Promise<number> {
     }),
   );
 
-  // P2: use chalk's stdout-facing supportsColor (honors NO_COLOR, FORCE_COLOR,
-  // and isTTY without the stderr-proxy mismatch).
-  const useColor =
-    typeof supportsColor === "object" &&
-    supportsColor !== null &&
-    Boolean((supportsColor as { hasBasic?: boolean }).hasBasic);
+  if (options.format === "json") {
+    process.stdout.write(formatJson(fileResults));
+  } else {
+    // P2: use chalk's stdout-facing supportsColor (honors NO_COLOR, FORCE_COLOR,
+    // and isTTY without the stderr-proxy mismatch).
+    const useColor =
+      typeof supportsColor === "object" &&
+      supportsColor !== null &&
+      Boolean((supportsColor as { hasBasic?: boolean }).hasBasic);
 
-  // P10: include skipped-file count in the summary footer.
-  const skippedCount =
-    walkResult.skippedOutsideCwd.length + walkResult.skippedUnresolvable.length;
+    // P10: include skipped-file count in the summary footer.
+    const skippedCount =
+      walkResult.skippedOutsideCwd.length +
+      walkResult.skippedUnresolvable.length;
 
-  const out = formatHuman(fileResults, { useColor, skippedCount });
-  process.stdout.write(out);
+    process.stdout.write(formatHuman(fileResults, { useColor, skippedCount }));
+  }
 
   const hasError = fileResults.some((r) =>
     r.diagnostics.some((d) => d.severity === "error"),

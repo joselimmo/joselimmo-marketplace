@@ -132,3 +132,24 @@ export const CASPIAN_W004: DiagnosticDefinition = {
   message: "Field `type` uses a `core:` name outside the canonical vocabulary",
   doc: "https://caspian.dev/diagnostics#caspian-w004",
 };
+
+export const DIAGNOSTIC_DEFINITIONS: readonly DiagnosticDefinition[] = [
+  CASPIAN_E001,
+  CASPIAN_E002,
+  CASPIAN_E003,
+  CASPIAN_E004,
+  CASPIAN_E005,
+  CASPIAN_E006,
+  CASPIAN_E007,
+  CASPIAN_E008,
+  CASPIAN_E009,
+  CASPIAN_E010,
+  CASPIAN_E011,
+  CASPIAN_E012,
+  CASPIAN_E013,
+  CASPIAN_E014,
+  CASPIAN_W001,
+  CASPIAN_W002,
+  CASPIAN_W003,
+  CASPIAN_W004,
+];

@@ -33,3 +33,9 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   Extends `constants.ts` with `RECOGNIZED_FIELDS`, `SUPPORTED_SCHEMA_VERSIONS`,
   `CANONICAL_CORE_NAMES`. Fixture runner expanded from 7 (E001–E007) to 19
   (E001–E014 + W001–W004) pairs.
+- Additive export `DIAGNOSTIC_DEFINITIONS: readonly DiagnosticDefinition[]` from
+  `@caspian-dev/core/diagnostics` (Story 2.6). Canonical iteration source for
+  downstream consumers; closes Story 2.5 deferred item D2 (replaces export-shape
+  duck-typing in the CLI's doc-URL lookup). The registry sha256 header in
+  `codes.generated.ts` is unchanged because the hash is computed over
+  `caspian/diagnostics/registry.json` bytes, not over the generator output.

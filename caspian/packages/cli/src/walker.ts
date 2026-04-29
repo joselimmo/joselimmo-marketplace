@@ -83,6 +83,17 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
     }
   }
 
+  // Story 2.6: sort fast-glob output before per-file iteration so the walker's
+  // observable order is deterministic across runs (NFR19). fast-glob's default
+  // order is filesystem-dependent and observed unstable on Windows NTFS — two
+  // back-to-back walks can return identical sets in different orders, breaking
+  // byte-identical-output guarantees in --format=json. Sorting absolute paths
+  // gives a stable, cross-platform deterministic order. Minor deviation from
+  // Story 2.5 AC2's "do NOT sort" — that AC was based on the false premise
+  // that fast-glob is alphabetical on macOS/Windows; CC2 in Story 2.5 happened
+  // to capture a sorted run by chance. Documenting in Story 2.6 Dev Notes.
+  absoluteCandidates.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
   const files: string[] = [];
   const skippedOutsideCwd: string[] = [];
   // P6: separate bucket for paths that realpathSync cannot resolve (broken

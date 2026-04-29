@@ -41,7 +41,67 @@ caspian validate '**/*.md'
 
 Default output is human-readable with ANSI colors when stdout is a TTY (auto-detected via `chalk`; honors `NO_COLOR`). Each file gets a per-file block with `<file>:<line> — <code> <severity>: <message>`, optional `hint:` and `doc:` sub-lines, followed by a summary footer `<N> files: <X> errors, <Y> warnings`.
 
-`--format=json` lands in a future release.
+See [JSON output](#json-output---format-json) below for the machine-readable mode.
+
+## JSON output (`--format=json`)
+
+Programmatic CI consumers, jq pipelines, and third-party dashboards should use `--format=json`. The output is a single JSON document on stdout, pretty-printed with 2-space indent.
+
+```bash
+caspian validate --format=json ./skills/
+```
+
+### Schema (v1)
+
+```json
+{
+  "schemaVersion": "1",
+  "results": [
+    {
+      "file": "skills/maya-lint.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "code": "CASPIAN-W001",
+          "severity": "warning",
+          "line": 7,
+          "field": "metadata",
+          "message": "Unrecognized frontmatter field outside the recognized allow-list: `metadat`. Did you mean `metadata`?",
+          "doc": "https://caspian.dev/diagnostics#caspian-w001"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "files": 12,
+    "errors": 0,
+    "warnings": 3
+  }
+}
+```
+
+- `schemaVersion` is the stable contract identifier. v1.0 ships `"1"`.
+- `results[].file` is the path as walked, with forward slashes regardless of OS.
+- `results[].valid` is `true` iff no `severity: "error"` diagnostic is present (warnings are allowed).
+- `diagnostics[].field` is omitted when the diagnostic does not target a specific field (e.g., `CASPIAN-E001` BOM).
+- `diagnostics[].doc` is omitted only for unknown codes (not present in the v1.0 18-code registry — should never occur).
+- `summary.files` counts walked-and-validated files (skipped files emit warnings on stderr; they are not included in the summary).
+
+### Schema stability
+
+`schemaVersion: "1"` is a stable contract. Adding optional fields (e.g., a future `summary.skipped` count or `diagnostic.hint` field) is **non-breaking** and does NOT bump the version. Removing or renaming any field, changing a field's type, or changing the semantics of an existing field bumps `schemaVersion` to `"2"` (or higher).
+
+When `schemaVersion` is bumped, the prior version is documented as deprecated in `CHANGELOG.md` for at least one minor release before the old shape is removed. Downstream consumers should pin against `parsed.schemaVersion === "1"` and emit a warning when they encounter a different value.
+
+### Strict-warnings recipe
+
+Default exit semantics: `caspian` exits 0 when only warnings are present. To gate CI on a zero-warnings, zero-errors invariant, pipe through `jq`:
+
+```bash
+caspian validate --format=json ./skills/ | jq -e '.summary.errors == 0 and .summary.warnings == 0'
+```
+
+`jq -e` exits non-zero when the predicate evaluates to `false`, propagating a failing exit code to the surrounding CI step.
 
 ## License
 
