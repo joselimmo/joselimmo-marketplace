@@ -13,6 +13,8 @@
       "!**/*.generated.ts",
       "!pnpm-lock.yaml",
       "!fixtures/invalid",
+      "!conformance/cases",
+      "!conformance/REPORT.md",
       "!node_modules"
     ]
   },

@@ -39,3 +39,10 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   duck-typing in the CLI's doc-URL lookup). The registry sha256 header in
   `codes.generated.ts` is unchanged because the hash is computed over
   `caspian/diagnostics/registry.json` bytes, not over the generator output.
+- Story 2.7: vendor-neutrality of `@caspian-dev/core` is now mechanically
+  enforced by `dependency-cruiser` (source-level lint at `packages/cli/.dependency-cruiser.cjs`)
+  + lockfile audit (`scripts/audit-lockfile-vendor-neutrality.mjs` rejecting any
+  resolved transitive matching `claude` or `anthropic`) + docker runtime
+  release-gate (`scripts/vendor-neutrality-docker.mjs`, wired into `release.yml`
+  by Story 2.8). No source change in this story; the boundary is enforced by
+  external tooling.

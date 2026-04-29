@@ -88,7 +88,21 @@
       "Bash(echo \"exit=$?\")",
       "Bash(CASPIAN_CLI_FORCE_THROW=1 node packages/cli/dist/cli.js validate ./fixtures/valid/core-overview/minimal.md)",
       "Bash(echo \"CC6 unpiped exit=$?\")",
-      "Bash(git -C .. diff .claude/settings.local.json)"
+      "Bash(git -C .. diff .claude/settings.local.json)",
+      "Bash(git *)",
+      "Bash(echo \"---EXIT=$?---\")",
+      "Bash(echo \"predicate exit: $?  \\(expect non-zero — predicate is FALSE because warnings=1\\)\")",
+      "Bash(echo \"result: $? \\(expect 1 = no matches\\)\")",
+      "Bash(docker --version)",
+      "Bash(mkdir -p conformance/cases/001-bom-rejection conformance/cases/002-encoding-utf8-required conformance/cases/003-tab-indent-rejection conformance/cases/004-frontmatter-byte-cap conformance/cases/005-frontmatter-delimiters-required conformance/cases/006-yaml-parse-error conformance/cases/007-yaml-1-1-boolean-coercion conformance/cases/008-type-required conformance/cases/009-type-namespace-name-form conformance/cases/010-requires-must-be-array conformance/cases/011-requires-entry-type-required conformance/cases/012-requires-entry-invalid-shape conformance/cases/013-produces-must-be-object conformance/cases/014-produces-type-required conformance/cases/015-frontmatter-field-allow-list conformance/cases/016-type-canonical-namespace conformance/cases/017-schema-version-recognized conformance/cases/018-core-namespace-name-not-in-vocabulary)",
+      "Bash(cp fixtures/invalid/E001-bom/with-bom.md conformance/cases/001-bom-rejection/input.md)",
+      "Bash(cp fixtures/invalid/E002-encoding/non-utf8.md conformance/cases/002-encoding-utf8-required/input.md)",
+      "Bash(cp fixtures/invalid/E003-tab-indent/tab-in-yaml.md conformance/cases/003-tab-indent-rejection/input.md)",
+      "Bash(cp fixtures/invalid/E004-oversized/over-4kb.md conformance/cases/004-frontmatter-byte-cap/input.md)",
+      "Read(//f/f/work/joselimmo-marketplace-bmad/caspian/**)",
+      "Read(//f/f/work/joselimmo-marketplace-bmad/caspian/conformance/**)",
+      "Bash(tasklist)",
+      "Bash(xargs grep *)"
     ]
   }
 }

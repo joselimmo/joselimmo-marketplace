@@ -19,10 +19,15 @@
     "verify-codes-hash": "pnpm --filter @caspian-dev/core verify-codes-hash",
     "ajv-validate-registry": "pnpm --filter @caspian-dev/core ajv-validate-registry",
     "verify-pack": "pnpm --filter @caspian-dev/cli verify-pack",
+    "depcruise": "dependency-cruiser --config packages/cli/.dependency-cruiser.cjs --no-progress packages/core/src packages/cli/src",
+    "audit-vendor-neutrality": "node scripts/audit-lockfile-vendor-neutrality.mjs",
+    "vendor-neutrality:docker": "node scripts/vendor-neutrality-docker.mjs",
+    "conformance": "node conformance/runner.mjs ./packages/cli/dist/cli.js",
     "prepare": "node scripts/install-pre-commit.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
-    "@changesets/cli": "^2.31.0"
+    "@changesets/cli": "^2.31.0",
+    "dependency-cruiser": "^16.0.0"
   }
 }

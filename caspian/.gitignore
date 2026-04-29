@@ -5,6 +5,7 @@ site/dist/
 .vitest-cache/
 coverage/
 *.tgz
+conformance/REPORT.md
 .DS_Store
 Thumbs.db
 .env*
