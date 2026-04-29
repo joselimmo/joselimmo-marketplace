@@ -92,7 +92,9 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
   // Story 2.5 AC2's "do NOT sort" — that AC was based on the false premise
   // that fast-glob is alphabetical on macOS/Windows; CC2 in Story 2.5 happened
   // to capture a sorted run by chance. Documenting in Story 2.6 Dev Notes.
-  absoluteCandidates.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  absoluteCandidates = [...absoluteCandidates].sort((a, b) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
 
   const files: string[] = [];
   const skippedOutsideCwd: string[] = [];

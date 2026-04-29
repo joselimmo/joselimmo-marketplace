@@ -207,6 +207,22 @@ describe("format-json — determinism (NFR19, NFR20)", () => {
     // ordering drift, whitespace drift, or trailing-newline drift.
     expect(r1.stdout).toBe(r2.stdout);
   });
+
+  it("two consecutive runs on invalid fixtures produce byte-identical stdout", async () => {
+    const r1 = await runCli([
+      "validate",
+      "--format=json",
+      "./fixtures/invalid/",
+    ]);
+    const r2 = await runCli([
+      "validate",
+      "--format=json",
+      "./fixtures/invalid/",
+    ]);
+    expect(r1.code).toBe(1);
+    expect(r2.code).toBe(1);
+    expect(r1.stdout).toBe(r2.stdout);
+  });
 });
 
 describe("format-json — strict-warnings predicate (PRD Journey 6)", () => {

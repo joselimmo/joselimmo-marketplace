@@ -72,6 +72,20 @@ try {
   process.exit(1);
 }
 
+if (!Array.isArray(pack.files)) {
+  console.error(
+    `verify-pack: FAIL — unexpected pnpm pack output shape: "files" is not an array`,
+  );
+  process.exit(1);
+}
+
+if (!Array.isArray(snapshot.files)) {
+  console.error(
+    `verify-pack: FAIL — snapshot has unexpected shape: "files" is not an array`,
+  );
+  process.exit(1);
+}
+
 const actualPaths = sortPaths(pack.files.map((f) => f.path));
 const expectedPaths = sortPaths(snapshot.files.map((f) => f.path));
 

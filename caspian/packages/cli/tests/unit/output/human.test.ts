@@ -202,7 +202,9 @@ describe("getDocUrl — typed-constant lookup", () => {
     );
   });
 
-  it("returns undefined for unknown codes", () => {
+  it("returns undefined for unknown codes (empty string, no prefix, unregistered)", () => {
     expect(getDocUrl("CASPIAN-Z999")).toBeUndefined();
+    expect(getDocUrl("")).toBeUndefined();
+    expect(getDocUrl("E001")).toBeUndefined();
   });
 });

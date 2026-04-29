@@ -14,7 +14,7 @@ interface JsonDiagnostic {
 interface JsonResult {
   file: string;
   valid: boolean;
-  diagnostics: JsonDiagnostic[];
+  diagnostics: readonly JsonDiagnostic[];
 }
 
 interface JsonSummary {
@@ -25,7 +25,7 @@ interface JsonSummary {
 
 export interface JsonOutput {
   schemaVersion: "1";
-  results: JsonResult[];
+  results: ReadonlyArray<JsonResult>;
   summary: JsonSummary;
 }
 
@@ -38,6 +38,8 @@ function toJsonDiagnostic(d: Diagnostic): JsonDiagnostic {
     code: d.code,
     severity: d.severity,
     line: d.line,
+    // AC6: field is omitted when absent OR empty-string (Diagnostic.field is
+    // string | undefined; an empty string is treated as absent per spec).
     ...(d.field !== undefined && d.field !== "" ? { field: d.field } : {}),
     message: d.message,
     ...(doc !== undefined ? { doc } : {}),

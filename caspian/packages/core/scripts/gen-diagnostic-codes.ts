@@ -48,7 +48,7 @@ const banner = [
 const importLine = `import type { DiagnosticDefinition } from "./types.js";`;
 
 const constLines = registry.diagnostics.map((entry) => {
-  const constName = entry.code.replace("-", "_");
+  const constName = entry.code.replaceAll("-", "_");
   return [
     `export const ${constName}: DiagnosticDefinition = {`,
     `  code: ${JSON.stringify(entry.code)},`,
@@ -61,7 +61,7 @@ const constLines = registry.diagnostics.map((entry) => {
 });
 
 const constNames = registry.diagnostics.map((entry) =>
-  entry.code.replace("-", "_"),
+  entry.code.replaceAll("-", "_"),
 );
 const definitionsLine = [
   "export const DIAGNOSTIC_DEFINITIONS: readonly DiagnosticDefinition[] = [",

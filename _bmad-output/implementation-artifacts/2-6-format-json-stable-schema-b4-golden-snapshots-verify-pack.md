@@ -1,6 +1,6 @@
 # Story 2.6: `--format=json` stable schema (B4) + golden snapshots + verify-pack
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -1005,6 +1005,25 @@ If any cross-check fails, the implementation is wrong (not the story spec). Reco
   - [x] Updated *Completion Notes List* (below).
   - [x] Updated *File List* (below).
   - [x] Updated *Change Log* (below).
+
+### Review Findings
+
+- [x] [Review][Patch] P1 — `gen-diagnostic-codes.ts`: `replace("-", "_")` only replaces first hyphen — use `replaceAll("-", "_")` for forward safety [`caspian/packages/core/scripts/gen-diagnostic-codes.ts`]
+- [x] [Review][Patch] P2 — `walker.ts`: in-place sort mutation — use `[...absoluteCandidates].sort(...)` instead [`caspian/packages/cli/src/walker.ts`]
+- [x] [Review][Patch] P3 — `json.ts` `JsonOutput` interface: use `ReadonlyArray<JsonResult>` and `readonly JsonDiagnostic[]` per AC12 [`caspian/packages/cli/src/output/json.ts`]
+- [x] [Review][Patch] P4 — `verify-pack.ts`: add guard for `pack.files` and `snapshot.files` undefined/non-array before `.map()` [`caspian/packages/cli/scripts/verify-pack.ts`]
+- [x] [Review][Patch] P5 — `json.ts`: document `d.field !== ""` empty-string guard with inline comment [`caspian/packages/cli/src/output/json.ts`]
+- [x] [Review][Patch] P6 — Test: add unit test for `formatJson([])` (zero-results edge case) [`caspian/packages/cli/tests/unit/output/json.test.ts`]
+- [x] [Review][Patch] P7 — Test: add unit test for single file emitting both error and warning simultaneously [`caspian/packages/cli/tests/unit/output/json.test.ts`]
+- [x] [Review][Patch] P8 — Test: extend `getDocUrl` unknown-code test with `""` and prefix-less code edge cases [`caspian/packages/cli/tests/unit/output/human.test.ts`]
+- [x] [Review][Patch] P9 — Test: extend determinism test to cover `fixtures/invalid/` directory [`caspian/packages/cli/tests/integration/format-json.test.ts`]
+- [x] [Review][Defer] D1 — `formatJson` else branch silently miscounts future third severity — TypeScript `"error" | "warning"` union protects at compile time; deferred, pre-existing [`caspian/packages/cli/src/output/json.ts`]
+- [x] [Review][Defer] D2 — `Promise.all` drops partial results on rejection — carry-forward of Story 2.5 D3; deferred, pre-existing [`caspian/packages/cli/src/commands/validate.ts`]
+- [x] [Review][Defer] D3 — EPIPE on `process.stdout.write` not handled — pre-existing behavior, both formatters affected; deferred, pre-existing [`caspian/packages/cli/src/commands/validate.ts`]
+- [x] [Review][Defer] D4 — Walker sort mixes `path.resolve` (OS-native sep) and fast-glob (forward slash) paths — single-element sort is no-op; multi-source mix unreachable via current CLI; deferred, pre-existing [`caspian/packages/cli/src/walker.ts`]
+- [x] [Review][Defer] D5 — `d.line` lower bound not validated in formatter — all 18 codes emit `line ≥ 1` by convention; deferred, pre-existing [`caspian/packages/cli/src/output/json.ts`]
+- [x] [Review][Defer] D6 — `DOC_URL_BY_CODE` Map silently last-write-wins on duplicate codes — `gen-diagnostic-codes.ts` does not assert uniqueness; low probability; deferred, pre-existing [`caspian/packages/cli/src/output/doc-url.ts`]
+- [x] [Review][Defer] D7 — `verify-pack.ts`: pnpm may emit non-JSON warnings before JSON payload — `pnpm pack --dry-run --json` normally suppresses in pnpm 10; low risk; deferred, pre-existing [`caspian/packages/cli/scripts/verify-pack.ts`]
 
 ## Dev Notes
 
