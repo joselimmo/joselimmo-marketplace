@@ -1,2 +1,3 @@
 * text=auto eol=lf
 packages/core/src/diagnostics/codes.generated.ts merge=ours linguist-generated=true
+packages/cli/src/version.generated.ts merge=ours linguist-generated=true
