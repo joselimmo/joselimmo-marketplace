@@ -1,21 +1,23 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
-import { CLI_DIST_BIN, CLI_PACKAGE_ROOT } from "../helpers/paths.js";
+import { CLI_PACKAGE_ROOT } from "../helpers/paths.js";
 import { runCli } from "../helpers/run-cli.js";
 
 const execFileAsync = promisify(execFile);
 
+// P7: always rebuild so integration tests never run against a stale dist.
+// tsc is incremental (tsbuildinfo) so a warm rebuild takes ~1s.
+// shell: true is required on Windows to invoke .cmd shims via execFile.
 beforeAll(async () => {
-  // Ensure dist is fresh for integration assertions on the built artifact.
-  if (!existsSync(CLI_DIST_BIN)) {
-    await execFileAsync(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      ["-F", "@caspian-dev/cli", "build"],
-      { cwd: CLI_PACKAGE_ROOT, maxBuffer: 5 * 1024 * 1024 },
-    );
-  }
+  await execFileAsync("pnpm", ["-F", "@caspian-dev/cli", "build"], {
+    cwd: CLI_PACKAGE_ROOT,
+    maxBuffer: 5 * 1024 * 1024,
+    shell: true,
+  });
 }, 120_000);
 
 describe("cli end-to-end — info flags", () => {
@@ -72,16 +74,32 @@ describe("cli end-to-end — validate failure paths", () => {
 });
 
 describe("cli end-to-end — usage errors (exit 2)", () => {
-  it("unknown option → exit 2 with stderr 'unknown option'", async () => {
+  // P1: commander-detected usage errors must also emit the help-reminder line.
+  it("unknown option → exit 2 with stderr 'unknown option' + help hint", async () => {
     const { stderr, code } = await runCli(["validate", "--flubber"]);
     expect(code).toBe(2);
     expect(stderr).toContain("unknown option");
+    expect(stderr).toContain("Run 'caspian validate --help' for usage.");
   });
 
   it("missing input → exit 2 with stderr 'input not found'", async () => {
     const { stderr, code } = await runCli(["validate", "./does-not-exist.md"]);
     expect(code).toBe(2);
     expect(stderr).toContain("input not found");
+    expect(stderr).toContain("Run 'caspian validate --help' for usage.");
+  });
+
+  // P11: empty directory exits 2, same as a glob that matches nothing.
+  it("empty directory → exit 2 with 'directory contains no .md files'", async () => {
+    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "caspian-e2e-"));
+    try {
+      const { stderr, code } = await runCli(["validate", emptyDir]);
+      expect(code).toBe(2);
+      expect(stderr).toContain("directory contains no .md files");
+      expect(stderr).toContain("Run 'caspian validate --help' for usage.");
+    } finally {
+      fs.rmSync(emptyDir, { recursive: true, force: true });
+    }
   });
 });
 

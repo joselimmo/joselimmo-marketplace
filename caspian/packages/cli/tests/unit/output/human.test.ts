@@ -154,6 +154,21 @@ describe("formatHuman — color toggling", () => {
   });
 });
 
+describe("formatHuman — skipped-count annotation (P10)", () => {
+  it("appends '(N skipped)' to footer when skippedCount > 0", () => {
+    const results: FileResult[] = [{ file: "a.md", diagnostics: [] }];
+    const out = formatHuman(results, { useColor: false, skippedCount: 3 });
+    expect(out).toContain("1 file (3 skipped): 0 errors, 0 warnings");
+  });
+
+  it("omits skipped annotation when skippedCount is 0", () => {
+    const results: FileResult[] = [{ file: "a.md", diagnostics: [] }];
+    const out = formatHuman(results, { useColor: false, skippedCount: 0 });
+    expect(out).toContain("1 file: 0 errors, 0 warnings");
+    expect(out).not.toContain("skipped");
+  });
+});
+
 describe("formatHuman — pluralization edge cases", () => {
   it("0 files / 0 errors / 0 warnings", () => {
     const out = formatHuman([], noColor);

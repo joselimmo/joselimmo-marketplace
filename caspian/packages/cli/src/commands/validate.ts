@@ -1,9 +1,10 @@
 import path from "node:path";
 import { validateFile } from "@caspian-dev/core";
-import { supportsColorStderr } from "chalk";
+import { supportsColor } from "chalk";
 import { EXIT_ERROR, EXIT_OK, EXIT_USAGE } from "../constants.js";
 import { type FileResult, formatHuman } from "../output/human.js";
 import {
+  EmptyDirectoryError,
   GlobNoMatchError,
   InputNotFoundError,
   type WalkResult,
@@ -11,11 +12,12 @@ import {
 } from "../walker.js";
 
 function toDisplayPath(absolutePath: string, cwd: string): string {
-  // Normalize both sides to forward slashes so the prefix check works on
-  // Windows where process.cwd() may use \ but fast-glob returns /.
-  const absFwd = absolutePath.split(path.sep).join("/").replace(/\\/g, "/");
-  const cwdFwd = cwd.split(path.sep).join("/").replace(/\\/g, "/");
-  if (absFwd === cwdFwd || absFwd.startsWith(`${cwdFwd}/`)) {
+  // Normalize to forward slashes for cross-platform stable display paths.
+  const absFwd = absolutePath.split(path.sep).join("/");
+  const cwdFwd = cwd.split(path.sep).join("/");
+  // P3: guard the edge case where the path is the cwd itself.
+  if (absFwd === cwdFwd) return ".";
+  if (absFwd.startsWith(`${cwdFwd}/`)) {
     return absFwd.slice(cwdFwd.length + 1);
   }
   return absFwd;
@@ -40,12 +42,26 @@ export async function runValidate(input: string): Promise<number> {
       process.stderr.write("Run 'caspian validate --help' for usage.\n");
       return EXIT_USAGE;
     }
+    // P11: empty directory treated the same as a glob that matches nothing.
+    if (err instanceof EmptyDirectoryError) {
+      process.stderr.write(
+        `error: directory contains no .md files: ${err.directory}\n`,
+      );
+      process.stderr.write("Run 'caspian validate --help' for usage.\n");
+      return EXIT_USAGE;
+    }
     throw err;
   }
 
   for (const skipped of walkResult.skippedOutsideCwd) {
     process.stderr.write(
       `Skipped: ${toDisplayPath(skipped, cwd)} resolves outside the working directory\n`,
+    );
+  }
+  // P6: distinct message for paths realpathSync could not resolve.
+  for (const skipped of walkResult.skippedUnresolvable) {
+    process.stderr.write(
+      `Skipped: ${toDisplayPath(skipped, cwd)} (unresolvable path — broken symlink or I/O error)\n`,
     );
   }
 
@@ -56,16 +72,18 @@ export async function runValidate(input: string): Promise<number> {
     }),
   );
 
-  // useColor honors NO_COLOR / FORCE_COLOR / TTY via chalk's supportsColor
-  // detection. We use supportsColorStderr as a proxy (stdout-equivalent flag
-  // is not separately exported by chalk v5; in practice the two agree on
-  // env-driven overrides like FORCE_COLOR=1 / NO_COLOR=1).
+  // P2: use chalk's stdout-facing supportsColor (honors NO_COLOR, FORCE_COLOR,
+  // and isTTY without the stderr-proxy mismatch).
   const useColor =
-    process.stdout.isTTY === true ||
-    (typeof supportsColorStderr === "object" &&
-      supportsColorStderr !== null &&
-      Boolean((supportsColorStderr as { hasBasic?: boolean }).hasBasic));
-  const out = formatHuman(fileResults, { useColor });
+    typeof supportsColor === "object" &&
+    supportsColor !== null &&
+    Boolean((supportsColor as { hasBasic?: boolean }).hasBasic);
+
+  // P10: include skipped-file count in the summary footer.
+  const skippedCount =
+    walkResult.skippedOutsideCwd.length + walkResult.skippedUnresolvable.length;
+
+  const out = formatHuman(fileResults, { useColor, skippedCount });
   process.stdout.write(out);
 
   const hasError = fileResults.some((r) =>

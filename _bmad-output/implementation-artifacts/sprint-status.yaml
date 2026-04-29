@@ -44,7 +44,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-26
-last_updated: 2026-04-29
+last_updated: 2026-04-29 (Story 2-5 moved review → done after BMad code-review; 11 patches applied: P1 AC5 help-hint in commander catch, P2 supportsColor stdout fix, P3 toDisplayPath empty-string fix, P4 TOCTOU statSync, P5 HINT_RE /s flag, P6 realpathSync catch distinct bucket, P7 beforeAll always-build, P8 runCli signal handling, P9 it.skipIf symlink test, P10 skipped-count footer, P11 empty-dir exit 2; 3 deferred, 6 dismissed; 121 tests pass / lint 55 files exit 0)
 # 2026-04-29: story 2-5 moved backlog → ready-for-dev (create-story workflow; @caspian-dev/cli package — caspian binary entry, fast-glob walker no-symlinks + realpath check, commander v12 with exitOverride() + 4-code exit matrix (0/1/2/3), chalk v5 ANSI auto-detect human formatter with hint extraction + typed-constant doc URL lookup, build-time version.generated.ts mirroring codes.generated.ts precedent; integration tests via execFile against built dist/cli.js; deps locked at commander ^12.1.0 + fast-glob ^3.3.3 + chalk ^5.3.0 + @caspian-dev/core workspace:^; story file at _bmad-output/implementation-artifacts/2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter.md)
 # 2026-04-29: story 2-4 moved review → done after BMad code-review (9 patches applied: P1 W003 typeof check; P2 E008/E009 two-pass dedup; P3 E008 fallback for unmapped ajv errors; P4 real continue-and-collect tests via mkdtemp; P5 W003 message format for non-strings; D1 alphabetical Levenshtein tiebreaker; D2 case-fold namespace+name; D4 revert blanket Bash(git *)/Bash(gh pr *) to targeted entries; D5 bare `x-` emits W001 — across caspian/packages/core/src/validators/{envelope,namespace,allow-list}.ts + tests/unit/pipeline.test.ts + .claude/settings.local.json; 7 deferred (parseDocument try/catch, multiple parseDocument calls perf, as-any CST casts, Levenshtein boundary tests, duplicate-key dedup, complex-key coercion, fixtures-runner orphan-md detection); 11 dismissed; 91 tests / lint 41 files / build / verify-codes-hash / ajv-validate-registry all green)
 # 2026-04-28: story 2-4 moved ready-for-dev → in-progress (dev-story workflow)
@@ -119,7 +119,7 @@ development_status:
   2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: done
   2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: done
   2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: done
-  2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: review
+  2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: done
   2-6-format-json-stable-schema-b4-golden-snapshots-verify-pack: backlog
   2-7-conformance-suite-3-layer-vendor-neutrality-enforcement: backlog
   2-8-npm-publish-with-provenance-examples-ci-integration: backlog

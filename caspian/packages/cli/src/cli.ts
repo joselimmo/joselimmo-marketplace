@@ -59,7 +59,8 @@ try {
     if (err.code === "commander.version") {
       process.exit(EXIT_OK);
     }
-    // Commander already printed its own usage error to stderr.
+    // Commander already printed its own usage error to stderr; add the help hint.
+    process.stderr.write("Run 'caspian validate --help' for usage.\n");
     process.exit(EXIT_USAGE);
   }
 

@@ -1,6 +1,6 @@
 # Story 2.5: `@caspian-dev/cli` package (caspian binary) — walker + multi-file aggregation + human formatter
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -707,6 +707,23 @@ If any cross-check fails, the implementation is wrong (not the story spec). Reco
   - [x] Updated *Completion Notes List* (baseline counts, deliberate departures, forward dependencies).
   - [x] Updated *File List* (new + modified).
   - [x] Updated *Change Log* with Story 2.5 implementation entry.
+
+### Review Findings
+
+- [x] [Review][Patch] **P10 — Skipped-file count absent from summary footer** — Add `(N skipped)` annotation when `skippedOutsideCwd.length > 0`, e.g. `6 files (2 skipped): 0 errors, 0 warnings`. [Decision: option a] [`src/commands/validate.ts:46-50`, `src/output/human.ts:128`]
+- [x] [Review][Patch] **P11 — Empty-directory walk exits 0 silently — align with empty-glob (exit 2)** — When directory mode yields 0 `.md` files, throw `GlobNoMatchError` (or a new `EmptyDirectoryError`) and exit 2 with `error: directory contains no .md files: <dir>`. [Decision: option a] [`src/walker.ts:59-65`]
+- [x] [Review][Patch] **P1 — AC5: `Run 'caspian validate --help' for usage.` absent from commander-detected errors** [`src/cli.ts:48-63`]
+- [x] [Review][Patch] **P2 — Color detection uses `supportsColorStderr` as stdout proxy; `NO_COLOR=1` not respected on real TTY** [`src/commands/validate.ts:63-67`]
+- [x] [Review][Patch] **P3 — `toDisplayPath` returns empty string when `absPath === cwd`** [`src/commands/validate.ts:14`]
+- [x] [Review][Patch] **P4 — TOCTOU race: `existsSync` + `statSync` pair can throw ENOENT between calls** [`src/walker.ts:53-57`]
+- [x] [Review][Patch] **P5 — `HINT_RE` carries unnecessary `/s` (dotAll) flag — latent multi-line parse bug** [`src/output/human.ts:41`]
+- [x] [Review][Patch] **P6 — `realpathSync` failure catch emits misleading "resolves outside the working directory" for broken symlinks / EACCES** [`src/walker.ts:78-80`]
+- [x] [Review][Patch] **P7 — Integration test `beforeAll` skips build when `dist/cli.js` exists — stale binary silently tested** [`tests/integration/cli-end-to-end.test.ts:10-14`]
+- [x] [Review][Patch] **P8 — `runCli` maps null/non-numeric exit codes to `1`, masking signal kills and buffer-overflow failures** [`tests/helpers/run-cli.ts:53-57`]
+- [x] [Review][Patch] **P9 — Symlink test uses bare `return` on Windows instead of `it.skipIf` — shows as "passed" not "skipped"** [`tests/unit/walker.test.ts:59-61`]
+- [x] [Review][Defer] **D1 — `CASPIAN_CLI_FORCE_THROW` test backdoor shipped in production entry point** [`src/cli.ts:4-6`] — deferred, acknowledged tech debt in AC7 / Dev Notes; remove once a real internal-error fixture is feasible
+- [x] [Review][Defer] **D2 — `DOC_URL_BY_CODE` built by duck-typing `@caspian-dev/core/diagnostics` exports** [`src/output/human.ts:26-43`] — deferred, requires `@caspian-dev/core` to export `DIAGNOSTIC_DEFINITIONS` array; cross-package change, Story 2.6+
+- [x] [Review][Defer] **D3 — `Promise.all` drops all results when a single `validateFile` call rejects mid-batch** [`src/commands/validate.ts:52-57`] — deferred, explicitly noted in Dev Notes; `Promise.allSettled` upgrade to Story 2.6+
 
 ## Dev Notes
 

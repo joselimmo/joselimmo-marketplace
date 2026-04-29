@@ -14,6 +14,7 @@ export interface FileResult {
 
 export interface FormatOptions {
   useColor: boolean;
+  skippedCount?: number;
 }
 
 const DOC_URL_BY_CODE: ReadonlyMap<string, string> = (() => {
@@ -38,7 +39,7 @@ export function getDocUrl(code: string): string | undefined {
   return DOC_URL_BY_CODE.get(code);
 }
 
-const HINT_RE = /^(.*?)\. Did you mean `(.+?)`\?(?: See: .+)?$/s;
+const HINT_RE = /^(.*?)\. Did you mean `(.+?)`\?(?: See: .+)?$/;
 
 interface ParsedMessage {
   message: string;
@@ -125,7 +126,9 @@ export function formatHuman(
   const filesPart = pluralize(results.length, "file");
   const errorsPart = pluralize(totalErrors, "error");
   const warningsPart = pluralize(totalWarnings, "warning");
-  const footerText = `${filesPart}: ${errorsPart}, ${warningsPart}`;
+  const skippedPart =
+    (opts.skippedCount ?? 0) > 0 ? ` (${opts.skippedCount} skipped)` : "";
+  const footerText = `${filesPart}${skippedPart}: ${errorsPart}, ${warningsPart}`;
   const footer = colorFooter(footerText, totalErrors, totalWarnings, useColor);
 
   // Inter-block: one blank line between blocks; one blank line before footer.

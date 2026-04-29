@@ -30,7 +30,15 @@ export async function runCli(
       stdout?: string;
       stderr?: string;
       code?: number | null;
+      signal?: NodeJS.Signals | null;
     };
+    // P8: signal kills (OOM, SIGKILL) are unexpected — surface them as errors
+    // rather than silently mapping to exit code 1.
+    if (e.signal != null) {
+      throw new Error(
+        `CLI process killed by signal ${e.signal}\nstdout: ${e.stdout ?? ""}\nstderr: ${e.stderr ?? ""}`,
+      );
+    }
     return {
       stdout: e.stdout ?? "",
       stderr: e.stderr ?? "",

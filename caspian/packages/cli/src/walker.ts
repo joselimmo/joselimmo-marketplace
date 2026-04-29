@@ -5,6 +5,7 @@ import fastGlob from "fast-glob";
 export interface WalkResult {
   files: string[];
   skippedOutsideCwd: string[];
+  skippedUnresolvable: string[];
 }
 
 export class InputNotFoundError extends Error {
@@ -18,6 +19,13 @@ export class GlobNoMatchError extends Error {
   constructor(public readonly pattern: string) {
     super(`glob pattern matched no files: ${pattern}`);
     this.name = "GlobNoMatchError";
+  }
+}
+
+export class EmptyDirectoryError extends Error {
+  constructor(public readonly directory: string) {
+    super(`directory contains no .md files: ${directory}`);
+    this.name = "EmptyDirectoryError";
   }
 }
 
@@ -50,11 +58,14 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
     }
     absoluteCandidates = matched;
   } else {
-    if (!fs.existsSync(input)) {
+    // P4: single try/catch eliminates the existsSync+statSync TOCTOU race.
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(input);
+    } catch {
       throw new InputNotFoundError(input);
     }
 
-    const stat = fs.statSync(input);
     if (stat.isDirectory()) {
       absoluteCandidates = await fastGlob.glob("**/*.md", {
         cwd: input,
@@ -63,6 +74,10 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
         onlyFiles: true,
         absolute: true,
       });
+      // P11: align with glob zero-match behaviour — exit 2 for empty directories.
+      if (absoluteCandidates.length === 0) {
+        throw new EmptyDirectoryError(input);
+      }
     } else {
       absoluteCandidates = [path.resolve(input)];
     }
@@ -70,13 +85,16 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
 
   const files: string[] = [];
   const skippedOutsideCwd: string[] = [];
+  // P6: separate bucket for paths that realpathSync cannot resolve (broken
+  // symlinks, EACCES, ELOOP) so callers can emit a distinct, accurate message.
+  const skippedUnresolvable: string[] = [];
 
   for (const absPath of absoluteCandidates) {
     let realpath: string;
     try {
       realpath = fs.realpathSync(absPath);
     } catch {
-      skippedOutsideCwd.push(absPath);
+      skippedUnresolvable.push(absPath);
       continue;
     }
     if (isUnderRoot(realpath, cwdRealpath)) {
@@ -86,5 +104,5 @@ export async function walk(input: string, cwd: string): Promise<WalkResult> {
     }
   }
 
-  return { files, skippedOutsideCwd };
+  return { files, skippedOutsideCwd, skippedUnresolvable };
 }
