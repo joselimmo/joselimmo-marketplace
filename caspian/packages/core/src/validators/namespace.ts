@@ -51,8 +51,8 @@ export function checkNamespace(
   if (typeValue) {
     const colonIdx = typeValue.indexOf(":");
     if (colonIdx >= 0) {
-      const namespace = typeValue.slice(0, colonIdx);
-      const name = typeValue.slice(colonIdx + 1);
+      const namespace = typeValue.slice(0, colonIdx).toLowerCase();
+      const name = typeValue.slice(colonIdx + 1).toLowerCase();
 
       if (namespace !== "core") {
         diagnostics.push({
@@ -77,14 +77,15 @@ export function checkNamespace(
   }
 
   if ("schema_version" in data) {
-    const sv = String(data.schema_version ?? "");
-    if (!SUPPORTED_SCHEMA_VERSIONS.has(sv)) {
+    const v = data.schema_version;
+    if (typeof v !== "string" || !SUPPORTED_SCHEMA_VERSIONS.has(v)) {
+      const display = typeof v === "string" ? `\`${v}\`` : JSON.stringify(v);
       diagnostics.push({
         code: CASPIAN_W003.code,
         severity: CASPIAN_W003.severity,
         line: findKeyLine(raw, "schema_version", startLine),
         field: "schema_version",
-        message: `${CASPIAN_W003.message}: \`${sv}\`.`,
+        message: `${CASPIAN_W003.message}: ${display}.`,
       });
     }
   }

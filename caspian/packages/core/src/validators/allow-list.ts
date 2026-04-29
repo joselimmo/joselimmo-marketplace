@@ -33,11 +33,15 @@ function levenshtein(a: string, b: string): number {
 }
 
 function findClosestMatch(field: string): string | undefined {
+  // Ties broken alphabetically (stable across future RECOGNIZED_FIELDS additions).
   let best: string | undefined;
   let bestDist = 3;
   for (const known of RECOGNIZED_FIELDS) {
     const d = levenshtein(field, known);
-    if (d < bestDist) {
+    if (
+      d < bestDist ||
+      (d === bestDist && best !== undefined && known < best)
+    ) {
       bestDist = d;
       best = known;
     }
@@ -63,7 +67,8 @@ export function scanAllowList(
     const fieldName = String(anyPair.key?.value ?? "");
     if (!fieldName) continue;
     if (RECOGNIZED_FIELDS.has(fieldName)) continue;
-    if (fieldName.startsWith("x-")) continue;
+    // `x-foo` is a valid extension namespace; bare `x-` (empty extension name) is malformed → W001.
+    if (fieldName.length > 2 && fieldName.startsWith("x-")) continue;
 
     const keyNode = anyPair.key;
     const line = keyNode?.range

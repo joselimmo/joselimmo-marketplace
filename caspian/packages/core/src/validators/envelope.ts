@@ -94,9 +94,19 @@ export async function validateEnvelope(
   const diagnostics: Diagnostic[] = [];
   const mappedPaths = new Set<string>();
 
+  // First pass: precedence detection. If any /type error favors E008
+  // (minLength or wrong-type), suppress E009 (pattern) regardless of
+  // ajv error iteration order.
+  const typeOwnedByE008 = errors.some(
+    (e) =>
+      e.instancePath === "/type" &&
+      (e.keyword === "minLength" || e.keyword === "type"),
+  );
+
   for (const err of errors) {
     const ip = err.instancePath;
     const kw = err.keyword;
+    let matched = false;
 
     // E008: root missing required "type"
     if (
@@ -104,6 +114,7 @@ export async function validateEnvelope(
       kw === "required" &&
       err.params?.missingProperty === "type"
     ) {
+      matched = true;
       if (!mappedPaths.has("E008")) {
         mappedPaths.add("E008");
         diagnostics.push({
@@ -114,14 +125,11 @@ export async function validateEnvelope(
           message: CASPIAN_E008.message,
         });
       }
-      continue;
     }
 
     // E008: type empty (minLength) or wrong type
-    if (
-      ip === "/type" &&
-      (kw === "minLength" || (kw === "type" && !mappedPaths.has("E009")))
-    ) {
+    else if (ip === "/type" && (kw === "minLength" || kw === "type")) {
+      matched = true;
       if (!mappedPaths.has("E008_type")) {
         mappedPaths.add("E008_type");
         diagnostics.push({
@@ -132,12 +140,12 @@ export async function validateEnvelope(
           message: CASPIAN_E008.message,
         });
       }
-      continue;
     }
 
-    // E009: type pattern mismatch — only if E008 not already emitted for /type
-    if (ip === "/type" && kw === "pattern" && !mappedPaths.has("E008_type")) {
-      if (!mappedPaths.has("E009")) {
+    // E009: type pattern mismatch — suppressed if any /type minLength|type error exists
+    else if (ip === "/type" && kw === "pattern") {
+      matched = true;
+      if (!typeOwnedByE008 && !mappedPaths.has("E009")) {
         mappedPaths.add("E009");
         diagnostics.push({
           code: CASPIAN_E009.code,
@@ -147,11 +155,11 @@ export async function validateEnvelope(
           message: CASPIAN_E009.message,
         });
       }
-      continue;
     }
 
     // E010: requires not array
-    if (ip === "/requires" && kw === "type") {
+    else if (ip === "/requires" && kw === "type") {
+      matched = true;
       if (!mappedPaths.has("E010")) {
         mappedPaths.add("E010");
         diagnostics.push({
@@ -162,15 +170,15 @@ export async function validateEnvelope(
           message: CASPIAN_E010.message,
         });
       }
-      continue;
     }
 
     // E011: requires entry missing "type"
-    if (
+    else if (
       /^\/requires\/\d+$/.test(ip) &&
       kw === "required" &&
       err.params?.missingProperty === "type"
     ) {
+      matched = true;
       const pathKey = `E011_${ip}`;
       if (!mappedPaths.has(pathKey)) {
         mappedPaths.add(pathKey);
@@ -182,11 +190,11 @@ export async function validateEnvelope(
           message: CASPIAN_E011.message,
         });
       }
-      continue;
     }
 
     // E012: requires entry has extra property
-    if (/^\/requires\/\d+$/.test(ip) && kw === "additionalProperties") {
+    else if (/^\/requires\/\d+$/.test(ip) && kw === "additionalProperties") {
+      matched = true;
       const extraProp = err.params?.additionalProperty as string | undefined;
       const pathKey = `E012_${ip}_${extraProp ?? ""}`;
       if (!mappedPaths.has(pathKey)) {
@@ -199,11 +207,11 @@ export async function validateEnvelope(
           message: CASPIAN_E012.message,
         });
       }
-      continue;
     }
 
     // E013: produces not object
-    if (ip === "/produces" && kw === "type") {
+    else if (ip === "/produces" && kw === "type") {
+      matched = true;
       if (!mappedPaths.has("E013")) {
         mappedPaths.add("E013");
         diagnostics.push({
@@ -214,15 +222,15 @@ export async function validateEnvelope(
           message: CASPIAN_E013.message,
         });
       }
-      continue;
     }
 
     // E014: produces missing "type"
-    if (
+    else if (
       ip === "/produces" &&
       kw === "required" &&
       err.params?.missingProperty === "type"
     ) {
+      matched = true;
       if (!mappedPaths.has("E014")) {
         mappedPaths.add("E014");
         diagnostics.push({
@@ -235,8 +243,20 @@ export async function validateEnvelope(
       }
     }
 
-    // Fallback for unexpected patterns (e.g., nested type checks inside requires entries)
-    // Silently skip — the primary errors above cover the canonical cases
+    // Fallback: unmapped ajv error → emit E008 with diagnostic info per AC2
+    // (deduped by ip+kw to avoid floods on degenerate inputs).
+    if (!matched) {
+      const fbKey = `E008_FB_${ip}_${kw}`;
+      if (!mappedPaths.has(fbKey)) {
+        mappedPaths.add(fbKey);
+        diagnostics.push({
+          code: CASPIAN_E008.code,
+          severity: CASPIAN_E008.severity,
+          line: nodeLineFromPath(raw, startLine, ip),
+          message: `${CASPIAN_E008.message} (unmapped: instancePath=${ip || "/"}, keyword=${kw})`,
+        });
+      }
+    }
   }
 
   return { diagnostics };

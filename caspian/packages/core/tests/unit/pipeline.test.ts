@@ -1,5 +1,7 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runPipeline } from "../../src/pipeline.js";
 import { FIXTURES_DIR, REPO_ROOT } from "../helpers/paths.js";
 
@@ -68,16 +70,49 @@ describe("pipeline orchestrator", () => {
     expect(diagnostics[0].code).toBe("CASPIAN-W001");
   });
 
-  it("stages 4–6 continue-and-collect — E009 + W001 both reported from same file", async () => {
-    // synthetic file: type is bare (E009) and has an unknown field (W001)
-    // We inline via runPipeline by passing a string buffer — use the vendor-namespaced W001 fixture
-    // which has valid type but unknown field, verifying stage 6 runs even when stage 4 is clean
+  it("stage 6 — vendor-namespaced unknown field still emits W001 (stage 4 clean)", async () => {
     const diagnostics = await runPipeline(
       fixture("invalid/W001-unknown-field/vendor-namespaced.md"),
     );
 
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0].code).toBe("CASPIAN-W001");
+  });
+
+  describe("stages 4–6 continue-and-collect (synthetic temp fixtures)", () => {
+    let tmpDir: string;
+
+    beforeAll(async () => {
+      tmpDir = await mkdtemp(path.join(tmpdir(), "caspian-cc-"));
+    });
+
+    afterAll(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it("W002 (non-core type) + W001 (unknown field) both fire on the same file", async () => {
+      const file = path.join(tmpDir, "w002-w001.md");
+      await writeFile(
+        file,
+        "---\ntype: bmad:epic\nschema_version: '0.1'\nweird_field: x\n---\n# body\n",
+      );
+
+      const diagnostics = await runPipeline(file);
+      const codes = diagnostics.map((d) => d.code).sort();
+      expect(codes).toEqual(["CASPIAN-W001", "CASPIAN-W002"]);
+    });
+
+    it("E008 (missing type) + W001 (unknown field) both fire on the same file", async () => {
+      const file = path.join(tmpDir, "e008-w001.md");
+      await writeFile(
+        file,
+        "---\nschema_version: '0.1'\nweird_field: x\n---\n# body\n",
+      );
+
+      const diagnostics = await runPipeline(file);
+      const codes = diagnostics.map((d) => d.code).sort();
+      expect(codes).toEqual(["CASPIAN-E008", "CASPIAN-W001"]);
+    });
   });
 
   it("REPO_ROOT helper resolves correctly", () => {

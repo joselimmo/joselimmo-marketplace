@@ -4,6 +4,7 @@
 # last_updated: 2026-04-27 (Story 2-3 moved backlog → ready-for-dev — pipeline stages 1-3 in @caspian-dev/core: byte-level (E001/E002) + frontmatter extraction (E004/E005) + YAML parse (E003/E006/E007) via yaml v2.x strict 1.2 safe-load + post-parse scans; orchestrator pipeline.ts; validateFile rewired; 7 fixtures from Story 1.6 as ground truth via tests/fixtures-runner.test.ts)
 # last_updated: 2026-04-28 (Story 2-4 moved in-progress → review — pipeline stages 4–6 fully implemented: validators/envelope.ts (E008–E014 via ajv, CST instanceof-based line derivation), validators/namespace.ts (W002/W003/W004), validators/allow-list.ts (W001 + inline Levenshtein suggestion); pipeline.ts TODO replaced; constants.ts + 3 new constants; fixture runner expanded 7→19 pairs; 89 tests pass; lint 41 files exit 0; all 10 cross-checks pass)
 # last_updated: 2026-04-28 (Story 2-3 moved review → done after BMad code-review; 1 patch applied (P1: add stage-3 short-circuit test to pipeline.test.ts — 44/44 tests pass); 4 deferred, 14 dismissed)
+# last_updated: 2026-04-29 (Story 2-4 moved review → done after BMad code-review; 9 patches applied across 4 files: P1 W003 typeof-string check, P2 E008/E009 two-pass dedup, P3 E008 fallback for unmapped ajv errors, P4 real continue-and-collect tests with mkdtemp temp fixtures, P5 W003 message format, D1 alphabetical Levenshtein tiebreaker, D2 case-fold namespace+name, D4 revert .claude/settings.local.json blanket bash patterns to targeted, D5 bare `x-` emits W001; 7 deferred, 11 dismissed; 91 tests pass / lint 41 files exit 0 / build / verify-codes-hash / ajv-validate-registry all green)
 # (last_updated also reflected in the YAML field below)
 # project: joselimmo-marketplace-bmad
 # project_key: NOKEY
@@ -40,7 +41,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-26
-last_updated: 2026-04-28
+last_updated: 2026-04-29
+# 2026-04-29: story 2-4 moved review → done after BMad code-review (9 patches applied: P1 W003 typeof check; P2 E008/E009 two-pass dedup; P3 E008 fallback for unmapped ajv errors; P4 real continue-and-collect tests via mkdtemp; P5 W003 message format for non-strings; D1 alphabetical Levenshtein tiebreaker; D2 case-fold namespace+name; D4 revert blanket Bash(git *)/Bash(gh pr *) to targeted entries; D5 bare `x-` emits W001 — across caspian/packages/core/src/validators/{envelope,namespace,allow-list}.ts + tests/unit/pipeline.test.ts + .claude/settings.local.json; 7 deferred (parseDocument try/catch, multiple parseDocument calls perf, as-any CST casts, Levenshtein boundary tests, duplicate-key dedup, complex-key coercion, fixtures-runner orphan-md detection); 11 dismissed; 91 tests / lint 41 files / build / verify-codes-hash / ajv-validate-registry all green)
 # 2026-04-28: story 2-4 moved ready-for-dev → in-progress (dev-story workflow)
 # 2026-04-28: story 2-4 moved backlog → ready-for-dev (create-story workflow; pipeline stages 4–6 in @caspian-dev/core — src/validators/{envelope,namespace,allow-list}.ts + RECOGNIZED_FIELDS (22-field set) / SUPPORTED_SCHEMA_VERSIONS / CANONICAL_CORE_NAMES constants; validateEnvelope (E008–E014 via ajv CST line derivation) + checkNamespace (W002/W003/W004) + scanAllowList (W001 + edit-distance suggestion); pipeline.ts TODO placeholder replaced; fixtures-runner expanded to 19 pairs; story file at _bmad-output/implementation-artifacts/2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list.md)
 # 2026-04-28: story 2-3 moved review → done after BMad code-review (1 patch applied: add stage-3 short-circuit test to pipeline.test.ts — 44/44 tests pass; 4 deferred, 14 dismissed)
@@ -112,7 +114,7 @@ development_status:
   2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: done
   2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: done
   2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: done
-  2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: review
+  2-4-pipeline-stages-4-6-caspian-core-envelope-namespace-allow-list: done
   2-5-caspian-cli-package-walker-multi-file-aggregation-human-formatter: backlog
   2-6-format-json-stable-schema-b4-golden-snapshots-verify-pack: backlog
   2-7-conformance-suite-3-layer-vendor-neutrality-enforcement: backlog

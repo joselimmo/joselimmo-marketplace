@@ -1,6 +1,6 @@
 # Story 2.4: Pipeline stages 4–6 in `@caspian-dev/core` (envelope + namespace + allow-list)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -513,6 +513,37 @@ Clean up synthetic temp files (cross-checks #6, #7) after capturing output.
 - [ ] **Task 12 — Final assembly**
   - [ ] `git status` — verify only expected files modified; no sealed files changed.
   - [ ] Update *Completion Notes List*, *File List*, *Change Log*.
+
+### Review Findings
+
+_Recorded by `bmad-code-review` on 2026-04-29 — 3 reviewer layers (Blind Hunter / Edge Case Hunter / Acceptance Auditor) → 39 raw → 18 after dedup + dismiss. **All resolved.**_
+
+**Decisions resolved:**
+
+- [x] [Review][Decision] D1 — Levenshtein tie-breaking policy → **(b) alphabetical** — applied in `allow-list.ts:findClosestMatch` (ties broken by `known < best` after equal distance).
+- [x] [Review][Decision] D2 — Case sensitivity for `core:` namespace and `CANONICAL_CORE_NAMES` → **(b) case-fold** — applied via `.toLowerCase()` on both namespace and name in `namespace.ts:checkNamespace`. Display message preserves original `typeValue` casing.
+- [x] [Review][Decision] D3 — Edge type values `":overview"`, `":"`, `"core:"` → **(a) accept double-diagnostic** — no code change; E009 (stage 4) + W002/W004 (stage 5) both fire as before.
+- [x] [Review][Decision] D4 — `.claude/settings.local.json` permissive bash entries → **(b) revert to targeted** — `Bash(git *)` and `Bash(gh pr *)` replaced with specific read-only patterns (`git status`, `git log`, `git show`, `gh pr view/list/diff`).
+- [x] [Review][Decision] D5 — Bare `x-` field → **(b) emit W001** — applied in `allow-list.ts` via `fieldName.length > 2 && fieldName.startsWith("x-")`.
+- [x] [Review][Decision] D6 — Uppercase `X-` prefix case-sensitivity → **(a) keep strict lowercase `x-`** — no code change.
+
+**Patches applied:**
+
+- [x] [Review][Patch] P1 — W003 numeric coercion bug fixed: branched on `typeof data.schema_version !== "string"` first; numeric `0.1` (unquoted YAML) now correctly emits W003. [`caspian/packages/core/src/validators/namespace.ts:79-90`]
+- [x] [Review][Patch] P2 — E008/E009 dedup made order-independent via two-pass approach: `typeOwnedByE008` flag computed in a first scan via `errors.some(...)`, used in the emission loop to suppress E009 unconditionally when any /type minLength|type error exists. [`caspian/packages/core/src/validators/envelope.ts:90-99`]
+- [x] [Review][Patch] P3 — E008 fallback for unmapped ajv errors: per-iteration `matched` flag; on `!matched`, emit E008 with `(unmapped: instancePath=..., keyword=...)` suffix in message, deduped via `mappedPaths` key `E008_FB_<ip>_<kw>`. [`caspian/packages/core/src/validators/envelope.ts:225-239`]
+- [x] [Review][Patch] P4 — Real continue-and-collect tests added in a `describe` block using `mkdtemp` + temp `.md` files: (1) W002 + W001 both fire on `type: bmad:epic\nweird_field: x`; (2) E008 + W001 both fire on missing-type + unknown-field. Misleading single-W001 test renamed for accuracy. [`caspian/packages/core/tests/unit/pipeline.test.ts:71-110`]
+- [x] [Review][Patch] P5 — W003 message format for non-string values: now uses `JSON.stringify(v)` for null/number/boolean values (e.g., `\`\`` becomes `null`, `0.1` displays correctly). Subsumed by P1's refactor. [`caspian/packages/core/src/validators/namespace.ts:80-89`]
+
+**Deferred (real but not actionable now):**
+
+- [x] [Review][Defer] DF1 — `parseDocument` re-parse can throw, no try/catch — defensive coding gap; risks D2 contract [`caspian/packages/core/src/validators/{envelope.ts:34, namespace.ts:26, allow-list.ts}`] — deferred, low likelihood (stage 3 already validated raw)
+- [x] [Review][Defer] DF2 — Multiple `parseDocument` calls per file (1× yaml.ts, 1–N× per validator on every error) [`validators/*.ts`] — deferred, already flagged as tech debt in Story 2.3 review; candidate for shared `src/utils/cst.ts` cache helper in future refactor
+- [x] [Review][Defer] DF3 — Heavy `as any` / biome-ignore casts in CST traversal instead of yaml v2 typed `Pair`/`Scalar` narrowing [`validators/*.ts`] — deferred, deliberate author choice with biome-ignore comments; refactor to typed access in a future hygiene story
+- [x] [Review][Defer] DF4 — Levenshtein boundary tests missing for `("", x)`, `(x, "")`, single-char inputs [`tests/unit/validators/allow-list.test.ts`] — deferred, function correctness verified via 22-field fixture corpus; pure unit boundaries are nice-to-have
+- [x] [Review][Defer] DF5 — Duplicate frontmatter keys not deduped at allow-list scan — yaml v2 with strict 1.2 should reject before stage 6 [`validators/{namespace.ts:25-39, allow-list.ts:60}`] — deferred, no observed leak path through stage 3
+- [x] [Review][Defer] DF6 — Complex YAML keys (sequence/map as key) coerce via `String(...)` and emit spurious W001 with stringified array as field name [`validators/allow-list.ts:60`] — deferred, exotic edge; YAML 1.2 frontmatter conventionally uses scalar keys only
+- [x] [Review][Defer] DF7 — `fixtures-runner.test.ts` silently skips `.md` files that lack a matching `.expected.json` — masks orphaned fixtures [`tests/fixtures-runner.test.ts:35-43`] — deferred, infra hardening; should fail loudly in a future test-infra story
 
 ## Dev Notes
 
