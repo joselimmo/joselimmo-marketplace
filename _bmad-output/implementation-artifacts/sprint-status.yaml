@@ -47,7 +47,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-26
-last_updated: 2026-04-30 (Story 2-8 moved review → done after BMad code-review; 2 patches applied: P1 NODE_AUTH_TOKEN + GITHUB_TOKEN on changesets/action in release.yml (+ NPM_TOKEN Automation Token added to joselimmo/caspian secrets); P2 resolveMode() .trim() on CASPIAN_DOCKER_GATE_MODE; 5 deferred, 12 dismissed; Phase 2 OIDC trusted publisher switch tracked post-first-publish)
+last_updated: 2026-04-30 (Story 2-9 moved backlog → ready-for-dev — create-story workflow; editorial cleanup of public-facing docs discovered during Story 2-8 BMad code-review — remove internal story/spec tracking labels from CHANGELOGs and READMEs before first npm publish; story file at _bmad-output/implementation-artifacts/2-9-editorial-cleanup-public-docs.md)
+# 2026-04-30 (Story 2-8 moved review → done after BMad code-review; 2 patches applied: P1 NODE_AUTH_TOKEN + GITHUB_TOKEN on changesets/action in release.yml (+ NPM_TOKEN Automation Token added to joselimmo/caspian secrets); P2 resolveMode() .trim() on CASPIAN_DOCKER_GATE_MODE; 5 deferred, 12 dismissed; Phase 2 OIDC trusted publisher switch tracked post-first-publish)
 # 2026-04-30 (Story 2-8 moved in-progress → review — dev-story workflow; 4 new files + 14 modified file paths under caspian/ + _bmad-output; new caspian/.github/workflows/release.yml shipping 14-step pre-publish gate matrix on Node 22.13 + pnpm 10.26.1 + ubuntu-latest + OIDC `id-token: write` + `registry-url` + `publishConfig.provenance: true` chain (no NPM_TOKEN); first changeset `caspian/.changeset/0001-initial-public-release.md` declaring both `@caspian-dev/{core,cli}` minor for the 0.0.1 → 0.1.0 first publish; new caspian/examples/ci-integration/{README.md, github-actions-snippet.yml} (FR36 3-line `npx @caspian-dev/cli@0.1.0 validate ./skills/` snippet, vendor-neutral, zero Claude Code references); both `package.json`s gain `repository: git+https://github.com/joselimmo/caspian.git` + `homepage: https://caspian.dev` + `bugs.url` + `keywords` arrays; `tsBuildInfoFile` relocated `./dist/.tsbuildinfo` → `./.tsbuildinfo` in both packages/{core,cli}/tsconfig.json (closes Story 2.1 deferred entry — `dist/.tsbuildinfo` no longer leaks); `published-files.snapshot.json` rebaselined 41 → 40 entries; `caspian/scripts/vendor-neutrality-docker.mjs` extended with `CASPIAN_DOCKER_GATE_MODE` env-var dispatch (`local-tarball` for pre-publish | `npx-published` for steady state, default), closing Story 2.7 D2; both READMEs gain a "See also" footer linking caspian.dev + diagnostics + sibling package; both CHANGELOGs gain a Story 2.8 `## Unreleased` bullet preserving prior bullets verbatim; 2 deliberate departures (lint auto-fix on `packages/core/tests/unit/validators/allow-list.test.ts` Story-2.4 string-concat carryover + `conformance/runner.mjs` Story-2.7-P1 ternary carryover — both required for AC18 lint-clean and outside the `packages/{core,cli}/src/` no-touch boundary); 4 Story-2.8 deferred items captured (D1 post-publish docker-gate verifiability / D2 provenance dry-run gap / D3 repository.url deep-link 404 until extraction / D4 homepage URL 404 until Epic 4); zero source mutation under packages/{core,cli}/src; zero new vitest tests; zero new runtime deps; smoke gate baselines: biome 66 files preserved / tests 133+1 skipped preserved / verify-pack 41 → 40 floor / registry sha256 hash header b303d139…e803c7 unchanged; all 22 ACs satisfied / all 14 cross-checks CC1-CC14 pass)
 # 2026-04-30: Story 2-8 moved ready-for-dev → in-progress — dev-story workflow
 # 2026-04-30: Story 2-8 amended post-create with confirmed destination repo `https://github.com/joselimmo/caspian` — concrete URLs replace `<org>` placeholders in AC4 + AC5 package.json `repository`/`bugs` + AC22 forward-reference semantics narrowed; repo extraction confirmed as operational step out of scope for Story 2.8
@@ -126,7 +127,7 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: CLI Validator & CI Integration
-  epic-2: done
+  epic-2: in-progress
   2-1-caspian-core-skeleton-envelope-schema-integration-loader-ts: done
   2-2-diagnostic-registry-typed-ts-constants-codes-generated-ts-sha256-verify-hash: done
   2-3-pipeline-stages-1-3-caspian-core-byte-level-frontmatter-extraction-yaml-parse: done
@@ -135,6 +136,7 @@ development_status:
   2-6-format-json-stable-schema-b4-golden-snapshots-verify-pack: done
   2-7-conformance-suite-3-layer-vendor-neutrality-enforcement: done
   2-8-npm-publish-with-provenance-examples-ci-integration: done
+  2-9-editorial-cleanup-public-docs: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Reference Workflow casper-core (Claude Code Plugin)
