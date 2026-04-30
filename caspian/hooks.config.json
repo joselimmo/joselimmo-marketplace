@@ -1,5 +1,0 @@
-{
-  "hooks": {
-    "pre-commit": "cd caspian && pnpm --filter @caspian-dev/core gen:codes && cd .. && git add caspian/packages/core/src/diagnostics/codes.generated.ts"
-  }
-}
