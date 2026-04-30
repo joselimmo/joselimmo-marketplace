@@ -1,6 +1,6 @@
 # Story 2.8: npm publish with provenance + `examples/ci-integration/`
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -904,6 +904,16 @@ claude-opus-4-7[1m]
 
 - 2026-04-30: Story 2.8 file created (create-story workflow). Status: backlog → ready-for-dev. First public npm release (`@caspian-dev/{core,cli}@0.1.0`) with provenance, examples/ci-integration/ shipping, Story 2.1 + Story 2.7 D2 deferred items closed, 22 ACs, 14 tasks, no source mutation under `packages/{core,cli}/src`.
 - 2026-04-30: Story 2.8 amended (post-create) to reflect confirmed destination repo `https://github.com/joselimmo/caspian` (currently empty). Concrete URLs replace `<org>` placeholders in AC4 (`@caspian-dev/cli` package.json `repository` + `bugs`), AC5 (`@caspian-dev/core` same), AC22 (forward-reference URL semantics narrowed: only `homepage`/`caspian.dev` is a true forward reference; `repository` and `bugs` resolve immediately on the existing-but-empty destination repo). Working Directory section + Background + dev-guardrails + AC1 implementation note updated to clarify that the repo extraction is an operational step owned by the user (sequenced after story `done`), not part of Story 2.8's scope.
+### Review Findings
+
+- [x] [Review][Decision] D1 — OIDC trusted publisher mode: `release.yml` has no `NODE_AUTH_TOKEN` on `changesets/action`; relies on npm OIDC trusted publisher for authentication. Requires npmjs.com configuration of both packages as trusted publishers before first publish. Without this setup `pnpm release` will 401. Confirm operational setup is tracked. [caspian/.github/workflows/release.yml] — RESOLVED: added `GITHUB_TOKEN` + `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` to changesets/action env; NPM_TOKEN Automation Token added to joselimmo/caspian secrets; post-publish, switch to pure OIDC trusted publisher (Phase 2)
+- [x] [Review][Patch] P1 — `resolveMode()` missing `.trim()`: a whitespace-padded `CASPIAN_DOCKER_GATE_MODE` value (e.g. `" npx-published"`) exits 2 instead of matching the expected value [caspian/scripts/vendor-neutrality-docker.mjs:65] — PATCHED
+- [x] [Review][Defer] Def1 — npm propagation lag after publish: `npx-published` docker gate runs immediately post-publish and may hit a 404 if the registry mirror hasn't propagated yet; no retry logic present [caspian/.github/workflows/release.yml:87-91] — deferred, known chicken-and-egg, Story 2.8 D1 already captures this
+- [x] [Review][Defer] Def2 — strict-warnings bash pipeline in README example lacks `set -o pipefail`; without it, caspian's exit code is masked if the pipeline reaches `jq` [caspian/examples/ci-integration/README.md:68-70] — deferred, edge case requiring caspian to emit valid JSON while exiting non-zero
+- [x] [Review][Defer] Def3 — `npx-published` docker gate tests only `fixtures/valid/`; invalid fixtures not exercised against the live published artifact [caspian/scripts/vendor-neutrality-docker.mjs:53] — deferred, pre-existing design limit (conformance suite covers this separately)
+- [x] [Review][Defer] Def4 — `@caspian-dev/cli@0.1.0` pin in snippet/README doesn't exist on npm until the release PR merges; early adopters who copy the snippet before release get a 404 [caspian/examples/ci-integration/github-actions-snippet.yml:17] — deferred, documented acceptance (AC10 notes pin is updated in release PR)
+- [x] [Review][Defer] Def5 — `node-version: '22'` floating pin in snippet vs `22.13.0` pinned in `release.yml`; snippet's CI behavior may diverge from tested configuration on Node patch releases [caspian/examples/ci-integration/github-actions-snippet.yml:14] — deferred, intentional choice (README advises pinning to 22.13.x)
+
 - 2026-04-30: Story 2.8 implemented (dev-story workflow). Status: ready-for-dev → in-progress → review.
   - **4 new files + 14 modified files = 18 file paths touched.** New: `caspian/.changeset/0001-initial-public-release.md`, `caspian/.github/workflows/release.yml`, `caspian/examples/ci-integration/{README.md, github-actions-snippet.yml}`. Modified: both `package.json`s (added `repository`/`homepage`/`bugs`/`keywords`), both `tsconfig.json`s (`tsBuildInfoFile` relocated outside `dist/`), `published-files.snapshot.json` (41 → 40 entries), both READMEs (caspian.dev See-also footer), both CHANGELOGs (Story 2.8 bullet on `## Unreleased`), `scripts/vendor-neutrality-docker.mjs` (env-var dispatch + `npx-published` mode), two pre-existing lint auto-fixes carried as side-effects (`packages/core/tests/unit/validators/allow-list.test.ts`, `conformance/runner.mjs`), `deferred-work.md` (Resolutions log section), `sprint-status.yaml` (status flips).
   - All 22 ACs satisfied. All 14 cross-checks (CC1–CC14) pass.

@@ -61,7 +61,7 @@ const CLI_PACKAGE_JSON_PATH = path.join(
 const VALID_MODES = new Set(["npx-published", "local-tarball"]);
 
 function resolveMode() {
-  const raw = process.env.CASPIAN_DOCKER_GATE_MODE;
+  const raw = process.env.CASPIAN_DOCKER_GATE_MODE?.trim();
   if (raw === undefined || raw === "") return "npx-published";
   if (!VALID_MODES.has(raw)) {
     process.stderr.write(
