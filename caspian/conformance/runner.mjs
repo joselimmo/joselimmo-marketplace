@@ -182,7 +182,9 @@ function evaluateCase(validatorPath, caseDir) {
   const ran = runValidator(validatorPath, inputMd);
   const actual = extractActualCodes(ran.stdout);
   if (actual === null) {
-    const stderrHint = ran.stderr.trim() ? ` (stderr: ${ran.stderr.trim()})` : "";
+    const stderrHint = ran.stderr.trim()
+      ? ` (stderr: ${ran.stderr.trim()})`
+      : "";
     return {
       caseDir,
       pass: false,

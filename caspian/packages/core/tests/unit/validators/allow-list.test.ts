@@ -9,30 +9,29 @@ describe("scanAllowList — stage 6", () => {
   });
 
   it("no W001 for all 22 recognized fields", () => {
-    const raw =
-      [
-        'schema_version: "0.1"',
-        "type: core:overview",
-        "name: x",
-        "description: x",
-        "license: Apache-2.0",
-        "allowed-tools:",
-        "  - Read",
-        "metadata: {}",
-        "compatibility: {}",
-        "when_to_use: x",
-        "argument-hint: x",
-        "arguments: []",
-        'disable-model-invocation: "false"',
-        'user-invocable: "true"',
-        "model: x",
-        "effort: low",
-        "context: []",
-        "agent: x",
-        "hooks: {}",
-        "paths: []",
-        'shell: "false"',
-      ].join("\n") + "\n";
+    const raw = `${[
+      'schema_version: "0.1"',
+      "type: core:overview",
+      "name: x",
+      "description: x",
+      "license: Apache-2.0",
+      "allowed-tools:",
+      "  - Read",
+      "metadata: {}",
+      "compatibility: {}",
+      "when_to_use: x",
+      "argument-hint: x",
+      "arguments: []",
+      'disable-model-invocation: "false"',
+      'user-invocable: "true"',
+      "model: x",
+      "effort: low",
+      "context: []",
+      "agent: x",
+      "hooks: {}",
+      "paths: []",
+      'shell: "false"',
+    ].join("\n")}\n`;
     const { diagnostics } = scanAllowList(raw, 1);
     expect(diagnostics).toHaveLength(0);
   });

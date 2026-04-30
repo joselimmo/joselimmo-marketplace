@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ./caspian
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+          cache-dependency-path: caspian/pnpm-lock.yaml
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (biome)
+        run: pnpm lint
+
+      - name: Vendor-neutrality (source-level — dependency-cruiser)
+        run: pnpm depcruise
+
+      - name: Verify diagnostic codes hash
+        run: pnpm verify-codes-hash
+
+      - name: Test (vitest, all packages)
+        run: pnpm test
+
+      - name: Validate diagnostic registry against schema (ajv)
+        run: pnpm ajv-validate-registry
+
+      - name: Verify published-files snapshot
+        run: pnpm verify-pack
+
+      - name: Vendor-neutrality (lockfile-level — claude/anthropic audit)
+        run: pnpm audit-vendor-neutrality
+
+      - name: Build (tsc + copy-schemas + gen-version)
+        run: pnpm build
+
+      - name: Conformance suite (CLI dog-foods conformance/runner.mjs)
+        run: pnpm conformance
+
+      - name: Vendor-neutrality (runtime-level — docker pre-publish gate)
+        env:
+          CASPIAN_DOCKER_GATE_MODE: local-tarball
+        run: pnpm vendor-neutrality:docker
+
+      - name: Compose release PR or publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          cwd: ./caspian
+          version: pnpm changeset version
+          publish: pnpm release
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+
+      - name: Vendor-neutrality (runtime-level — docker post-publish verification)
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          CASPIAN_DOCKER_GATE_MODE: npx-published
+        run: pnpm vendor-neutrality:docker

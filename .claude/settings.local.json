@@ -102,7 +102,10 @@
       "Read(//f/f/work/joselimmo-marketplace-bmad/caspian/**)",
       "Read(//f/f/work/joselimmo-marketplace-bmad/caspian/conformance/**)",
       "Bash(tasklist)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"Validator exit on failure: $?\")",
+      "Bash(CASPIAN_DOCKER_GATE_MODE=local-tarball pnpm vendor-neutrality:docker)"
     ]
   }
 }

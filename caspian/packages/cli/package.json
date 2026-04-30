@@ -11,6 +11,25 @@
   "bin": {
     "caspian": "./dist/cli.js"
   },
+  "homepage": "https://caspian.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joselimmo/caspian.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/joselimmo/caspian/issues"
+  },
+  "keywords": [
+    "caspian",
+    "agent-skills",
+    "agentskills",
+    "validator",
+    "cli",
+    "frontmatter",
+    "claude-code",
+    "json-schema"
+  ],
   "files": [
     "dist/",
     "README.md",

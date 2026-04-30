@@ -3,7 +3,6 @@
     { "path": "CHANGELOG.md" },
     { "path": "LICENSE" },
     { "path": "README.md" },
-    { "path": "dist/.tsbuildinfo" },
     { "path": "dist/cli.d.ts" },
     { "path": "dist/cli.d.ts.map" },
     { "path": "dist/cli.js" },

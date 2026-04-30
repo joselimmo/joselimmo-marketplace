@@ -103,6 +103,12 @@ caspian validate --format=json ./skills/ | jq -e '.summary.errors == 0 and .summ
 
 `jq -e` exits non-zero when the predicate evaluates to `false`, propagating a failing exit code to the surrounding CI step.
 
+## See also
+
+- [Caspian spec landing](https://caspian.dev) — 30-second pitch + 4-line frontmatter quickstart.
+- [Diagnostic codes reference](https://caspian.dev/diagnostics) — every `CASPIAN-EXXX` / `CASPIAN-WXXX` code with its rule, rationale, and stable anchor.
+- [`@caspian-dev/core`](https://www.npmjs.com/package/@caspian-dev/core) — the validation library this CLI wraps.
+
 ## License
 
 Apache-2.0. See `LICENSE`.

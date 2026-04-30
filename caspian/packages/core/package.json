@@ -14,6 +14,25 @@
     ".": "./dist/index.js",
     "./diagnostics": "./dist/diagnostics/index.js"
   },
+  "homepage": "https://caspian.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joselimmo/caspian.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/joselimmo/caspian/issues"
+  },
+  "keywords": [
+    "caspian",
+    "agent-skills",
+    "agentskills",
+    "validator",
+    "frontmatter",
+    "claude-code",
+    "json-schema",
+    "yaml"
+  ],
   "files": [
     "dist/",
     "README.md",

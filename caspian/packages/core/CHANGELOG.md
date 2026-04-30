@@ -46,3 +46,9 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   release-gate (`scripts/vendor-neutrality-docker.mjs`, wired into `release.yml`
   by Story 2.8). No source change in this story; the boundary is enforced by
   external tooling.
+- Story 2.8: First public npm release as `@caspian-dev/core@0.1.0` with
+  provenance attestation. Published alongside `@caspian-dev/cli@0.1.0` from the
+  same `release.yml` run via GitHub Actions OIDC + Sigstore. `dist/.tsbuildinfo`
+  excluded from the published tarball (`tsBuildInfoFile` relocated outside
+  `dist/`). `package.json` gains `repository`/`homepage`/`bugs`/`keywords`
+  metadata fields. No source change; this story is process / infra.

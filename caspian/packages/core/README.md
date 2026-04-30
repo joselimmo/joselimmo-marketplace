@@ -65,6 +65,12 @@ enforced by three independent mechanisms (architecture step-04
 3. CI audit `grep -rn "envelope.schema" packages/core/src` returns
    exactly one match.
 
+## See also
+
+- [Caspian spec landing](https://caspian.dev) — 30-second pitch + 4-line frontmatter quickstart.
+- [Diagnostic codes reference](https://caspian.dev/diagnostics) — every `CASPIAN-EXXX` / `CASPIAN-WXXX` code with its rule and rationale.
+- [`@caspian-dev/cli`](https://www.npmjs.com/package/@caspian-dev/cli) — the CLI wrapper that exposes this library as the `caspian` binary.
+
 ## License
 
 Apache-2.0 — see [`./LICENSE`](./LICENSE).
