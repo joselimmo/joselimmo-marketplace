@@ -1,6 +1,6 @@
 # Story 2.7: Conformance suite + 3-layer vendor-neutrality enforcement
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -610,6 +610,21 @@ pnpm conformance
   - [x] 13.1: `_bmad-output/implementation-artifacts/sprint-status.yaml`: `2-7-conformance-suite-3-layer-vendor-neutrality-enforcement` flipped `backlog` → `ready-for-dev` (create-story) → `in-progress` (dev-story start) → `review` (dev-story end).
   - [x] 13.2: `last_updated` comment line appended documenting each transition.
   - [x] 13.3: PR opening deferred to the user; conventional commit message `feat(Story 2.7): conformance suite + 3-layer vendor-neutrality enforcement` recommended.
+
+### Review Findings
+
+- [x] [Review][Defer] CI workflow at `caspian/.github/` inactive until `caspian/` is extracted to its own repository — `caspian/.github/workflows/ci.yml` is nested under `caspian/`; GitHub Actions reads only `.github/workflows/` at the repo root. Decision (2026-04-30): intentional — `caspian/` will be its own GitHub remote by Story 2.8 (npm publish). CI becomes active at extraction. [`caspian/.github/workflows/ci.yml`] — deferred, pre-existing by design
+
+- [x] [Review][Patch] Validator stderr not surfaced in conformance failure reason — `evaluateCase` captures `ran.stderr` but never includes it in the FAIL reason string, making "validator emitted non-JSON stdout" hard to debug [`conformance/runner.mjs` — `evaluateCase`]
+
+- [x] [Review][Defer] runner.mjs invokes validator via `node <path>` instead of `<path>` directly (AC3/AC7) [`conformance/runner.mjs:106-108`] — deferred, pre-existing v1.0 Node-only limitation; runner will need direct binary invocation for v1.1+ non-Node validators
+- [x] [Review][Defer] spawnSync null status on signal-kill gives misleading "non-JSON stdout" reason [`conformance/runner.mjs` — `runValidator`] — deferred, functionally correct (case fails); only error-message quality
+- [x] [Review][Defer] dockerAvailable uses `shell: true` but runDockerGate uses `shell: false` on Windows [`scripts/vendor-neutrality-docker.mjs`] — deferred, tested working on Docker 28.0.1 Windows; primarily a release-gate script (Story 2.8)
+- [x] [Review][Defer] renderReport template injection — validator `--version` output containing `{{cases_table}}` would expand into the version field [`conformance/runner.mjs` — `renderReport`] — deferred, theoretical only for a trusted v1.0 CLI validator
+- [x] [Review][Defer] loadExpectedCodes maps missing `code` field to `undefined`, producing misleading failure reason [`conformance/runner.mjs` — `loadExpectedCodes`] — deferred, all 18 committed cases correct; only affects manually malformed expected.json
+- [x] [Review][Defer] maxBuffer not set in runPnpmLs — silently truncates on large lockfiles (current tree: 27 packages) [`scripts/audit-lockfile-vendor-neutrality.mjs`] — deferred, low real-world risk
+- [x] [Review][Defer] writeFileSync(REPORT_PATH) uncaught — disk-full or unwritable path gives opaque Node stack trace [`conformance/runner.mjs` — `main`] — deferred, very low real-world risk
+- [x] [Review][Defer] VENDOR_REGEX could false-positive on packages named `claude-*`/`anthropic-*` not from Anthropic [`scripts/audit-lockfile-vendor-neutrality.mjs`] — deferred, theoretical dep-name collision; zero risk with current `@caspian-dev/*` dep tree
 
 ## Dev Notes
 
