@@ -7,7 +7,7 @@ Gate your repository's pull requests on Caspian frontmatter conformance with a c
 - A PR check that runs `caspian validate` against your skill files on every pull request.
 - Default semantics: **fail the PR on any error diagnostic** (warnings tolerated).
 - Optional **strict-warnings gate**: fail the PR on warnings as well.
-- Vendor-neutral: runs on stock Node 22 in any GitHub Actions runner; no host-specific runtime or extension shims required (NFR17, NFR20).
+- Vendor-neutral: runs on stock Node 22 in any GitHub Actions runner; no host-specific runtime or extension shims required.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ jobs:
         shell: bash
 ```
 
-The validation step is exactly three YAML lines (`- name`, `  run`, `  shell`) per FR36; the `actions/checkout` and `actions/setup-node` steps are standard GitHub Actions boilerplate.
+The validation step is exactly three YAML lines (`- name`, `  run`, `  shell`); the `actions/checkout` and `actions/setup-node` steps are standard GitHub Actions boilerplate.
 
 ## Default exit semantics (errors-only gate)
 
@@ -80,11 +80,11 @@ When you bump the pin, re-run the snippet locally first (`npx @caspian-dev/cli@<
 
 ## Vendor-neutrality notice
 
-This snippet contains zero references to any vendor-bound runtime. The Caspian CLI is published as a standard npm package and runs on any Node ≥ 22 host. The package's vendor-neutrality is mechanically enforced (source-level dependency-cruiser rule + lockfile audit + `node:22-alpine` runtime release gate) — see the project [README](../../README.md) and `architecture.md:715-721`.
+This snippet contains zero references to any vendor-bound runtime. The Caspian CLI is published as a standard npm package and runs on any Node ≥ 22 host. The package's vendor-neutrality is mechanically enforced (source-level dependency-cruiser rule + lockfile audit + `node:22-alpine` runtime release gate) — see the project [README](../../README.md).
 
 ## Offline operation
 
-After the first `npx` fetch (cached by `actions/setup-node`'s `cache: pnpm`-equivalent or by GitHub Actions' default npm cache on subsequent runs), `caspian validate` performs **zero network I/O** at validate time (NFR20). All schemas are bundled with the package; doc-URL emission is local string concatenation.
+After the first `npx` fetch (cached by `actions/setup-node`'s `cache: pnpm`-equivalent or by GitHub Actions' default npm cache on subsequent runs), `caspian validate` performs **zero network I/O** at validate time. All schemas are bundled with the package; doc-URL emission is local string concatenation.
 
 ## Troubleshooting
 
@@ -97,4 +97,4 @@ After the first `npx` fetch (cached by `actions/setup-node`'s `cache: pnpm`-equi
 
 - [`../minimal-skill-adoption/`](../minimal-skill-adoption/) — the 4-line frontmatter delta to add Caspian to an existing Anthropic SKILL.md.
 - [`../../packages/cli/README.md`](../../packages/cli/README.md) — full CLI surface reference (install, exit codes, JSON schema).
-- [Caspian spec landing](https://caspian.dev) (Epic 4 — link goes live when the site ships).
+- [Caspian spec landing](https://caspian.dev) — domain reserved; landing site under development.

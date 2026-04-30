@@ -6,13 +6,13 @@ Protocol. Implements the validation pipeline that the Caspian CLI
 (LSP, CI ajv layer, runtime hook, install-time validator) consume.
 
 This package contains pure validation logic with no CLI surface. The
-`caspian` binary lives in [`@caspian-dev/cli`](../cli/) (Story 2.5+).
+`caspian` binary lives in [`@caspian-dev/cli`](../cli/).
 
 ## Status
 
-Pre-1.0 — public API is stabilizing across Epic 2. The first published
-version is `0.1.0`, shipped from Story 2.8. The semver promise applies
-from `1.0.0` onward.
+Pre-1.0 — the first published version is `0.1.0`. The semver promise
+(stable public API, semver-compatible releases) applies from `1.0.0`
+onward.
 
 ## Public API surface
 

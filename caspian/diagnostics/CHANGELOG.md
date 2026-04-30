@@ -32,5 +32,4 @@ maintained at release time, not enforced by tooling.
   `core-namespace-name-not-in-vocabulary`): emitted when `type` uses the
   canonical `core:` namespace but the name is not one of the 11 canonical
   core names. Resolves the forward-reference promised by `spec/core.md`
-  line 82 and originally scoped to Story 1.5; carried out as a post-Epic 1
-  spike (Story 1.8) per the Epic 1 retrospective action item AI-1.
+  line 82.

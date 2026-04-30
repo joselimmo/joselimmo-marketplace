@@ -1,16 +1,16 @@
 # @caspian-dev/core changelog
 
 This file tracks `@caspian-dev/core` semver. Decoupled from spec-level
-semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
-(`caspian/packages/cli/CHANGELOG.md`, Story 2.5).
+semver (see `caspian/spec/CHANGELOG.md`) and from the CLI semver
+(see `caspian/packages/cli/CHANGELOG.md`).
 
 ## Unreleased
 
 - Initial package skeleton: ESM `@caspian-dev/core` with the canonical
   schema-loading entry point (`loader.ts`), 3-verrou single-source-of-truth
   enforcement, ajv 2020-12 envelope schema registration, and stub
-  `validateFile(path)` public API. Pipeline stages 1–6 land in Stories
-  2.3–2.4.
+  `validateFile(path)` public API. Pipeline stages 1–6 implement the full
+  validation path.
 - Diagnostic registry → typed TS constants (`codes.generated.ts`, 18 entries
   derived from `caspian/diagnostics/registry.json`) with sha256 header (`// Hash:
   <hex>`) and `verify-codes-hash` CI gate. Adds `ajv-validate-registry` CI gate
@@ -34,21 +34,21 @@ semver (`caspian/spec/CHANGELOG.md`, Story 5.2) and from the CLI semver
   `CANONICAL_CORE_NAMES`. Fixture runner expanded from 7 (E001–E007) to 19
   (E001–E014 + W001–W004) pairs.
 - Additive export `DIAGNOSTIC_DEFINITIONS: readonly DiagnosticDefinition[]` from
-  `@caspian-dev/core/diagnostics` (Story 2.6). Canonical iteration source for
-  downstream consumers; closes Story 2.5 deferred item D2 (replaces export-shape
-  duck-typing in the CLI's doc-URL lookup). The registry sha256 header in
-  `codes.generated.ts` is unchanged because the hash is computed over
-  `caspian/diagnostics/registry.json` bytes, not over the generator output.
-- Story 2.7: vendor-neutrality of `@caspian-dev/core` is now mechanically
-  enforced by `dependency-cruiser` (source-level lint at `packages/cli/.dependency-cruiser.cjs`)
+  `@caspian-dev/core/diagnostics`. Canonical iteration source for downstream
+  consumers (replaces export-shape duck-typing in the CLI's doc-URL lookup).
+  The registry sha256 header in `codes.generated.ts` is unchanged because the
+  hash is computed over `caspian/diagnostics/registry.json` bytes, not over
+  the generator output.
+- Vendor-neutrality of `@caspian-dev/core` is mechanically enforced by
+  `dependency-cruiser` (source-level lint at `packages/cli/.dependency-cruiser.cjs`)
   + lockfile audit (`scripts/audit-lockfile-vendor-neutrality.mjs` rejecting any
   resolved transitive matching `claude` or `anthropic`) + docker runtime
   release-gate (`scripts/vendor-neutrality-docker.mjs`, wired into `release.yml`
-  by Story 2.8). No source change in this story; the boundary is enforced by
+  for the v0.1.0 publish). No source change; the boundary is enforced by
   external tooling.
-- Story 2.8: First public npm release as `@caspian-dev/core@0.1.0` with
-  provenance attestation. Published alongside `@caspian-dev/cli@0.1.0` from the
-  same `release.yml` run via GitHub Actions OIDC + Sigstore. `dist/.tsbuildinfo`
+- First public npm release as `@caspian-dev/core@0.1.0` with provenance
+  attestation. Published alongside `@caspian-dev/cli@0.1.0` from the same
+  `release.yml` run via GitHub Actions OIDC + Sigstore. `dist/.tsbuildinfo`
   excluded from the published tarball (`tsBuildInfoFile` relocated outside
   `dist/`). `package.json` gains `repository`/`homepage`/`bugs`/`keywords`
-  metadata fields. No source change; this story is process / infra.
+  metadata fields. No source change; this release is process / infra.
